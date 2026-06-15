@@ -72,6 +72,13 @@ npm run dev
   order is sent.
 - Secrets are read only from `.env` (git-ignored). Never hardcode keys.
 
+## Documentation
+
+- **Developer docs** (architecture, API, modules, dev log): [`docs/`](./docs/README.md) — diagrams
+  render on GitHub.
+- **End-user manual** (illustrated, 圖文並茂): run the frontend and open
+  [`/manual`](http://localhost:3000/manual).
+
 ## Notes
 
 - Technical indicators use the [`ta`](https://github.com/bukosabino/ta) library (stable under
