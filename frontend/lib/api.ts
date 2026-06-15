@@ -148,6 +148,25 @@ export interface CompareRequest {
   position_fraction?: number;
 }
 
+export interface OptimizeRow {
+  params: Record<string, number>;
+  total_return_pct: number;
+  num_trades: number;
+  win_rate: number;
+  max_drawdown_pct: number;
+  error: string | null;
+}
+
+export interface OptimizeRequest {
+  symbol: string;
+  market?: string;
+  timeframe?: string;
+  limit?: number;
+  strategy: string;
+  param_grid: Record<string, number[]>;
+  metric?: string;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     headers: { "Content-Type": "application/json" },
@@ -188,6 +207,8 @@ export const api = {
     request<BacktestResult>("/api/backtest", { method: "POST", body: JSON.stringify(req) }),
   compareStrategies: (req: CompareRequest) =>
     request<CompareRow[]>("/api/backtest/compare", { method: "POST", body: JSON.stringify(req) }),
+  optimize: (req: OptimizeRequest) =>
+    request<OptimizeRow[]>("/api/backtest/optimize", { method: "POST", body: JSON.stringify(req) }),
   createWorkflow: (name: string, graph: WorkflowGraph) =>
     request<Workflow>("/api/workflows", { method: "POST", body: JSON.stringify({ name, graph }) }),
   listWorkflows: () => request<Workflow[]>("/api/workflows"),

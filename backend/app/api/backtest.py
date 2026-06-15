@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from app.backtest.engine import BacktestResult, run_backtest
+from app.backtest.optimize import OptimizeRow, grid_search
 from app.brokers.registry import get_data_broker
 from app.schemas import MarketKind
 from app.strategies.registry import STRATEGIES, build_strategy
@@ -92,6 +93,41 @@ def compare(req: CompareRequest) -> list[CompareRow]:
             )
     rows.sort(key=lambda r: r.total_return_pct, reverse=True)
     return rows
+
+
+class OptimizeRequest(BaseModel):
+    symbol: str
+    market: MarketKind = MarketKind.crypto
+    timeframe: str = "1h"
+    limit: int = Field(default=500, ge=10, le=1000)
+    strategy: str = "ma_cross"
+    param_grid: dict[str, list] = Field(default_factory=dict)
+    metric: str = "total_return_pct"
+    starting_cash: float = 100_000.0
+    position_fraction: float = 1.0
+    max_combinations: int = Field(default=200, ge=1, le=500)
+
+
+@router.post("/optimize", response_model=list[OptimizeRow])
+def optimize(req: OptimizeRequest) -> list[OptimizeRow]:
+    """Grid-search a strategy's parameters over the symbol's history; ranked best-first."""
+    try:
+        candles = get_data_broker(req.market).get_ohlcv(req.symbol, req.timeframe, req.limit)
+        return grid_search(
+            candles,
+            req.strategy,
+            req.param_grid,
+            metric=req.metric,
+            starting_cash=req.starting_cash,
+            position_fraction=req.position_fraction,
+            max_combinations=req.max_combinations,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    except NotImplementedError as exc:
+        raise HTTPException(status_code=501, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"{type(exc).__name__}: {exc}")
 
 
 @router.post("", response_model=BacktestResult)

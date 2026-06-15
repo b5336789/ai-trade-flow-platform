@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { api, type BacktestResult, type CompareRow, type EquityPoint } from "@/lib/api";
-import { STRATEGY_NAMES, STRATEGY_PARAMS } from "@/lib/strategies";
+import { api, type BacktestResult, type CompareRow, type EquityPoint, type OptimizeRow } from "@/lib/api";
+import { OPTIMIZE_GRID, STRATEGY_NAMES, STRATEGY_PARAMS } from "@/lib/strategies";
 
 function Sparkline({ points }: { points: EquityPoint[] }) {
   if (points.length < 2) return null;
@@ -35,6 +35,7 @@ export function BacktestPanel() {
   const [params, setParams] = useState<Record<string, number>>({ ...STRATEGY_PARAMS.ma_cross });
   const [result, setResult] = useState<BacktestResult | null>(null);
   const [comparison, setComparison] = useState<CompareRow[] | null>(null);
+  const [optimization, setOptimization] = useState<OptimizeRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -43,11 +44,30 @@ export function BacktestPanel() {
     setParams({ ...STRATEGY_PARAMS[name] });
   }
 
-  async function run() {
-    setLoading(true);
-    setError(null);
+  function resetOutputs() {
     setResult(null);
     setComparison(null);
+    setOptimization(null);
+    setError(null);
+  }
+
+  async function optimize() {
+    setLoading(true);
+    resetOutputs();
+    try {
+      setOptimization(
+        await api.optimize({ symbol, strategy, param_grid: OPTIMIZE_GRID[strategy], timeframe: "1h", limit: 500 }),
+      );
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function run() {
+    setLoading(true);
+    resetOutputs();
     try {
       setResult(await api.backtest({ symbol, strategy, params, timeframe: "1h", limit: 500 }));
     } catch (e) {
@@ -59,9 +79,7 @@ export function BacktestPanel() {
 
   async function compare() {
     setLoading(true);
-    setError(null);
-    setResult(null);
-    setComparison(null);
+    resetOutputs();
     try {
       setComparison(await api.compareStrategies({ symbol, timeframe: "1h", limit: 500 }));
     } catch (e) {
@@ -117,6 +135,13 @@ export function BacktestPanel() {
         >
           Compare all
         </button>
+        <button
+          onClick={optimize}
+          disabled={loading}
+          className="rounded bg-amber-600 px-3 py-1 text-sm font-medium hover:bg-amber-500 disabled:opacity-50"
+        >
+          Optimize
+        </button>
       </div>
 
       {error && <p className="text-sm text-red-400">Backtest error: {error}</p>}
@@ -131,6 +156,58 @@ export function BacktestPanel() {
             <Metric label="Trades" value={`${result.num_trades} (${result.win_rate.toFixed(0)}% win)`} />
           </div>
         </div>
+      )}
+
+      {optimization && (
+        <table className="w-full text-left text-xs">
+          <thead className="text-neutral-500">
+            <tr>
+              <th className="py-1">Params</th>
+              <th>Return</th>
+              <th>Max DD</th>
+              <th>Trades</th>
+              <th>Win%</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {optimization.slice(0, 10).map((r, i) => (
+              <tr key={i} className="border-t border-neutral-800">
+                <td className="py-1 font-mono">
+                  {i === 0 && !r.error ? "🏆 " : ""}
+                  {Object.entries(r.params)
+                    .map(([k, v]) => `${k}=${v}`)
+                    .join(", ")}
+                </td>
+                {r.error ? (
+                  <td colSpan={5} className="text-red-400">
+                    {r.error}
+                  </td>
+                ) : (
+                  <>
+                    <td className={r.total_return_pct >= 0 ? "text-green-400" : "text-red-400"}>
+                      {pct(r.total_return_pct)}
+                    </td>
+                    <td className="text-red-400">{pct(-r.max_drawdown_pct)}</td>
+                    <td>{r.num_trades}</td>
+                    <td>{r.win_rate.toFixed(0)}%</td>
+                    <td>
+                      <button
+                        onClick={() => {
+                          setParams({ ...(r.params as Record<string, number>) });
+                          setOptimization(null);
+                        }}
+                        className="text-indigo-400 hover:underline"
+                      >
+                        use
+                      </button>
+                    </td>
+                  </>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
       )}
 
       {comparison && (
