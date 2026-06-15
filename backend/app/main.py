@@ -2,12 +2,22 @@
 
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import markets
+from app.api import markets, orders
+from app.db import init_db
 
-app = FastAPI(title="ai-trade-flow-platform", version="0.1.0")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_db()
+    yield
+
+
+app = FastAPI(title="ai-trade-flow-platform", version="0.1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -17,6 +27,7 @@ app.add_middleware(
 )
 
 app.include_router(markets.router)
+app.include_router(orders.router)
 
 
 @app.get("/health", tags=["meta"])

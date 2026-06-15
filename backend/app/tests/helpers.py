@@ -4,7 +4,51 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-from app.schemas import Candle
+from app.brokers.base import Broker
+from app.schemas import (
+    Balance,
+    Candle,
+    MarketKind,
+    OrderRequest,
+    OrderResult,
+    Position,
+    Ticker,
+    TradingMode,
+)
+
+
+class StubBroker(Broker):
+    """A deterministic data provider for tests — fixed prices, no network."""
+
+    market = MarketKind.crypto
+    mode = TradingMode.live
+
+    def __init__(self, prices: dict[str, float]) -> None:
+        self._prices = prices
+
+    @property
+    def name(self) -> str:
+        return "stub"
+
+    def get_ticker(self, symbol: str) -> Ticker:
+        if symbol not in self._prices:
+            raise RuntimeError(f"no stub price for {symbol}")
+        return Ticker(symbol=symbol, price=self._prices[symbol], timestamp=datetime(2024, 1, 1, tzinfo=timezone.utc))
+
+    def get_ohlcv(self, symbol: str, timeframe: str = "1h", limit: int = 100) -> list[Candle]:
+        return make_candles([self._prices[symbol]] * limit)
+
+    def create_order(self, request: OrderRequest) -> OrderResult:  # pragma: no cover - unused
+        raise NotImplementedError
+
+    def get_balance(self) -> list[Balance]:
+        return []
+
+    def get_positions(self) -> list[Position]:
+        return []
+
+    def set_price(self, symbol: str, price: float) -> None:
+        self._prices[symbol] = price
 
 
 def make_candles(closes: list[float]) -> list[Candle]:
