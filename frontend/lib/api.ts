@@ -82,6 +82,34 @@ export interface RunResult {
   error: string | null;
 }
 
+export interface EquityPoint {
+  timestamp: string;
+  equity: number;
+}
+
+export interface BacktestResult {
+  starting_cash: number;
+  final_equity: number;
+  total_return_pct: number;
+  buy_hold_return_pct: number;
+  num_trades: number;
+  wins: number;
+  win_rate: number;
+  max_drawdown_pct: number;
+  equity_curve: EquityPoint[];
+}
+
+export interface BacktestRequest {
+  symbol: string;
+  market?: string;
+  timeframe?: string;
+  limit?: number;
+  strategy: string;
+  params?: Record<string, unknown>;
+  starting_cash?: number;
+  position_fraction?: number;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     headers: { "Content-Type": "application/json" },
@@ -117,4 +145,7 @@ export const api = {
       method: "POST",
       body: JSON.stringify(graph),
     }),
+  strategies: () => request<{ strategies: string[] }>("/api/backtest/strategies"),
+  backtest: (req: BacktestRequest) =>
+    request<BacktestResult>("/api/backtest", { method: "POST", body: JSON.stringify(req) }),
 };

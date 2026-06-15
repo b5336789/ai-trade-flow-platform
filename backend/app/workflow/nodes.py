@@ -19,16 +19,9 @@ from app.schemas import (
     Signal,
     SignalAction,
 )
-from app.strategies.base import Strategy
-from app.strategies.ma_cross import MaCrossStrategy
-from app.strategies.rsi import RsiStrategy
+from app.strategies.registry import build_strategy
 from app.trading.execution import execute_order
 from app.workflow.schema import NodeConfig, NodeType
-
-_STRATEGIES: dict[str, type[Strategy]] = {
-    MaCrossStrategy.name: MaCrossStrategy,
-    RsiStrategy.name: RsiStrategy,
-}
 
 
 class RunContext:
@@ -68,10 +61,8 @@ def _run_data_source(node: NodeConfig, inputs: list[Any], ctx: RunContext) -> li
 def _run_strategy(node: NodeConfig, inputs: list[Any], ctx: RunContext) -> Signal:
     candles = _first_candles(inputs)
     name = node.params.get("name", "ma_cross")
-    if name not in _STRATEGIES:
-        raise ValueError(f"unknown strategy '{name}'. Available: {list(_STRATEGIES)}")
     kwargs = {k: v for k, v in node.params.items() if k != "name"}
-    return _STRATEGIES[name](**kwargs).generate(candles)
+    return build_strategy(name, kwargs).generate(candles)
 
 
 def _run_ai_signal(node: NodeConfig, inputs: list[Any], ctx: RunContext) -> Signal:

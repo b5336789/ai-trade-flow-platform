@@ -1,3 +1,4 @@
+import { BacktestPanel } from "@/components/BacktestPanel";
 import { MarketPanel } from "@/components/MarketPanel";
 import { PortfolioPanel } from "@/components/PortfolioPanel";
 import { WorkflowBuilder } from "@/components/workflow/WorkflowBuilder";
@@ -14,6 +15,7 @@ export default function Home() {
         <div className="space-y-4 lg:col-span-2">
           <MarketPanel />
           <WorkflowBuilder />
+          <BacktestPanel />
         </div>
         <PortfolioPanel />
       </div>
