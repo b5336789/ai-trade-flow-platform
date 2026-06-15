@@ -1,0 +1,120 @@
+"""In-process paper-trading broker.
+
+Pulls real prices from a wrapped data-provider broker (e.g. ``CcxtBroker``) and simulates fills,
+tracking cash + positions in memory. This is the default, safe execution path. Persistence and
+richer risk handling are layered on in later checkpoints (trading/portfolio.py, trading/risk.py).
+"""
+
+from __future__ import annotations
+
+import itertools
+from datetime import datetime, timezone
+
+from app.brokers.base import Broker
+from app.config import settings
+from app.schemas import (
+    Balance,
+    Candle,
+    OrderRequest,
+    OrderResult,
+    OrderSide,
+    OrderType,
+    Position,
+    Ticker,
+    TradingMode,
+)
+
+
+class PaperBroker(Broker):
+    mode = TradingMode.paper
+
+    def __init__(
+        self,
+        data_provider: Broker,
+        starting_cash: float | None = None,
+        quote_asset: str | None = None,
+    ) -> None:
+        self._data = data_provider
+        self.market = data_provider.market
+        self._cash = starting_cash if starting_cash is not None else settings.paper_starting_cash
+        self._quote = quote_asset or settings.paper_quote_asset
+        self._positions: dict[str, Position] = {}
+        self._ids = itertools.count(1)
+
+    @property
+    def name(self) -> str:
+        return f"paper:{self._data.name}"
+
+    @property
+    def cash(self) -> float:
+        return self._cash
+
+    # --- market data delegates to the real provider ---
+    def get_ticker(self, symbol: str) -> Ticker:
+        return self._data.get_ticker(symbol)
+
+    def get_ohlcv(self, symbol: str, timeframe: str = "1h", limit: int = 100) -> list[Candle]:
+        return self._data.get_ohlcv(symbol, timeframe, limit)
+
+    # --- simulated execution ---
+    def create_order(self, request: OrderRequest) -> OrderResult:
+        if request.type == OrderType.limit and request.limit_price:
+            fill_price = request.limit_price
+        else:
+            fill_price = self._data.get_ticker(request.symbol).price
+
+        if request.side == OrderSide.buy:
+            cost = fill_price * request.quantity
+            if cost > self._cash + 1e-9:
+                raise RuntimeError(
+                    f"Insufficient paper cash: need {cost:.2f} {self._quote}, have {self._cash:.2f}"
+                )
+            self._cash -= cost
+            self._apply_position(request.symbol, request.quantity, fill_price)
+        else:  # sell
+            pos = self._positions.get(request.symbol)
+            held = pos.quantity if pos else 0.0
+            if request.quantity > held + 1e-9:
+                raise RuntimeError(
+                    f"Insufficient position to sell {request.symbol}: "
+                    f"have {held}, requested {request.quantity}"
+                )
+            self._cash += fill_price * request.quantity
+            self._apply_position(request.symbol, -request.quantity, fill_price)
+
+        return OrderResult(
+            id=f"paper-{next(self._ids)}",
+            symbol=request.symbol,
+            side=request.side,
+            quantity=request.quantity,
+            price=fill_price,
+            status="filled",
+            mode=TradingMode.paper,
+            broker=self.name,
+            timestamp=datetime.now(timezone.utc),
+        )
+
+    def _apply_position(self, symbol: str, delta_qty: float, price: float) -> None:
+        pos = self._positions.get(symbol)
+        if pos is None:
+            if delta_qty <= 0:
+                return
+            self._positions[symbol] = Position(symbol=symbol, quantity=delta_qty, avg_price=price)
+            return
+        new_qty = pos.quantity + delta_qty
+        if new_qty <= 1e-9:
+            self._positions.pop(symbol, None)
+        elif delta_qty > 0:
+            # weighted-average cost basis on buys
+            total_cost = pos.avg_price * pos.quantity + price * delta_qty
+            pos.quantity = new_qty
+            pos.avg_price = total_cost / new_qty
+        else:
+            # sells reduce quantity, cost basis unchanged
+            pos.quantity = new_qty
+
+    def get_balance(self) -> list[Balance]:
+        return [Balance(asset=self._quote, free=self._cash, total=self._cash)]
+
+    def get_positions(self) -> list[Position]:
+        return list(self._positions.values())
