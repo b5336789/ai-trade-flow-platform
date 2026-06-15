@@ -63,8 +63,32 @@ export function WorkflowBuilder() {
   const [result, setResult] = useState<RunResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
+  const [name, setName] = useState("My workflow");
+  const [savedMsg, setSavedMsg] = useState<string | null>(null);
 
   const onConnect = useCallback((c: Connection) => setEdges((eds) => addEdge(c, eds)), [setEdges]);
+
+  function buildGraph(): WorkflowGraph {
+    return {
+      nodes: nodes.map((n) => ({
+        id: n.id,
+        type: (n.data as TradeNodeData).nodeType,
+        params: (n.data as TradeNodeData).params,
+      })),
+      edges: edges.map((e) => ({ source: e.source, target: e.target })),
+    };
+  }
+
+  async function save() {
+    setSavedMsg(null);
+    setError(null);
+    try {
+      const wf = await api.createWorkflow(name, buildGraph());
+      setSavedMsg(`Saved as #${wf.id} — schedule it below to run automatically.`);
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }
 
   function addNode(type: NodeType) {
     const id = `n${idCounter.current++}`;
@@ -83,16 +107,8 @@ export function WorkflowBuilder() {
     setRunning(true);
     setError(null);
     setResult(null);
-    const graph: WorkflowGraph = {
-      nodes: nodes.map((n) => ({
-        id: n.id,
-        type: (n.data as TradeNodeData).nodeType,
-        params: (n.data as TradeNodeData).params,
-      })),
-      edges: edges.map((e) => ({ source: e.source, target: e.target })),
-    };
     try {
-      setResult(await api.runWorkflow(graph));
+      setResult(await api.runWorkflow(buildGraph()));
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -115,14 +131,27 @@ export function WorkflowBuilder() {
             + {t}
           </button>
         ))}
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="ml-auto rounded bg-neutral-800 px-2 py-1 text-sm"
+          placeholder="workflow name"
+        />
+        <button
+          onClick={save}
+          className="rounded bg-blue-600 px-3 py-1 text-sm font-medium hover:bg-blue-500"
+        >
+          Save
+        </button>
         <button
           onClick={run}
           disabled={running}
-          className="ml-auto rounded bg-green-600 px-3 py-1 text-sm font-medium hover:bg-green-500 disabled:opacity-50"
+          className="rounded bg-green-600 px-3 py-1 text-sm font-medium hover:bg-green-500 disabled:opacity-50"
         >
-          {running ? "Running…" : "Run workflow"}
+          {running ? "Running…" : "Run"}
         </button>
       </div>
+      {savedMsg && <p className="mb-2 text-sm text-green-400">{savedMsg}</p>}
 
       <div className="h-[360px] rounded border border-neutral-800">
         <ReactFlow

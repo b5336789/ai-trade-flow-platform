@@ -39,3 +39,13 @@ class RunLog(SQLModel, table=True):
     status: str  # "ok" | "error"
     detail: dict = Field(default_factory=dict, sa_column=Column(JSON))
     created_at: datetime = Field(default_factory=_now)
+
+
+class Schedule(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    workflow_id: int
+    interval_seconds: int
+    enabled: bool = True
+    last_run_at: datetime | None = Field(default=None)
+    last_status: str | None = Field(default=None)
+    created_at: datetime = Field(default_factory=_now)

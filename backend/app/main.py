@@ -7,15 +7,18 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import ai, backtest, markets, orders, workflows
+from app.api import ai, backtest, markets, orders, schedules, workflows
 from app.db import init_db
 from app.schemas import MarketKind
+from app.scheduler.service import shutdown_scheduler, start_scheduler
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
+    start_scheduler()
     yield
+    shutdown_scheduler()
 
 
 app = FastAPI(title="ai-trade-flow-platform", version="0.1.0", lifespan=lifespan)
@@ -32,6 +35,7 @@ app.include_router(orders.router)
 app.include_router(ai.router)
 app.include_router(workflows.router)
 app.include_router(backtest.router)
+app.include_router(schedules.router)
 
 
 @app.get("/health", tags=["meta"])

@@ -82,6 +82,24 @@ export interface RunResult {
   error: string | null;
 }
 
+export interface Workflow {
+  id: number;
+  name: string;
+  graph: WorkflowGraph;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Schedule {
+  id: number;
+  workflow_id: number;
+  interval_seconds: number;
+  enabled: boolean;
+  last_run_at: string | null;
+  last_status: string | null;
+  created_at: string;
+}
+
 export interface EquityPoint {
   timestamp: string;
   equity: number;
@@ -170,4 +188,17 @@ export const api = {
     request<BacktestResult>("/api/backtest", { method: "POST", body: JSON.stringify(req) }),
   compareStrategies: (req: CompareRequest) =>
     request<CompareRow[]>("/api/backtest/compare", { method: "POST", body: JSON.stringify(req) }),
+  createWorkflow: (name: string, graph: WorkflowGraph) =>
+    request<Workflow>("/api/workflows", { method: "POST", body: JSON.stringify({ name, graph }) }),
+  listWorkflows: () => request<Workflow[]>("/api/workflows"),
+  listSchedules: () => request<Schedule[]>("/api/schedules"),
+  createSchedule: (workflow_id: number, interval_seconds: number) =>
+    request<Schedule>("/api/schedules", {
+      method: "POST",
+      body: JSON.stringify({ workflow_id, interval_seconds }),
+    }),
+  toggleSchedule: (id: number) =>
+    request<Schedule>(`/api/schedules/${id}/toggle`, { method: "POST" }),
+  deleteSchedule: (id: number) =>
+    request<{ deleted: boolean }>(`/api/schedules/${id}`, { method: "DELETE" }),
 };
