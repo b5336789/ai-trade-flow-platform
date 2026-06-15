@@ -1,8 +1,8 @@
 # ai-trade-flow-platform
 
 AI 驅動的自動交易平台 — supports crypto / 台股 / 美股 programmatic trading behind a single
-broker abstraction, with technical-indicator strategies, LLM (Claude) signal generation, and a
-workflow-based web UI.
+broker abstraction, with technical-indicator strategies, LLM (Claude) signal generation, a
+strategy backtester, and a workflow-based web UI.
 
 > Development is governed by [`CLAUDE.md`](./CLAUDE.md). Read it before contributing.
 
