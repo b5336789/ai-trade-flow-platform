@@ -1,0 +1,120 @@
+// Typed client for the backend API. Base URL from env (defaults to local backend).
+
+const BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+
+export interface Candle {
+  timestamp: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
+export type SignalAction = "buy" | "sell" | "hold";
+
+export interface Signal {
+  action: SignalAction;
+  confidence: number;
+  reason: string;
+  source: string;
+}
+
+export interface OrderResult {
+  id: string;
+  symbol: string;
+  side: "buy" | "sell";
+  quantity: number;
+  price: number;
+  status: string;
+  mode: string;
+  broker: string;
+  timestamp: string;
+}
+
+export interface PositionView {
+  symbol: string;
+  quantity: number;
+  avg_price: number;
+  current_price: number;
+  market_value: number;
+  unrealized_pnl: number;
+  price_source: string;
+}
+
+export interface PortfolioView {
+  cash: number;
+  positions: PositionView[];
+  positions_value: number;
+  equity: number;
+}
+
+export interface AppConfig {
+  trading_mode: string;
+  markets: string[];
+  implemented_markets: string[];
+  ai_model: string;
+}
+
+// Workflow graph types (mirror backend app/workflow/schema.py)
+export type NodeType = "data_source" | "strategy" | "ai_signal" | "order" | "logger";
+
+export interface GraphNode {
+  id: string;
+  type: NodeType;
+  params: Record<string, unknown>;
+}
+
+export interface GraphEdge {
+  source: string;
+  target: string;
+}
+
+export interface WorkflowGraph {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+}
+
+export interface RunResult {
+  status: string;
+  steps: { node_id: string; type: NodeType; summary: Record<string, unknown> }[];
+  orders: OrderResult[];
+  error: string | null;
+}
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    headers: { "Content-Type": "application/json" },
+    ...init,
+  });
+  if (!res.ok) {
+    let detail = res.statusText;
+    try {
+      detail = (await res.json()).detail ?? detail;
+    } catch {
+      /* keep statusText */
+    }
+    throw new Error(detail);
+  }
+  return res.json() as Promise<T>;
+}
+
+export const api = {
+  config: () => request<AppConfig>("/api/config"),
+  ohlcv: (symbol: string, timeframe = "1h", limit = 100, market = "crypto") =>
+    request<Candle[]>(
+      `/api/markets/ohlcv?symbol=${encodeURIComponent(symbol)}&timeframe=${timeframe}&limit=${limit}&market=${market}`,
+    ),
+  aiSignal: (symbol: string, market = "crypto", timeframe = "1h", limit = 100) =>
+    request<Signal>("/api/ai/signal", {
+      method: "POST",
+      body: JSON.stringify({ symbol, market, timeframe, limit }),
+    }),
+  portfolio: (market = "crypto") => request<PortfolioView>(`/api/orders/portfolio?market=${market}`),
+  orders: () => request<OrderResult[]>("/api/orders"),
+  runWorkflow: (graph: WorkflowGraph) =>
+    request<RunResult>("/api/workflows/run", {
+      method: "POST",
+      body: JSON.stringify(graph),
+    }),
+};
