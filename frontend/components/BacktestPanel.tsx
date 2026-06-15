@@ -1,0 +1,274 @@
+"use client";
+
+import { useState } from "react";
+import { api, MARKETS, type BacktestResult, type CompareRow, type EquityPoint, type OptimizeRow } from "@/lib/api";
+import { OPTIMIZE_GRID, STRATEGY_NAMES, STRATEGY_PARAMS } from "@/lib/strategies";
+
+function Sparkline({ points }: { points: EquityPoint[] }) {
+  if (points.length < 2) return null;
+  const values = points.map((p) => p.equity);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min || 1;
+  const w = 100;
+  const h = 30;
+  const path = values
+    .map((v, i) => {
+      const x = (i / (values.length - 1)) * w;
+      const y = h - ((v - min) / range) * h;
+      return `${i === 0 ? "M" : "L"}${x.toFixed(2)},${y.toFixed(2)}`;
+    })
+    .join(" ");
+  const up = values[values.length - 1] >= values[0];
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className="h-16 w-full">
+      <path d={path} fill="none" stroke={up ? "#22c55e" : "#ef4444"} strokeWidth={1} />
+    </svg>
+  );
+}
+
+const pct = (n: number) => `${n >= 0 ? "+" : ""}${n.toFixed(2)}%`;
+
+export function BacktestPanel() {
+  const [symbol, setSymbol] = useState("BTC/USDT");
+  const [market, setMarket] = useState("crypto");
+  const [strategy, setStrategy] = useState("ma_cross");
+  const [params, setParams] = useState<Record<string, number>>({ ...STRATEGY_PARAMS.ma_cross });
+  const [result, setResult] = useState<BacktestResult | null>(null);
+  const [comparison, setComparison] = useState<CompareRow[] | null>(null);
+  const [optimization, setOptimization] = useState<OptimizeRow[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  function changeStrategy(name: string) {
+    setStrategy(name);
+    setParams({ ...STRATEGY_PARAMS[name] });
+  }
+
+  function resetOutputs() {
+    setResult(null);
+    setComparison(null);
+    setOptimization(null);
+    setError(null);
+  }
+
+  async function optimize() {
+    setLoading(true);
+    resetOutputs();
+    try {
+      setOptimization(
+        await api.optimize({ symbol, market, strategy, param_grid: OPTIMIZE_GRID[strategy], timeframe: "1h", limit: 500 }),
+      );
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function run() {
+    setLoading(true);
+    resetOutputs();
+    try {
+      setResult(await api.backtest({ symbol, market, strategy, params, timeframe: "1h", limit: 500 }));
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function compare() {
+    setLoading(true);
+    resetOutputs();
+    try {
+      setComparison(await api.compareStrategies({ symbol, market, timeframe: "1h", limit: 500 }));
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4">
+      <h2 className="mb-3 text-lg font-semibold">Backtest</h2>
+      <div className="mb-3 flex flex-wrap items-end gap-2">
+        <select
+          value={market}
+          onChange={(e) => setMarket(e.target.value)}
+          className="rounded bg-neutral-800 px-2 py-1 text-sm"
+        >
+          {MARKETS.map((m) => (
+            <option key={m.value} value={m.value}>
+              {m.label}
+            </option>
+          ))}
+        </select>
+        <input
+          value={symbol}
+          onChange={(e) => setSymbol(e.target.value.toUpperCase())}
+          className="rounded bg-neutral-800 px-2 py-1 text-sm"
+          placeholder="BTC/USDT"
+        />
+        <select
+          value={strategy}
+          onChange={(e) => changeStrategy(e.target.value)}
+          className="rounded bg-neutral-800 px-2 py-1 text-sm"
+        >
+          {STRATEGY_NAMES.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
+        {Object.keys(params).map((key) => (
+          <label key={key} className="text-xs text-neutral-400">
+            {key}
+            <input
+              type="number"
+              value={params[key]}
+              onChange={(e) => setParams((p) => ({ ...p, [key]: Number(e.target.value) }))}
+              className="ml-1 w-16 rounded bg-neutral-800 px-1 py-1 text-sm text-neutral-100"
+            />
+          </label>
+        ))}
+        <button
+          onClick={run}
+          disabled={loading}
+          className="rounded bg-indigo-600 px-3 py-1 text-sm font-medium hover:bg-indigo-500 disabled:opacity-50"
+        >
+          {loading ? "…" : "Run"}
+        </button>
+        <button
+          onClick={compare}
+          disabled={loading}
+          className="rounded bg-purple-600 px-3 py-1 text-sm font-medium hover:bg-purple-500 disabled:opacity-50"
+        >
+          Compare all
+        </button>
+        <button
+          onClick={optimize}
+          disabled={loading}
+          className="rounded bg-amber-600 px-3 py-1 text-sm font-medium hover:bg-amber-500 disabled:opacity-50"
+        >
+          Optimize
+        </button>
+      </div>
+
+      {error && <p className="text-sm text-red-400">Backtest error: {error}</p>}
+
+      {result && (
+        <div className="space-y-3">
+          <Sparkline points={result.equity_curve} />
+          <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
+            <Metric label="Return" value={pct(result.total_return_pct)} good={result.total_return_pct >= 0} />
+            <Metric label="Buy & Hold" value={pct(result.buy_hold_return_pct)} good={result.buy_hold_return_pct >= 0} />
+            <Metric label="Max DD" value={pct(-result.max_drawdown_pct)} good={false} />
+            <Metric label="Trades" value={`${result.num_trades} (${result.win_rate.toFixed(0)}% win)`} />
+          </div>
+        </div>
+      )}
+
+      {optimization && (
+        <table className="w-full text-left text-xs">
+          <thead className="text-neutral-500">
+            <tr>
+              <th className="py-1">Params</th>
+              <th>Return</th>
+              <th>Max DD</th>
+              <th>Trades</th>
+              <th>Win%</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {optimization.slice(0, 10).map((r, i) => (
+              <tr key={i} className="border-t border-neutral-800">
+                <td className="py-1 font-mono">
+                  {i === 0 && !r.error ? "🏆 " : ""}
+                  {Object.entries(r.params)
+                    .map(([k, v]) => `${k}=${v}`)
+                    .join(", ")}
+                </td>
+                {r.error ? (
+                  <td colSpan={5} className="text-red-400">
+                    {r.error}
+                  </td>
+                ) : (
+                  <>
+                    <td className={r.total_return_pct >= 0 ? "text-green-400" : "text-red-400"}>
+                      {pct(r.total_return_pct)}
+                    </td>
+                    <td className="text-red-400">{pct(-r.max_drawdown_pct)}</td>
+                    <td>{r.num_trades}</td>
+                    <td>{r.win_rate.toFixed(0)}%</td>
+                    <td>
+                      <button
+                        onClick={() => {
+                          setParams({ ...(r.params as Record<string, number>) });
+                          setOptimization(null);
+                        }}
+                        className="text-indigo-400 hover:underline"
+                      >
+                        use
+                      </button>
+                    </td>
+                  </>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      {comparison && (
+        <table className="w-full text-left text-xs">
+          <thead className="text-neutral-500">
+            <tr>
+              <th className="py-1">Strategy</th>
+              <th>Return</th>
+              <th>Max DD</th>
+              <th>Trades</th>
+              <th>Win%</th>
+            </tr>
+          </thead>
+          <tbody>
+            {comparison.map((r, i) => (
+              <tr key={r.strategy} className="border-t border-neutral-800">
+                <td className="py-1">
+                  {i === 0 && !r.error ? "🏆 " : ""}
+                  {r.strategy}
+                </td>
+                {r.error ? (
+                  <td colSpan={4} className="text-red-400">
+                    {r.error}
+                  </td>
+                ) : (
+                  <>
+                    <td className={r.total_return_pct >= 0 ? "text-green-400" : "text-red-400"}>
+                      {pct(r.total_return_pct)}
+                    </td>
+                    <td className="text-red-400">{pct(-r.max_drawdown_pct)}</td>
+                    <td>{r.num_trades}</td>
+                    <td>{r.win_rate.toFixed(0)}%</td>
+                  </>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </section>
+  );
+}
+
+function Metric({ label, value, good }: { label: string; value: string; good?: boolean }) {
+  const color = good === undefined ? "text-neutral-100" : good ? "text-green-400" : "text-red-400";
+  return (
+    <div className="rounded bg-neutral-800/60 p-2">
+      <div className="text-xs text-neutral-500">{label}</div>
+      <div className={`font-semibold ${color}`}>{value}</div>
+    </div>
+  );
+}
