@@ -23,8 +23,9 @@ class StubBroker(Broker):
     market = MarketKind.crypto
     mode = TradingMode.live
 
-    def __init__(self, prices: dict[str, float]) -> None:
+    def __init__(self, prices: dict[str, float], candles: list[Candle] | None = None) -> None:
         self._prices = prices
+        self._candles = candles  # if set, get_ohlcv returns these verbatim
 
     @property
     def name(self) -> str:
@@ -36,6 +37,8 @@ class StubBroker(Broker):
         return Ticker(symbol=symbol, price=self._prices[symbol], timestamp=datetime(2024, 1, 1, tzinfo=timezone.utc))
 
     def get_ohlcv(self, symbol: str, timeframe: str = "1h", limit: int = 100) -> list[Candle]:
+        if self._candles is not None:
+            return self._candles
         return make_candles([self._prices[symbol]] * limit)
 
     def create_order(self, request: OrderRequest) -> OrderResult:  # pragma: no cover - unused
