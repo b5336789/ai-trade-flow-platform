@@ -14,6 +14,7 @@
 | `YUANTA_API_KEY` / `YUANTA_API_SECRET` | — | 台股 元大(規劃中) |
 | `FIRSTRADE_USERNAME` / `FIRSTRADE_PASSWORD` | — | 美股 Firstrade(規劃中,非官方 API) |
 | `DATABASE_URL` | `sqlite:///./trade_flow.db` | 資料庫連線 |
+| `NOTIFY_WEBHOOK_URL` | — | 選填:下單/訊號通知的外送 webhook(如 Slack/Discord);空白則只用站內通知 |
 | `PAPER_STARTING_CASH` | `100000` | 紙上交易起始現金 |
 | `PAPER_QUOTE_ASSET` | `USDT` | 紙上交易計價資產 |
 | `NEXT_PUBLIC_API_BASE_URL` | `http://localhost:8000` | 前端呼叫後端的位址 |

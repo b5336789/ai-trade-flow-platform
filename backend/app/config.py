@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     # Persistence
     database_url: str = "sqlite:///./trade_flow.db"
 
+    # Notifications (optional outbound webhook, e.g. Slack/Discord incoming webhook URL)
+    notify_webhook_url: str = ""
+
     # Paper trading
     paper_starting_cash: float = 100_000.0
     paper_quote_asset: str = "USDT"

@@ -49,3 +49,12 @@ class Schedule(SQLModel, table=True):
     last_run_at: datetime | None = Field(default=None)
     last_status: str | None = Field(default=None)
     created_at: datetime = Field(default_factory=_now)
+
+
+class Notification(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    level: str = "info"  # info | success | warning | error
+    title: str
+    message: str = ""
+    meta: dict = Field(default_factory=dict, sa_column=Column(JSON))
+    created_at: datetime = Field(default_factory=_now)

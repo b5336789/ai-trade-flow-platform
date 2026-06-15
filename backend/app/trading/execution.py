@@ -11,6 +11,7 @@ from sqlmodel import Session
 
 from app.brokers.registry import get_broker
 from app.models import OrderRecord
+from app.notifications.service import notify
 from app.schemas import MarketKind, OrderRequest, OrderResult, OrderType, TradingMode
 from app.trading.risk import RiskGuard
 
@@ -54,5 +55,12 @@ def execute_order(
             )
         )
         session.commit()
+        notify(
+            session,
+            title=f"Order {result.status}: {result.side.value} {result.quantity} {result.symbol}",
+            message=f"{result.mode.value} @ {result.price} via {result.broker}",
+            level="success",
+            meta=result.model_dump(mode="json"),
+        )
 
     return result

@@ -17,6 +17,7 @@
 | 10 | 排程自動執行 | `Schedule` 模型、APScheduler 服務、`/api/schedules`、前端 Save + 排程面板 | 49 測試 |
 | 11 | 參數最佳化 | 網格搜尋 `optimize`、`/api/backtest/optimize`、前端 Optimize + 套用最佳 | 53 測試 |
 | 文件 | 技術文件 + 使用說明書 | `docs/`(本目錄)、前端 `/manual` 圖文並茂頁面 | tsc + build |
+| 12 | 通知 | `notifications/`(站內 + webhook)、成交自動通知、`/api/notifications`、前端 NotificationsPanel | 58 測試 |
 
 ## 設計原則落實(對照 `CLAUDE.md`)
 - **Simplicity First**:先做 crypto+紙上一條完整切片,再水平擴充。

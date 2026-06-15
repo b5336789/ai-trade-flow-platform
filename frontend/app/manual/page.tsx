@@ -120,7 +120,7 @@ cd frontend && npm install && npm run dev`}</Code>
           <PanelCard title="Backtest 回測" desc="Run 單一回測、Compare all 比較策略、Optimize 最佳化參數。">
             <TableThumb />
           </PanelCard>
-          <PanelCard title="Portfolio / Schedules" desc="即時現金、部位、損益、訂單;排程讓工作流自動執行。">
+          <PanelCard title="Portfolio / Schedules / Notifications" desc="即時現金、部位、損益、訂單;排程讓工作流自動執行;成交與訊號即時通知(可外送 webhook)。">
             <TableThumb />
           </PanelCard>
         </div>

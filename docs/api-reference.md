@@ -109,3 +109,12 @@ Body:`{ workflow_id, interval_seconds (>=5), enabled? }`。建立排程並註冊
 
 ### `DELETE /api/schedules/{id}`
 → `{ "deleted": true }`
+
+## Notifications
+
+### `GET /api/notifications?limit=20`
+→ `Notification[] { id, level, title, message, meta, created_at }`(最新在前)
+`level`:`info` | `success` | `warning` | `error`。下單成交會自動產生一則 `success` 通知。
+
+### `POST /api/notifications/test`
+建立一則測試通知(並嘗試派送 webhook,若有設定 `NOTIFY_WEBHOOK_URL`)。→ `Notification`

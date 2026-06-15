@@ -54,6 +54,10 @@ SQLModel engine(預設 SQLite)。`init_db()` 建表;`get_session()` 為 FastAPI 
 ## `backtest/` — 回測與最佳化
 見 [backtesting.md](./backtesting.md)。`engine.py`(逐根回測)、`optimize.py`(網格搜尋)。
 
+## `notifications/` — 通知
+`service.py`:`record_notification`(寫入站內通知)、`dispatch_webhook`(best-effort 外送,失敗不影響交易)、
+`notify`(兩者合一)。`execute_order` 成交後會發出 `success` 通知。`Notification` 資料表保存站內動態。
+
 ## `scheduler/` — 自動執行
 `service.py`:APScheduler `BackgroundScheduler`。`Schedule` 對應一個間隔 job;觸發時跑工作流、
 寫 `RunLog`、更新排程狀態。啟動時還原已啟用排程。

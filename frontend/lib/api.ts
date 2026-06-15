@@ -100,6 +100,15 @@ export interface Schedule {
   created_at: string;
 }
 
+export interface Notification {
+  id: number;
+  level: string;
+  title: string;
+  message: string;
+  meta: Record<string, unknown>;
+  created_at: string;
+}
+
 export interface EquityPoint {
   timestamp: string;
   equity: number;
@@ -222,4 +231,6 @@ export const api = {
     request<Schedule>(`/api/schedules/${id}/toggle`, { method: "POST" }),
   deleteSchedule: (id: number) =>
     request<{ deleted: boolean }>(`/api/schedules/${id}`, { method: "DELETE" }),
+  listNotifications: () => request<Notification[]>("/api/notifications"),
+  testNotification: () => request<Notification>("/api/notifications/test", { method: "POST" }),
 };

@@ -27,8 +27,9 @@ pytest                 # 53 passed
 | `test_optimize.py` | 網格搜尋(排名、錯誤組合排末、組合上限、未知 metric fail loud) |
 | `test_scheduler.py` | 排程 job 主體(寫 RunLog、更新狀態)、停用略過、增/刪 job |
 | `test_schedules_api.py` | 排程 HTTP(建立/列出/切換/刪除、未知工作流 404、間隔過短 422) |
+| `test_notifications.py` | 通知(站內寫入、webhook 派送/未設/錯誤吞掉、成交自動通知) |
 
-共 **53** 項測試。
+共 **58** 項測試。`conftest.py` 在測試開始前建立所有資料表。
 
 ## 環境限制說明(Fail Loud)
 本開發沙箱**封鎖對外網路**,因此無法在此對 Binance 真實抓取行情;相關程式路徑正確且會明確

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { BacktestPanel } from "@/components/BacktestPanel";
 import { MarketPanel } from "@/components/MarketPanel";
+import { NotificationsPanel } from "@/components/NotificationsPanel";
 import { PortfolioPanel } from "@/components/PortfolioPanel";
 import { SchedulesPanel } from "@/components/SchedulesPanel";
 import { WorkflowBuilder } from "@/components/workflow/WorkflowBuilder";
@@ -26,7 +27,10 @@ export default function Home() {
           <SchedulesPanel />
           <BacktestPanel />
         </div>
-        <PortfolioPanel />
+        <div className="space-y-4">
+          <PortfolioPanel />
+          <NotificationsPanel />
+        </div>
       </div>
     </main>
   );
