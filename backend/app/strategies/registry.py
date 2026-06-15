@@ -3,12 +3,16 @@
 from __future__ import annotations
 
 from app.strategies.base import Strategy
+from app.strategies.bollinger import BollingerStrategy
 from app.strategies.ma_cross import MaCrossStrategy
+from app.strategies.macd import MacdStrategy
 from app.strategies.rsi import RsiStrategy
 
 STRATEGIES: dict[str, type[Strategy]] = {
     MaCrossStrategy.name: MaCrossStrategy,
     RsiStrategy.name: RsiStrategy,
+    MacdStrategy.name: MacdStrategy,
+    BollingerStrategy.name: BollingerStrategy,
 }
 
 

@@ -2,6 +2,7 @@
 
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import type { NodeType } from "@/lib/api";
+import { STRATEGY_NAMES, STRATEGY_PARAMS } from "@/lib/strategies";
 
 export interface TradeNodeData {
   nodeType: NodeType;
@@ -62,29 +63,38 @@ export function TradeNode({ id, data }: NodeProps) {
         </>
       )}
 
-      {d.nodeType === "strategy" && (
-        <>
-          <label className="mb-1 block text-[10px] text-neutral-400">
-            name
-            <select
-              value={String(p.name ?? "ma_cross")}
-              onChange={(e) => set("name", e.target.value)}
-              className="mt-0.5 w-full rounded bg-neutral-800 px-1 py-0.5 text-xs"
-            >
-              <option value="ma_cross">ma_cross</option>
-              <option value="rsi">rsi</option>
-            </select>
-          </label>
-          {p.name === "rsi" ? (
-            <Field label="window" type="number" value={p.window} onChange={(v) => set("window", Number(v))} />
-          ) : (
+      {d.nodeType === "strategy" &&
+        (() => {
+          const name = String(p.name ?? "ma_cross");
+          const schema = STRATEGY_PARAMS[name] ?? {};
+          return (
             <>
-              <Field label="fast" type="number" value={p.fast} onChange={(v) => set("fast", Number(v))} />
-              <Field label="slow" type="number" value={p.slow} onChange={(v) => set("slow", Number(v))} />
+              <label className="mb-1 block text-[10px] text-neutral-400">
+                name
+                <select
+                  value={name}
+                  onChange={(e) => set("name", e.target.value)}
+                  className="mt-0.5 w-full rounded bg-neutral-800 px-1 py-0.5 text-xs"
+                >
+                  {STRATEGY_NAMES.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {Object.keys(schema).map((key) => (
+                <Field
+                  key={key}
+                  label={key}
+                  type="number"
+                  value={p[key] ?? schema[key]}
+                  onChange={(v) => set(key, Number(v))}
+                />
+              ))}
             </>
-          )}
-        </>
-      )}
+          );
+        })()}
 
       {d.nodeType === "ai_signal" && (
         <Field label="model (optional)" value={p.model} onChange={(v) => set("model", v || undefined)} />

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { api, type BacktestResult, type EquityPoint } from "@/lib/api";
+import { api, type BacktestResult, type CompareRow, type EquityPoint } from "@/lib/api";
+import { STRATEGY_NAMES, STRATEGY_PARAMS } from "@/lib/strategies";
 
 function Sparkline({ points }: { points: EquityPoint[] }) {
   if (points.length < 2) return null;
@@ -26,21 +27,27 @@ function Sparkline({ points }: { points: EquityPoint[] }) {
   );
 }
 
+const pct = (n: number) => `${n >= 0 ? "+" : ""}${n.toFixed(2)}%`;
+
 export function BacktestPanel() {
   const [symbol, setSymbol] = useState("BTC/USDT");
   const [strategy, setStrategy] = useState("ma_cross");
-  const [fast, setFast] = useState(10);
-  const [slow, setSlow] = useState(20);
-  const [window, setWindow] = useState(14);
+  const [params, setParams] = useState<Record<string, number>>({ ...STRATEGY_PARAMS.ma_cross });
   const [result, setResult] = useState<BacktestResult | null>(null);
+  const [comparison, setComparison] = useState<CompareRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  function changeStrategy(name: string) {
+    setStrategy(name);
+    setParams({ ...STRATEGY_PARAMS[name] });
+  }
 
   async function run() {
     setLoading(true);
     setError(null);
     setResult(null);
-    const params = strategy === "rsi" ? { window } : { fast, slow };
+    setComparison(null);
     try {
       setResult(await api.backtest({ symbol, strategy, params, timeframe: "1h", limit: 500 }));
     } catch (e) {
@@ -50,7 +57,19 @@ export function BacktestPanel() {
     }
   }
 
-  const pct = (n: number) => `${n >= 0 ? "+" : ""}${n.toFixed(2)}%`;
+  async function compare() {
+    setLoading(true);
+    setError(null);
+    setResult(null);
+    setComparison(null);
+    try {
+      setComparison(await api.compareStrategies({ symbol, timeframe: "1h", limit: 500 }));
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4">
@@ -64,60 +83,94 @@ export function BacktestPanel() {
         />
         <select
           value={strategy}
-          onChange={(e) => setStrategy(e.target.value)}
+          onChange={(e) => changeStrategy(e.target.value)}
           className="rounded bg-neutral-800 px-2 py-1 text-sm"
         >
-          <option value="ma_cross">ma_cross</option>
-          <option value="rsi">rsi</option>
+          {STRATEGY_NAMES.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
         </select>
-        {strategy === "rsi" ? (
-          <NumInput label="window" value={window} onChange={setWindow} />
-        ) : (
-          <>
-            <NumInput label="fast" value={fast} onChange={setFast} />
-            <NumInput label="slow" value={slow} onChange={setSlow} />
-          </>
-        )}
+        {Object.keys(params).map((key) => (
+          <label key={key} className="text-xs text-neutral-400">
+            {key}
+            <input
+              type="number"
+              value={params[key]}
+              onChange={(e) => setParams((p) => ({ ...p, [key]: Number(e.target.value) }))}
+              className="ml-1 w-16 rounded bg-neutral-800 px-1 py-1 text-sm text-neutral-100"
+            />
+          </label>
+        ))}
         <button
           onClick={run}
           disabled={loading}
           className="rounded bg-indigo-600 px-3 py-1 text-sm font-medium hover:bg-indigo-500 disabled:opacity-50"
         >
-          {loading ? "Running…" : "Run backtest"}
+          {loading ? "…" : "Run"}
+        </button>
+        <button
+          onClick={compare}
+          disabled={loading}
+          className="rounded bg-purple-600 px-3 py-1 text-sm font-medium hover:bg-purple-500 disabled:opacity-50"
+        >
+          Compare all
         </button>
       </div>
 
       {error && <p className="text-sm text-red-400">Backtest error: {error}</p>}
+
       {result && (
         <div className="space-y-3">
           <Sparkline points={result.equity_curve} />
           <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
-            <Metric
-              label="Return"
-              value={pct(result.total_return_pct)}
-              good={result.total_return_pct >= 0}
-            />
+            <Metric label="Return" value={pct(result.total_return_pct)} good={result.total_return_pct >= 0} />
             <Metric label="Buy & Hold" value={pct(result.buy_hold_return_pct)} good={result.buy_hold_return_pct >= 0} />
             <Metric label="Max DD" value={pct(-result.max_drawdown_pct)} good={false} />
             <Metric label="Trades" value={`${result.num_trades} (${result.win_rate.toFixed(0)}% win)`} />
           </div>
         </div>
       )}
-    </section>
-  );
-}
 
-function NumInput({ label, value, onChange }: { label: string; value: number; onChange: (n: number) => void }) {
-  return (
-    <label className="text-xs text-neutral-400">
-      {label}
-      <input
-        type="number"
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="ml-1 w-16 rounded bg-neutral-800 px-1 py-1 text-sm text-neutral-100"
-      />
-    </label>
+      {comparison && (
+        <table className="w-full text-left text-xs">
+          <thead className="text-neutral-500">
+            <tr>
+              <th className="py-1">Strategy</th>
+              <th>Return</th>
+              <th>Max DD</th>
+              <th>Trades</th>
+              <th>Win%</th>
+            </tr>
+          </thead>
+          <tbody>
+            {comparison.map((r, i) => (
+              <tr key={r.strategy} className="border-t border-neutral-800">
+                <td className="py-1">
+                  {i === 0 && !r.error ? "🏆 " : ""}
+                  {r.strategy}
+                </td>
+                {r.error ? (
+                  <td colSpan={4} className="text-red-400">
+                    {r.error}
+                  </td>
+                ) : (
+                  <>
+                    <td className={r.total_return_pct >= 0 ? "text-green-400" : "text-red-400"}>
+                      {pct(r.total_return_pct)}
+                    </td>
+                    <td className="text-red-400">{pct(-r.max_drawdown_pct)}</td>
+                    <td>{r.num_trades}</td>
+                    <td>{r.win_rate.toFixed(0)}%</td>
+                  </>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </section>
   );
 }
 

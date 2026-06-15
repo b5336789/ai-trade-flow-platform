@@ -110,6 +110,26 @@ export interface BacktestRequest {
   position_fraction?: number;
 }
 
+export interface CompareRow {
+  strategy: string;
+  total_return_pct: number;
+  buy_hold_return_pct: number;
+  num_trades: number;
+  win_rate: number;
+  max_drawdown_pct: number;
+  error: string | null;
+}
+
+export interface CompareRequest {
+  symbol: string;
+  market?: string;
+  timeframe?: string;
+  limit?: number;
+  strategies?: string[];
+  starting_cash?: number;
+  position_fraction?: number;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     headers: { "Content-Type": "application/json" },
@@ -148,4 +168,6 @@ export const api = {
   strategies: () => request<{ strategies: string[] }>("/api/backtest/strategies"),
   backtest: (req: BacktestRequest) =>
     request<BacktestResult>("/api/backtest", { method: "POST", body: JSON.stringify(req) }),
+  compareStrategies: (req: CompareRequest) =>
+    request<CompareRow[]>("/api/backtest/compare", { method: "POST", body: JSON.stringify(req) }),
 };

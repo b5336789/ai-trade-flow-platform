@@ -29,9 +29,14 @@ def rsi(close: pd.Series, window: int = 14) -> pd.Series:
     return RSIIndicator(close, window=window).rsi()
 
 
-def macd(close: pd.Series) -> tuple[pd.Series, pd.Series, pd.Series]:
+def macd(
+    close: pd.Series,
+    window_slow: int = 26,
+    window_fast: int = 12,
+    window_sign: int = 9,
+) -> tuple[pd.Series, pd.Series, pd.Series]:
     """Returns (macd_line, signal_line, histogram)."""
-    indicator = MACD(close)
+    indicator = MACD(close, window_slow=window_slow, window_fast=window_fast, window_sign=window_sign)
     return indicator.macd(), indicator.macd_signal(), indicator.macd_diff()
 
 
