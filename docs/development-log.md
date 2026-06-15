@@ -18,6 +18,7 @@
 | 11 | 參數最佳化 | 網格搜尋 `optimize`、`/api/backtest/optimize`、前端 Optimize + 套用最佳 | 53 測試 |
 | 文件 | 技術文件 + 使用說明書 | `docs/`(本目錄)、前端 `/manual` 圖文並茂頁面 | tsc + build |
 | 12 | 通知 | `notifications/`(站內 + webhook)、成交自動通知、`/api/notifications`、前端 NotificationsPanel | 58 測試 |
+| 13 | 券商骨架 + 台美股離線資料 | 元大 / Firstrade live 骨架(fail loud)、CSV 匯入(`/api/markets/import`)、`CsvDataBroker` 讓台股/美股離線回測與紙上交易、前端市場選擇 + 匯入面板 | 63 測試 |
 
 ## 設計原則落實(對照 `CLAUDE.md`)
 - **Simplicity First**:先做 crypto+紙上一條完整切片,再水平擴充。

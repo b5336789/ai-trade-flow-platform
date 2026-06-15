@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { api, type BacktestResult, type CompareRow, type EquityPoint, type OptimizeRow } from "@/lib/api";
+import { api, MARKETS, type BacktestResult, type CompareRow, type EquityPoint, type OptimizeRow } from "@/lib/api";
 import { OPTIMIZE_GRID, STRATEGY_NAMES, STRATEGY_PARAMS } from "@/lib/strategies";
 
 function Sparkline({ points }: { points: EquityPoint[] }) {
@@ -31,6 +31,7 @@ const pct = (n: number) => `${n >= 0 ? "+" : ""}${n.toFixed(2)}%`;
 
 export function BacktestPanel() {
   const [symbol, setSymbol] = useState("BTC/USDT");
+  const [market, setMarket] = useState("crypto");
   const [strategy, setStrategy] = useState("ma_cross");
   const [params, setParams] = useState<Record<string, number>>({ ...STRATEGY_PARAMS.ma_cross });
   const [result, setResult] = useState<BacktestResult | null>(null);
@@ -56,7 +57,7 @@ export function BacktestPanel() {
     resetOutputs();
     try {
       setOptimization(
-        await api.optimize({ symbol, strategy, param_grid: OPTIMIZE_GRID[strategy], timeframe: "1h", limit: 500 }),
+        await api.optimize({ symbol, market, strategy, param_grid: OPTIMIZE_GRID[strategy], timeframe: "1h", limit: 500 }),
       );
     } catch (e) {
       setError((e as Error).message);
@@ -69,7 +70,7 @@ export function BacktestPanel() {
     setLoading(true);
     resetOutputs();
     try {
-      setResult(await api.backtest({ symbol, strategy, params, timeframe: "1h", limit: 500 }));
+      setResult(await api.backtest({ symbol, market, strategy, params, timeframe: "1h", limit: 500 }));
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -81,7 +82,7 @@ export function BacktestPanel() {
     setLoading(true);
     resetOutputs();
     try {
-      setComparison(await api.compareStrategies({ symbol, timeframe: "1h", limit: 500 }));
+      setComparison(await api.compareStrategies({ symbol, market, timeframe: "1h", limit: 500 }));
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -93,6 +94,17 @@ export function BacktestPanel() {
     <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4">
       <h2 className="mb-3 text-lg font-semibold">Backtest</h2>
       <div className="mb-3 flex flex-wrap items-end gap-2">
+        <select
+          value={market}
+          onChange={(e) => setMarket(e.target.value)}
+          className="rounded bg-neutral-800 px-2 py-1 text-sm"
+        >
+          {MARKETS.map((m) => (
+            <option key={m.value} value={m.value}>
+              {m.label}
+            </option>
+          ))}
+        </select>
         <input
           value={symbol}
           onChange={(e) => setSymbol(e.target.value.toUpperCase())}

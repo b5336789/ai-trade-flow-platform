@@ -3,11 +3,35 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Query
+from pydantic import BaseModel
 
+from app.brokers import market_data
 from app.brokers.registry import get_data_broker
 from app.schemas import Candle, MarketKind, Ticker
 
 router = APIRouter(prefix="/api/markets", tags=["markets"])
+
+
+class ImportRequest(BaseModel):
+    market: MarketKind
+    symbol: str
+    csv: str  # OHLCV CSV: header timestamp,open,high,low,close[,volume]
+
+
+@router.post("/import")
+def import_history(req: ImportRequest) -> dict:
+    """Import OHLCV CSV for a symbol so 台股/美股 can be paper-traded & backtested offline."""
+    try:
+        candles = market_data.parse_csv(req.csv)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    market_data.set_candles(req.market, req.symbol, candles)
+    return {"market": req.market.value, "symbol": req.symbol, "imported": len(candles)}
+
+
+@router.get("/imported")
+def list_imported(market: MarketKind) -> dict:
+    return {"market": market.value, "symbols": market_data.list_symbols(market)}
 
 
 @router.get("/ticker", response_model=Ticker)

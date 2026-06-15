@@ -24,7 +24,11 @@ SQLModel engine(預設 SQLite)。`init_db()` 建表;`get_session()` 為 FastAPI 
 | `base.py` | `Broker` ABC,所有市場/模式的統一介面 |
 | `crypto_ccxt.py` | `CcxtBroker`:Binance(含 testnet)。公開行情免金鑰;`create_order` 無金鑰時 fail loud |
 | `paper.py` | `PaperBroker`:包一個資料來源 broker 取真實價,模擬撮合,記憶體追蹤現金/部位(加權平均成本) |
-| `registry.py` | `get_data_broker(market)`(行情)、`get_broker(market, mode)`(執行;paper 以 market 快取保留狀態) |
+| `yuanta.py` | `YuantaBroker`:台股 元大(及美股 元大複委託)live 骨架,所有方法 fail loud 並說明所需金鑰/SDK |
+| `firstrade.py` | `FirstradeBroker`:美股 Firstrade live 骨架;明確標示無官方 API、依賴非官方函式庫 |
+| `market_data.py` | 記憶體 OHLCV 倉儲(依 market+symbol)+ `parse_csv`;讓台股/美股可離線匯入資料 |
+| `csv_data.py` | `CsvDataBroker`:以匯入的 CSV 歷史供應 ticker/ohlcv,作為 PaperBroker 的資料來源 |
+| `registry.py` | `get_data_broker`(crypto→ccxt;台股/美股→有匯入資料則 CsvDataBroker,否則 fail loud)、`get_live_broker`(crypto→ccxt;台股→元大;美股→Firstrade)、`get_broker(market, mode)` |
 
 ## `strategies/` — 指標與策略
 見 [strategies.md](./strategies.md)。`registry.py` 集中 4 種策略,供工作流與回測共用。

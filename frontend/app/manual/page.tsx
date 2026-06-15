@@ -215,15 +215,19 @@ cd frontend && npm install && npm run dev`}</Code>
             <tr className="border-t border-neutral-800">
               <td className="py-1">台股</td>
               <td>元大證券</td>
-              <td className="text-yellow-400">⏳ 介面就緒,實作中</td>
+              <td className="text-yellow-400">⏳ 真實下單骨架;✅ 匯入 CSV 後可離線回測/紙上交易</td>
             </tr>
             <tr className="border-t border-neutral-800">
               <td className="py-1">美股</td>
               <td>元大複委託 / Firstrade</td>
-              <td className="text-yellow-400">⏳ 實作中(Firstrade 為非官方 API)</td>
+              <td className="text-yellow-400">⏳ 真實下單骨架;✅ 匯入 CSV 後可離線回測(Firstrade 為非官方 API)</td>
             </tr>
           </tbody>
         </table>
+        <p className="text-sm text-neutral-300">
+          台股/美股尚未串接真實券商前,可用儀表板的「匯入歷史資料」面板貼上 OHLCV CSV
+          (表頭 <code>timestamp,open,high,low,close,volume</code>),即可選擇該市場進行回測與紙上交易。
+        </p>
         <p className="text-xs text-neutral-500">
           更深入的開發者文件見專案 <code>docs/</code> 目錄。
         </p>

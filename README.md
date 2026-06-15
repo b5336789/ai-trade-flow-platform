@@ -16,8 +16,8 @@ in behind the common `Broker` interface:
 | Market | Broker target            | Status                                            |
 | ------ | ------------------------ | ------------------------------------------------- |
 | Crypto | Binance (`ccxt`)         | ✅ market data + paper trading (live opt-in)      |
-| 台股   | 元大證券 (Yuanta)        | ⏳ interface ready, implementation later          |
-| 美股   | 元大複委託 + Firstrade   | ⏳ interface ready, later (Firstrade = unofficial API) |
+| 台股   | 元大證券 (Yuanta)        | ⏳ live scaffold (fail-loud); ✅ offline paper/backtest via CSV import |
+| 美股   | 元大複委託 + Firstrade   | ⏳ live scaffold (fail-loud); ✅ offline paper/backtest via CSV import (Firstrade = unofficial API) |
 
 ## Architecture
 

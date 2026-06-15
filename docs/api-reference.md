@@ -30,6 +30,14 @@ Query:`symbol`(必填)、`market`(預設 `crypto`)。
 Query:`symbol`、`market=crypto`、`timeframe=1h`、`limit=100`(1–1000)。
 → `Candle[] { timestamp, open, high, low, close, volume }`
 
+### `POST /api/markets/import`
+Body:`{ market, symbol, csv }`。`csv` 表頭需含 `timestamp,open,high,low,close[,volume]`。
+匯入後該 (市場, 代號) 即可離線回測/紙上交易(台股/美股尚未串接真實券商時的資料來源)。
+→ `{ market, symbol, imported }`。格式錯誤回 `422`。
+
+### `GET /api/markets/imported?market=tw_stock`
+→ `{ market, symbols: [...] }`(已匯入的代號清單)
+
 ## Orders
 
 ### `POST /api/orders?market=crypto`

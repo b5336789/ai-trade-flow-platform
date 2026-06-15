@@ -233,4 +233,15 @@ export const api = {
     request<{ deleted: boolean }>(`/api/schedules/${id}`, { method: "DELETE" }),
   listNotifications: () => request<Notification[]>("/api/notifications"),
   testNotification: () => request<Notification>("/api/notifications/test", { method: "POST" }),
+  importHistory: (market: string, symbol: string, csv: string) =>
+    request<{ market: string; symbol: string; imported: number }>("/api/markets/import", {
+      method: "POST",
+      body: JSON.stringify({ market, symbol, csv }),
+    }),
 };
+
+export const MARKETS = [
+  { value: "crypto", label: "加密貨幣 (Binance)" },
+  { value: "tw_stock", label: "台股 (元大)" },
+  { value: "us_stock", label: "美股 (元大複委託 / Firstrade)" },
+];

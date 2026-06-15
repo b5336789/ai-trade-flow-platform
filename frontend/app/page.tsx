@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { BacktestPanel } from "@/components/BacktestPanel";
+import { DataImportPanel } from "@/components/DataImportPanel";
 import { MarketPanel } from "@/components/MarketPanel";
 import { NotificationsPanel } from "@/components/NotificationsPanel";
 import { PortfolioPanel } from "@/components/PortfolioPanel";
@@ -26,6 +27,7 @@ export default function Home() {
           <WorkflowBuilder />
           <SchedulesPanel />
           <BacktestPanel />
+          <DataImportPanel />
         </div>
         <div className="space-y-4">
           <PortfolioPanel />
