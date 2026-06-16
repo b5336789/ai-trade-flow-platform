@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 
 function money(n: number) {
@@ -8,6 +8,7 @@ function money(n: number) {
 }
 
 export function PortfolioPanel() {
+  const qc = useQueryClient();
   const config = useQuery({ queryKey: ["config"], queryFn: api.config, retry: false });
   const portfolio = useQuery({
     queryKey: ["portfolio"],
@@ -30,6 +31,16 @@ export function PortfolioPanel() {
             {config.data.trading_mode.toUpperCase()}
           </span>
         )}
+        <button
+          onClick={async () => {
+            if (!confirm("重置紙上交易帳戶(現金與部位)?")) return;
+            await api.resetPaper("crypto");
+            qc.invalidateQueries({ queryKey: ["portfolio"] });
+          }}
+          className="ml-auto rounded bg-neutral-800 px-2 py-1 text-xs hover:bg-neutral-700"
+        >
+          Reset paper
+        </button>
       </div>
 
       {portfolio.isError ? (

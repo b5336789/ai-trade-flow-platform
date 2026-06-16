@@ -33,6 +33,7 @@ class PaperBroker(Broker):
         data_provider: Broker,
         starting_cash: float | None = None,
         quote_asset: str | None = None,
+        store=None,
     ) -> None:
         self._data = data_provider
         self.market = data_provider.market
@@ -40,6 +41,18 @@ class PaperBroker(Broker):
         self._quote = quote_asset or settings.paper_quote_asset
         self._positions: dict[str, Position] = {}
         self._ids = itertools.count(1)
+        self._store = store
+        if store is not None:
+            cash, positions = store.load()
+            if cash is not None:  # hydrate from persisted state
+                self._cash = cash
+                self._positions = positions
+            else:  # first run: persist the opening balance
+                store.save(self._cash, self._quote, self._positions)
+
+    def _persist(self) -> None:
+        if self._store is not None:
+            self._store.save(self._cash, self._quote, self._positions)
 
     @property
     def name(self) -> str:
@@ -82,6 +95,7 @@ class PaperBroker(Broker):
             self._cash += fill_price * request.quantity
             self._apply_position(request.symbol, -request.quantity, fill_price)
 
+        self._persist()
         return OrderResult(
             id=f"paper-{next(self._ids)}",
             symbol=request.symbol,

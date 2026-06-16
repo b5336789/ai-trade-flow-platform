@@ -49,7 +49,8 @@ SQLModel engine(預設 SQLite)。`init_db()` 建表;`get_session()` 為 FastAPI 
 | --- | --- |
 | `risk.py` | `RiskGuard.check(req, price, held)`:單筆金額上限、部位總值上限;違規拋 `RiskError` |
 | `portfolio.py` | `build_portfolio(broker)`:部位帶入即時價、未實現損益、權益總值;取價失敗退回成本價並標記 |
-| `execution.py` | `execute_order(...)`:手動與工作流共用的唯一下單路徑(價→風控→撮合→存檔) |
+| `execution.py` | `execute_order(...)`:手動與工作流共用的唯一下單路徑(價→風控→撮合→存檔→通知) |
+| `paper_store.py` | `PaperStore`:把紙上帳戶現金/部位持久化到 DB,讓 `PaperBroker` 重啟後仍保留狀態 |
 
 ## `workflow/` — 節點圖引擎
 見 [workflow.md](./workflow.md)。`schema.py`(圖/節點/結果模型)、`nodes.py`(節點執行器)、

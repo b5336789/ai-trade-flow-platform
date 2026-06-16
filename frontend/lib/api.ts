@@ -205,6 +205,8 @@ export const api = {
       body: JSON.stringify({ symbol, market, timeframe, limit }),
     }),
   portfolio: (market = "crypto") => request<PortfolioView>(`/api/orders/portfolio?market=${market}`),
+  resetPaper: (market = "crypto") =>
+    request<{ reset: boolean }>(`/api/orders/paper/reset?market=${market}`, { method: "POST" }),
   orders: () => request<OrderResult[]>("/api/orders"),
   runWorkflow: (graph: WorkflowGraph) =>
     request<RunResult>("/api/workflows/run", {

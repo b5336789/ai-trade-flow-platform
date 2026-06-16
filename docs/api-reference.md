@@ -51,6 +51,9 @@ Body:`OrderRequest { symbol, side: "buy"|"sell", quantity, type?: "market"|"limi
 
 ### `GET /api/orders/portfolio?market=crypto`
 → `PortfolioView { cash, positions: PositionView[], positions_value, equity }`
+
+### `POST /api/orders/paper/reset?market=crypto`
+清除該市場的紙上交易帳戶(現金與部位,持久化於 DB)。→ `{ "reset": true }`
 `PositionView { symbol, quantity, avg_price, current_price, market_value, unrealized_pnl, price_source }`
 (`price_source` 為 `live` 或 `avg_fallback`,後者表示即時價不可得而退回成本價。)
 
