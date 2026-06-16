@@ -19,15 +19,16 @@
 | 文件 | 技術文件 + 使用說明書 | `docs/`(本目錄)、前端 `/manual` 圖文並茂頁面 | tsc + build |
 | 12 | 通知 | `notifications/`(站內 + webhook)、成交自動通知、`/api/notifications`、前端 NotificationsPanel | 58 測試 |
 | 13 | 券商骨架 + 台美股離線資料 | 元大 / Firstrade live 骨架(fail loud)、CSV 匯入(`/api/markets/import`)、`CsvDataBroker` 讓台股/美股離線回測與紙上交易、前端市場選擇 + 匯入面板 | 63 測試 |
+| 14 | 前端 UI/UX 打磨 | 統一設計系統(Tailwind 設計 token、`.card/.btn/.input/.badge/.skeleton` 元件層)、置頂 `AppHeader`(品牌 + 即時 PAPER/LIVE 狀態)、各面板骨架載入/淡入動效/hover 與多空語意色、彩色工作流節點、主題化圖表;文件全面更新 + README 補上實際介面截圖 | `tsc` + production build 成功;63 測試仍通過 |
 
 ## 設計原則落實(對照 `CLAUDE.md`)
 - **Simplicity First**:先做 crypto+紙上一條完整切片,再水平擴充。
 - **Surgical Changes**:重構策略 registry 時只動相關處。
 - **Fail Loud**:缺資料/外部錯誤/風控違規一律明確回報。
-- **Business-Logic Tests**:53 項皆驗證真實行為。
+- **Business-Logic Tests**:63 項皆驗證真實行為。
 - **Checkpoints**:每步 commit 並記錄(本表)。
 - **Match Codebase Style**:後端 snake_case、前端慣用 React/TS。
 
 ## 尚未實作(規劃中)
 - 真實券商:台股 **元大證券**、美股 **元大複委託 / Firstrade**(需金鑰 + 外網;Firstrade 無官方 API)。
-- 使用者驗證 / 多使用者、雲端部署強化、訊號通知。
+- 使用者驗證 / 多使用者、雲端部署強化。

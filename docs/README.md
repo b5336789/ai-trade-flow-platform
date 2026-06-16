@@ -18,7 +18,7 @@
 | [`backtesting.md`](./backtesting.md) | 回測引擎、多策略比較、參數最佳化 |
 | [`configuration.md`](./configuration.md) | 環境變數、交易模式、安全閘門 |
 | [`testing.md`](./testing.md) | 測試套件總覽與如何執行 |
-| [`development-log.md`](./development-log.md) | 開發歷程:Checkpoint 1–11(完成內容、驗證方式、剩餘項目) |
+| [`development-log.md`](./development-log.md) | 開發歷程:Checkpoint 1–14(完成內容、驗證方式、剩餘項目) |
 
 ## 快速導覽
 
@@ -52,7 +52,10 @@ ai-trade-flow-platform/
 │       ├── scheduler/  # APScheduler 排程
 │       └── api/        # HTTP 路由
 └── frontend/           # Next.js + TypeScript + React Flow + lightweight-charts
-    ├── app/            # 頁面(/ 儀表板, /manual 使用說明書)
-    ├── components/     # 面板與圖表
+    ├── app/            # 頁面(/ 儀表板, /manual 使用說明書)、全域樣式與設計 token
+    ├── components/     # AppHeader、各面板(行情/工作流/排程/回測/組合/通知/匯入)與圖表
     └── lib/            # API client、策略 schema
 ```
+
+> 前端採統一的設計系統:Tailwind 設計 token + 可複用的 `.card / .btn / .input / .badge / .skeleton`
+> 元件層,搭配深色毛玻璃面板、骨架載入與動效。介面截圖見專案根目錄 [`README.md`](../README.md)。

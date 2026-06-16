@@ -7,6 +7,20 @@ workflow-based web UI.
 
 > Development is governed by [`CLAUDE.md`](./CLAUDE.md). Read it before contributing.
 
+## 系統介面 / Screenshots
+
+深色主題、毛玻璃面板與一致的設計系統(品牌漸層、即時 `PAPER / LIVE` 狀態、骨架載入與動效)。
+以下為實際前端畫面(`paper` 模式、示意資料):
+
+![AI Trade Flow 儀表板](docs/images/dashboard-hero.png)
+
+單一儀表板整合**行情 K 線**、**AI 買賣訊號**(含信心度)、**視覺化工作流**、
+**回測 / 多策略比較 / 參數最佳化**、**自動排程**、**投資組合損益**與**即時通知**。
+
+| 完整儀表板 | 圖文使用說明書 (`/manual`) |
+| --- | --- |
+| [<img src="docs/images/dashboard.png" alt="完整儀表板" width="420">](docs/images/dashboard.png) | [<img src="docs/images/manual.png" alt="使用說明書" width="420">](docs/images/manual.png) |
+
 ## Status
 
 This is an in-progress build. The **first fully-working end-to-end slice is crypto + paper

@@ -67,7 +67,7 @@ SQLModel engine(預設 SQLite)。`init_db()` 建表;`get_session()` 為 FastAPI 
 寫 `RunLog`、更新排程狀態。啟動時還原已啟用排程。
 
 ## `api/` — HTTP 路由
-`markets.py`、`orders.py`、`ai.py`、`workflows.py`、`backtest.py`、`schedules.py`。
+`markets.py`、`orders.py`、`ai.py`、`workflows.py`、`backtest.py`、`schedules.py`、`notifications.py`。
 見 [api-reference.md](./api-reference.md)。
 
 ## `main.py` — 入口

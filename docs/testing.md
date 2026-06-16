@@ -9,7 +9,7 @@ stub broker,不需網路或 API 金鑰(`CLAUDE.md`:Use Business-Logic Tests)。
 cd backend
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
-pytest                 # 53 passed
+pytest                 # 63 passed
 ```
 
 ## 測試檔一覽(`backend/app/tests/`)

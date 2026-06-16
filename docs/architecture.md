@@ -9,13 +9,17 @@
 ```mermaid
 flowchart TB
     subgraph FE[前端 Next.js]
+        HDR[AppHeader<br/>品牌 + PAPER/LIVE 狀態]
         DASH[儀表板 /]
         MAN[使用說明書 /manual]
+        HDR --- DASH
         DASH --> MK[MarketPanel<br/>K線+AI訊號]
         DASH --> WB[WorkflowBuilder<br/>React Flow]
         DASH --> SC[SchedulesPanel]
         DASH --> BTP[BacktestPanel<br/>回測/比較/最佳化]
         DASH --> PF[PortfolioPanel]
+        DASH --> NT[NotificationsPanel]
+        DASH --> IMP[DataImportPanel<br/>台股/美股 CSV]
     end
 
     subgraph BE[後端 FastAPI]
@@ -42,7 +46,13 @@ flowchart TB
     SC --> API
     BTP --> API
     PF --> API
+    NT --> API
+    IMP --> API
 ```
+
+> 前端採統一的設計系統(Tailwind 設計 token、可複用的 `.card / .btn / .input / .badge / .skeleton`
+> 元件層)。所有面板共用骨架載入、淡入動效與一致的多空語意色;頂部 `AppHeader` 顯示品牌與即時
+> `PAPER / LIVE` 交易模式。
 
 ## 核心設計決策
 
