@@ -17,6 +17,7 @@ from app.brokers.paper import PaperBroker
 from app.brokers.yuanta import YuantaBroker
 from app.config import settings
 from app.schemas import MarketKind, TradingMode
+from app.trading.paper_store import PaperStore
 
 _paper_cache: dict[MarketKind, PaperBroker] = {}
 
@@ -54,11 +55,19 @@ def get_broker(market: MarketKind, mode: TradingMode | None = None) -> Broker:
     mode = mode or settings.trading_mode
     if mode == TradingMode.paper:
         if market not in _paper_cache:
-            _paper_cache[market] = PaperBroker(data_provider=get_data_broker(market))
+            _paper_cache[market] = PaperBroker(
+                data_provider=get_data_broker(market), store=PaperStore(market)
+            )
         return _paper_cache[market]
     return get_live_broker(market)
 
 
 def reset_paper_brokers() -> None:
-    """Clear cached paper state (used by tests)."""
+    """Clear cached paper brokers (used by tests; does not touch persisted state)."""
     _paper_cache.clear()
+
+
+def reset_paper_account(market: MarketKind) -> None:
+    """Wipe persisted paper state for a market and drop its cached broker."""
+    PaperStore(market).reset()
+    _paper_cache.pop(market, None)

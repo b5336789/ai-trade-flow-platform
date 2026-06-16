@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
-from app.brokers.registry import get_broker
+from app.brokers.registry import get_broker, reset_paper_account
 from app.db import get_session
 from app.models import OrderRecord
 from app.schemas import MarketKind, OrderRequest, OrderResult
@@ -43,3 +43,10 @@ def portfolio(market: MarketKind = MarketKind.crypto) -> PortfolioView:
         return build_portfolio(get_broker(market))
     except NotImplementedError as exc:
         raise HTTPException(status_code=501, detail=str(exc))
+
+
+@router.post("/paper/reset")
+def reset_paper(market: MarketKind = MarketKind.crypto) -> dict[str, bool]:
+    """Wipe the persisted paper-trading account/positions for a market."""
+    reset_paper_account(market)
+    return {"reset": True}

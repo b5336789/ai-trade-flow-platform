@@ -58,3 +58,19 @@ class Notification(SQLModel, table=True):
     message: str = ""
     meta: dict = Field(default_factory=dict, sa_column=Column(JSON))
     created_at: datetime = Field(default_factory=_now)
+
+
+class PaperAccount(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    market: str = Field(unique=True, index=True)
+    cash: float
+    quote_asset: str
+    updated_at: datetime = Field(default_factory=_now)
+
+
+class PaperPosition(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    market: str = Field(index=True)
+    symbol: str
+    quantity: float
+    avg_price: float
