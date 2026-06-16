@@ -10,11 +10,16 @@ export function CandleChart({ candles }: { candles: Candle[] }) {
   useEffect(() => {
     if (!containerRef.current) return;
     const chart = createChart(containerRef.current, {
-      layout: { background: { type: ColorType.Solid, color: "#0a0a0a" }, textColor: "#d4d4d4" },
-      grid: { vertLines: { color: "#1f1f1f" }, horzLines: { color: "#1f1f1f" } },
+      layout: { background: { type: ColorType.Solid, color: "transparent" }, textColor: "#a1a1aa" },
+      grid: { vertLines: { color: "rgba(255,255,255,0.04)" }, horzLines: { color: "rgba(255,255,255,0.04)" } },
+      crosshair: {
+        vertLine: { color: "#6366f1", labelBackgroundColor: "#4f46e5" },
+        horzLine: { color: "#6366f1", labelBackgroundColor: "#4f46e5" },
+      },
+      rightPriceScale: { borderColor: "rgba(255,255,255,0.06)" },
       width: containerRef.current.clientWidth,
       height: 320,
-      timeScale: { timeVisible: true },
+      timeScale: { timeVisible: true, borderColor: "rgba(255,255,255,0.06)" },
     });
     const series = chart.addCandlestickSeries({
       upColor: "#22c55e",

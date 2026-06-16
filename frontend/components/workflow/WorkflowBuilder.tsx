@@ -119,41 +119,36 @@ export function WorkflowBuilder() {
   const NODE_BUTTONS: NodeType[] = ["data_source", "strategy", "ai_signal", "order", "logger"];
 
   return (
-    <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4">
+    <section className="card">
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <h2 className="mr-2 text-lg font-semibold">Workflow Builder</h2>
+        <h2 className="panel-title mr-1">🧩 工作流建立器 Workflow Builder</h2>
         {NODE_BUTTONS.map((t) => (
-          <button
-            key={t}
-            onClick={() => addNode(t)}
-            className="rounded bg-neutral-800 px-2 py-1 text-xs hover:bg-neutral-700"
-          >
+          <button key={t} onClick={() => addNode(t)} className="btn btn-ghost btn-xs">
             + {t}
           </button>
         ))}
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="ml-auto rounded bg-neutral-800 px-2 py-1 text-sm"
+          className="input ml-auto w-40"
           placeholder="workflow name"
         />
-        <button
-          onClick={save}
-          className="rounded bg-blue-600 px-3 py-1 text-sm font-medium hover:bg-blue-500"
-        >
-          Save
+        <button onClick={save} className="btn bg-sky-600 text-white hover:bg-sky-500">
+          儲存
         </button>
-        <button
-          onClick={run}
-          disabled={running}
-          className="rounded bg-green-600 px-3 py-1 text-sm font-medium hover:bg-green-500 disabled:opacity-50"
-        >
-          {running ? "Running…" : "Run"}
+        <button onClick={run} disabled={running} className="btn btn-success">
+          {running ? (
+            <>
+              <Spinner /> 執行中…
+            </>
+          ) : (
+            "▶ 執行"
+          )}
         </button>
       </div>
-      {savedMsg && <p className="mb-2 text-sm text-green-400">{savedMsg}</p>}
+      {savedMsg && <p className="mb-2 text-sm text-emerald-400">{savedMsg}</p>}
 
-      <div className="h-[360px] rounded border border-neutral-800">
+      <div className="h-[360px] overflow-hidden rounded-lg border border-white/5">
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -162,32 +157,48 @@ export function WorkflowBuilder() {
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
           fitView
+          proOptions={{ hideAttribution: true }}
         >
-          <Background />
-          <Controls />
+          <Background gap={16} color="#27272a" />
+          <Controls className="!border-white/10 !bg-neutral-800 [&_button]:!border-white/10 [&_button]:!bg-neutral-800 [&_button:hover]:!bg-neutral-700" />
         </ReactFlow>
       </div>
 
-      {error && <p className="mt-3 text-sm text-red-400">Run error: {error}</p>}
+      {error && <p className="mt-3 text-sm text-red-400">執行錯誤:{error}</p>}
       {result && (
-        <div className="mt-3 rounded border border-neutral-800 bg-neutral-900 p-3 text-xs">
-          <div className="mb-1">
-            Status:{" "}
-            <span className={result.status === "ok" ? "text-green-400" : "text-red-400"}>
+        <div className="mt-3 animate-fade-in rounded-lg border border-white/5 bg-neutral-900/80 p-3 text-xs">
+          <div className="mb-1.5 flex items-center gap-2">
+            <span className="text-neutral-500">狀態</span>
+            <span
+              className={`badge border ${
+                result.status === "ok"
+                  ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-300"
+                  : "border-red-500/40 bg-red-500/15 text-red-300"
+              }`}
+            >
               {result.status}
             </span>
-            {result.error && <span className="text-red-400"> — {result.error}</span>}
+            {result.error && <span className="text-red-400">— {result.error}</span>}
           </div>
           <ol className="space-y-0.5">
             {result.steps.map((s) => (
-              <li key={s.node_id} className="text-neutral-300">
-                <span className="text-neutral-500">{s.type}</span> [{s.node_id}]:{" "}
-                {JSON.stringify(s.summary)}
+              <li key={s.node_id} className="font-mono text-neutral-300">
+                <span className="text-brand-400">{s.type}</span>{" "}
+                <span className="text-neutral-500">[{s.node_id}]</span>: {JSON.stringify(s.summary)}
               </li>
             ))}
           </ol>
         </div>
       )}
     </section>
+  );
+}
+
+function Spinner() {
+  return (
+    <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+      <path className="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+    </svg>
   );
 }

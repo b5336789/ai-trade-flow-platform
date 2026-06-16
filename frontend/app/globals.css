@@ -6,6 +6,106 @@
   color-scheme: dark;
 }
 
-body {
-  @apply bg-neutral-950 text-neutral-100;
+@layer base {
+  body {
+    @apply bg-neutral-950 text-neutral-100 antialiased;
+    /* Subtle layered glow so the dark canvas isn't flat. */
+    background-image:
+      radial-gradient(60rem 40rem at 15% -10%, rgba(99, 102, 241, 0.12), transparent 60%),
+      radial-gradient(50rem 35rem at 100% 0%, rgba(139, 92, 246, 0.1), transparent 55%);
+    background-attachment: fixed;
+  }
+
+  /* Numbers line up in tables / metrics. */
+  table,
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  ::selection {
+    @apply bg-brand-500/30 text-white;
+  }
+
+  /* Quieter, theme-matched scrollbars. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #3f3f46 transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  *::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-neutral-700;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    @apply bg-neutral-600;
+  }
+
+  /* Consistent keyboard-focus ring across all interactive elements. */
+  a:focus-visible,
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    @apply outline-none ring-2 ring-brand-500/70 ring-offset-2 ring-offset-neutral-950;
+  }
+}
+
+@layer components {
+  /* Glass surface used by every dashboard panel. */
+  .card {
+    @apply rounded-xl border border-white/5 bg-neutral-900/50 p-4 shadow-card backdrop-blur-sm
+           transition-colors duration-200 hover:border-white/10;
+  }
+
+  .panel-title {
+    @apply text-base font-semibold tracking-tight text-neutral-100;
+  }
+
+  /* Buttons — one base, semantic variants. */
+  .btn {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium
+           transition-all duration-150 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50
+           disabled:active:scale-100;
+  }
+  .btn-primary {
+    @apply bg-brand-600 text-white shadow-sm hover:bg-brand-500 hover:shadow-glow;
+  }
+  .btn-ghost {
+    @apply bg-neutral-800/80 text-neutral-200 hover:bg-neutral-700;
+  }
+  .btn-success {
+    @apply bg-emerald-600 text-white hover:bg-emerald-500;
+  }
+  .btn-xs {
+    @apply rounded-md px-2 py-1 text-xs;
+  }
+
+  /* Form controls. */
+  .input {
+    @apply rounded-lg border border-white/5 bg-neutral-800/80 px-2.5 py-1.5 text-sm text-neutral-100
+           placeholder:text-neutral-500 transition-colors hover:bg-neutral-800
+           focus:border-brand-500/50;
+  }
+
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium;
+  }
+
+  /* Loading placeholder with a moving sheen. */
+  .skeleton {
+    @apply relative overflow-hidden rounded-md bg-neutral-800/60;
+  }
+  .skeleton::after {
+    @apply absolute inset-0 -translate-x-full;
+    content: "";
+    background-image: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.06),
+      transparent
+    );
+    animation: shimmer 1.5s infinite;
+  }
 }

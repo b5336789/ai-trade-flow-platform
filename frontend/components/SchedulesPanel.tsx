@@ -45,8 +45,8 @@ export function SchedulesPanel() {
   const wfName = (id: number) => workflows.data?.find((w) => w.id === id)?.name ?? `#${id}`;
 
   return (
-    <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4">
-      <h2 className="mb-3 text-lg font-semibold">Schedules (auto-run)</h2>
+    <section className="card">
+      <h2 className="panel-title mb-3">⏱️ 自動執行 Schedules</h2>
 
       <div className="mb-3 flex flex-wrap items-end gap-2">
         <label className="text-xs text-neutral-400">
@@ -54,9 +54,9 @@ export function SchedulesPanel() {
           <select
             value={workflowId}
             onChange={(e) => setWorkflowId(e.target.value === "" ? "" : Number(e.target.value))}
-            className="ml-1 rounded bg-neutral-800 px-2 py-1 text-sm"
+            className="input ml-1"
           >
-            <option value="">— select —</option>
+            <option value="">— 選擇 —</option>
             {workflows.data?.map((w) => (
               <option key={w.id} value={w.id}>
                 #{w.id} {w.name}
@@ -65,20 +65,17 @@ export function SchedulesPanel() {
           </select>
         </label>
         <label className="text-xs text-neutral-400">
-          every (s)
+          每隔 (秒)
           <input
             type="number"
             min={5}
             value={interval}
             onChange={(e) => setInterval(Number(e.target.value))}
-            className="ml-1 w-20 rounded bg-neutral-800 px-1 py-1 text-sm"
+            className="input ml-1 w-20 px-1.5 py-1"
           />
         </label>
-        <button
-          onClick={schedule}
-          className="rounded bg-green-600 px-3 py-1 text-sm font-medium hover:bg-green-500"
-        >
-          Schedule
+        <button onClick={schedule} className="btn btn-success">
+          建立排程
         </button>
       </div>
 
@@ -88,24 +85,29 @@ export function SchedulesPanel() {
         <table className="w-full text-left text-xs">
           <thead className="text-neutral-500">
             <tr>
-              <th className="py-1">Workflow</th>
-              <th>Interval</th>
-              <th>State</th>
-              <th>Last run</th>
-              <th>Last status</th>
+              <th className="py-1 font-medium">Workflow</th>
+              <th className="font-medium">Interval</th>
+              <th className="font-medium">State</th>
+              <th className="font-medium">Last run</th>
+              <th className="font-medium">Last status</th>
               <th />
             </tr>
           </thead>
           <tbody>
             {schedules.data.map((s) => (
-              <tr key={s.id} className="border-t border-neutral-800">
-                <td className="py-1">{wfName(s.workflow_id)}</td>
+              <tr key={s.id} className="border-t border-white/5 transition-colors hover:bg-white/5">
+                <td className="py-1.5">{wfName(s.workflow_id)}</td>
                 <td>{s.interval_seconds}s</td>
                 <td>
                   <button
                     onClick={() => toggle(s.id)}
-                    className={`rounded px-2 py-0.5 ${s.enabled ? "bg-green-700" : "bg-neutral-700"}`}
+                    className={`badge transition-colors ${
+                      s.enabled
+                        ? "bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25"
+                        : "bg-neutral-700 text-neutral-300 hover:bg-neutral-600"
+                    }`}
                   >
+                    <span className={`h-1.5 w-1.5 rounded-full ${s.enabled ? "bg-emerald-400" : "bg-neutral-400"}`} />
                     {s.enabled ? "running" : "paused"}
                   </button>
                 </td>
@@ -116,8 +118,8 @@ export function SchedulesPanel() {
                   {s.last_status ?? "—"}
                 </td>
                 <td>
-                  <button onClick={() => remove(s.id)} className="text-red-400 hover:underline">
-                    delete
+                  <button onClick={() => remove(s.id)} className="font-medium text-red-400 hover:text-red-300 hover:underline">
+                    刪除
                   </button>
                 </td>
               </tr>
@@ -126,7 +128,7 @@ export function SchedulesPanel() {
         </table>
       ) : (
         <p className="text-xs text-neutral-500">
-          No schedules yet. Save a workflow in the builder, then schedule it here.
+          尚無排程。先在上方建立器 Save 一個工作流,再於此排程自動執行。
         </p>
       )}
     </section>

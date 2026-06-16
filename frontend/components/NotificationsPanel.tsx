@@ -25,14 +25,14 @@ export function NotificationsPanel() {
   }
 
   return (
-    <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4">
+    <section className="card">
       <div className="mb-3 flex items-center gap-2">
-        <h2 className="text-lg font-semibold">Notifications</h2>
-        <button
-          onClick={test}
-          className="ml-auto rounded bg-neutral-800 px-2 py-1 text-xs hover:bg-neutral-700"
-        >
-          Test
+        <h2 className="panel-title">🔔 通知 Notifications</h2>
+        {notifications.data && notifications.data.length > 0 && (
+          <span className="badge bg-neutral-800 text-neutral-400">{notifications.data.length}</span>
+        )}
+        <button onClick={test} className="btn btn-ghost btn-xs ml-auto">
+          測試
         </button>
       </div>
 
@@ -41,7 +41,10 @@ export function NotificationsPanel() {
       ) : notifications.data && notifications.data.length > 0 ? (
         <ul className="space-y-1">
           {notifications.data.map((n) => (
-            <li key={n.id} className="flex items-start gap-2 border-b border-neutral-800 py-1 text-xs">
+            <li
+              key={n.id}
+              className="flex items-start gap-2 rounded-md border-b border-white/5 px-1 py-1.5 text-xs transition-colors hover:bg-white/5"
+            >
               <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${DOT[n.level] ?? "bg-neutral-400"}`} />
               <div className="min-w-0 flex-1">
                 <div className="truncate font-medium text-neutral-100">{n.title}</div>
@@ -54,7 +57,10 @@ export function NotificationsPanel() {
           ))}
         </ul>
       ) : (
-        <p className="text-xs text-neutral-500">No notifications yet. Orders and signals appear here.</p>
+        <div className="flex flex-col items-center gap-1 py-6 text-center">
+          <span className="text-2xl opacity-50">🔕</span>
+          <p className="text-xs text-neutral-500">尚無通知。成交與訊號會即時顯示於此。</p>
+        </div>
       )}
     </section>
   );

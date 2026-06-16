@@ -19,6 +19,17 @@ const TITLES: Record<NodeType, string> = {
   logger: "Logger",
 };
 
+// Per-type accent so the graph reads at a glance (matches manual diagram colours).
+const ACCENTS: Record<NodeType, { dot: string; title: string; icon: string }> = {
+  data_source: { dot: "bg-emerald-400", title: "text-emerald-300", icon: "📊" },
+  strategy: { dot: "bg-violet-400", title: "text-violet-300", icon: "🧮" },
+  ai_signal: { dot: "bg-brand-400", title: "text-brand-300", icon: "✨" },
+  order: { dot: "bg-orange-400", title: "text-orange-300", icon: "🛒" },
+  logger: { dot: "bg-neutral-400", title: "text-neutral-300", icon: "📝" },
+};
+
+const HANDLE = { width: 9, height: 9, background: "#6366f1", border: "2px solid #18181b" };
+
 function Field({
   label,
   value,
@@ -49,11 +60,15 @@ export function TradeNode({ id, data }: NodeProps) {
   const set = (key: string, value: unknown) => d.setParam(id, key, value);
   const hasInput = d.nodeType !== "data_source";
   const hasOutput = d.nodeType !== "logger" && d.nodeType !== "order";
+  const accent = ACCENTS[d.nodeType];
 
   return (
-    <div className="min-w-[170px] rounded-md border border-neutral-700 bg-neutral-900 p-2 shadow">
-      {hasInput && <Handle type="target" position={Position.Left} />}
-      <div className="mb-1 text-xs font-semibold text-indigo-300">{TITLES[d.nodeType]}</div>
+    <div className="min-w-[170px] rounded-lg border border-white/10 bg-neutral-900/95 p-2 shadow-lg transition-shadow hover:border-brand-500/40 hover:shadow-glow">
+      {hasInput && <Handle type="target" position={Position.Left} style={HANDLE} />}
+      <div className={`mb-1.5 flex items-center gap-1.5 text-xs font-semibold ${accent.title}`}>
+        <span className={`h-1.5 w-1.5 rounded-full ${accent.dot}`} />
+        {accent.icon} {TITLES[d.nodeType]}
+      </div>
 
       {d.nodeType === "data_source" && (
         <>
@@ -106,7 +121,7 @@ export function TradeNode({ id, data }: NodeProps) {
 
       {d.nodeType === "logger" && <div className="text-[10px] text-neutral-500">records run output</div>}
 
-      {hasOutput && <Handle type="source" position={Position.Right} />}
+      {hasOutput && <Handle type="source" position={Position.Right} style={HANDLE} />}
     </div>
   );
 }

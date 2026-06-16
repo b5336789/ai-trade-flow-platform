@@ -22,8 +22,8 @@ function Section({ id, title, children }: { id: string; title: string; children:
 
 function Step({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
   return (
-    <div className="flex gap-3 rounded-lg border border-neutral-800 bg-neutral-900/40 p-3">
-      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-sm font-bold">
+    <div className="flex gap-3 rounded-xl border border-white/5 bg-neutral-900/50 p-3 shadow-card transition-colors hover:border-white/10">
+      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-violet-500 text-sm font-bold shadow-glow">
         {n}
       </div>
       <div className="space-y-1 text-sm text-neutral-300">
@@ -44,13 +44,15 @@ function Code({ children }: { children: string }) {
 
 export default function Manual() {
   return (
-    <main className="mx-auto max-w-4xl space-y-6 p-4 pb-16">
-      <header className="flex flex-wrap items-baseline justify-between gap-2">
+    <main className="mx-auto max-w-4xl animate-fade-in space-y-6 p-4 pb-16">
+      <header className="sticky top-0 z-20 -mx-4 flex flex-wrap items-baseline justify-between gap-2 border-b border-white/5 bg-neutral-950/70 px-4 py-3 backdrop-blur-md">
         <div>
-          <h1 className="text-3xl font-bold">使用說明書</h1>
+          <h1 className="bg-gradient-to-r from-white to-neutral-400 bg-clip-text text-3xl font-bold tracking-tight text-transparent">
+            使用說明書
+          </h1>
           <p className="text-sm text-neutral-400">AI Trade Flow — 圖文並茂操作指南</p>
         </div>
-        <Link href="/" className="rounded bg-neutral-800 px-3 py-1 text-sm hover:bg-neutral-700">
+        <Link href="/" className="btn btn-ghost">
           ← 回到儀表板
         </Link>
       </header>
@@ -67,13 +69,17 @@ export default function Manual() {
           ["safety", "8 安全須知"],
           ["markets", "9 支援市場"],
         ].map(([id, label]) => (
-          <a key={id} href={`#${id}`} className="rounded bg-neutral-800/60 px-2 py-1 hover:bg-neutral-700">
+          <a
+            key={id}
+            href={`#${id}`}
+            className="rounded-full border border-white/5 bg-neutral-800/60 px-3 py-1 text-neutral-300 transition-colors hover:border-brand-500/40 hover:bg-neutral-700 hover:text-white"
+          >
             {label}
           </a>
         ))}
       </nav>
 
-      <p className="rounded-lg border border-indigo-900 bg-indigo-950/40 p-3 text-sm text-indigo-200">
+      <p className="rounded-xl border border-brand-500/30 bg-brand-500/10 p-3 text-sm text-brand-100">
         本平台是一個 AI 驅動的自動交易系統:以視覺化「工作流」串接行情、技術指標/AI 訊號、風控與下單,
         可回測、最佳化參數,並定時自動執行。第一個完整打通的市場是<strong>加密貨幣(紙上交易)</strong>。
       </p>
@@ -238,7 +244,7 @@ cd frontend && npm install && npm run dev`}</Code>
 
 function PanelCard({ title, desc, children }: { title: string; desc: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-2 rounded-lg border border-neutral-800 bg-neutral-900/40 p-3">
+    <div className="space-y-2 rounded-xl border border-white/5 bg-neutral-900/50 p-3 shadow-card transition-colors hover:border-white/10">
       {children}
       <div className="text-sm font-semibold text-neutral-100">{title}</div>
       <p className="text-xs text-neutral-400">{desc}</p>

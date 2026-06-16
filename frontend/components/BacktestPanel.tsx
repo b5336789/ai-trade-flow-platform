@@ -91,14 +91,10 @@ export function BacktestPanel() {
   }
 
   return (
-    <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4">
-      <h2 className="mb-3 text-lg font-semibold">Backtest</h2>
+    <section className="card">
+      <h2 className="panel-title mb-3">🧪 回測 Backtest</h2>
       <div className="mb-3 flex flex-wrap items-end gap-2">
-        <select
-          value={market}
-          onChange={(e) => setMarket(e.target.value)}
-          className="rounded bg-neutral-800 px-2 py-1 text-sm"
-        >
+        <select value={market} onChange={(e) => setMarket(e.target.value)} className="input">
           {MARKETS.map((m) => (
             <option key={m.value} value={m.value}>
               {m.label}
@@ -108,14 +104,10 @@ export function BacktestPanel() {
         <input
           value={symbol}
           onChange={(e) => setSymbol(e.target.value.toUpperCase())}
-          className="rounded bg-neutral-800 px-2 py-1 text-sm"
+          className="input w-32"
           placeholder="BTC/USDT"
         />
-        <select
-          value={strategy}
-          onChange={(e) => changeStrategy(e.target.value)}
-          className="rounded bg-neutral-800 px-2 py-1 text-sm"
-        >
+        <select value={strategy} onChange={(e) => changeStrategy(e.target.value)} className="input">
           {STRATEGY_NAMES.map((s) => (
             <option key={s} value={s}>
               {s}
@@ -129,37 +121,36 @@ export function BacktestPanel() {
               type="number"
               value={params[key]}
               onChange={(e) => setParams((p) => ({ ...p, [key]: Number(e.target.value) }))}
-              className="ml-1 w-16 rounded bg-neutral-800 px-1 py-1 text-sm text-neutral-100"
+              className="input ml-1 w-16 px-1.5 py-1"
             />
           </label>
         ))}
-        <button
-          onClick={run}
-          disabled={loading}
-          className="rounded bg-indigo-600 px-3 py-1 text-sm font-medium hover:bg-indigo-500 disabled:opacity-50"
-        >
-          {loading ? "…" : "Run"}
+        <button onClick={run} disabled={loading} className="btn btn-primary">
+          {loading ? <Spinner /> : "▶ Run"}
         </button>
-        <button
-          onClick={compare}
-          disabled={loading}
-          className="rounded bg-purple-600 px-3 py-1 text-sm font-medium hover:bg-purple-500 disabled:opacity-50"
-        >
-          Compare all
+        <button onClick={compare} disabled={loading} className="btn bg-violet-600 text-white hover:bg-violet-500">
+          比較全部
         </button>
-        <button
-          onClick={optimize}
-          disabled={loading}
-          className="rounded bg-amber-600 px-3 py-1 text-sm font-medium hover:bg-amber-500 disabled:opacity-50"
-        >
-          Optimize
+        <button onClick={optimize} disabled={loading} className="btn bg-amber-600 text-white hover:bg-amber-500">
+          最佳化
         </button>
       </div>
 
-      {error && <p className="text-sm text-red-400">Backtest error: {error}</p>}
+      {error && <p className="text-sm text-red-400">回測錯誤:{error}</p>}
+      {loading && !error && (
+        <div className="space-y-3">
+          <div className="skeleton h-16 w-full" />
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div className="skeleton h-12" />
+            <div className="skeleton h-12" />
+            <div className="skeleton h-12" />
+            <div className="skeleton h-12" />
+          </div>
+        </div>
+      )}
 
       {result && (
-        <div className="space-y-3">
+        <div className="animate-fade-in space-y-3">
           <Sparkline points={result.equity_curve} />
           <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
             <Metric label="Return" value={pct(result.total_return_pct)} good={result.total_return_pct >= 0} />
@@ -171,20 +162,20 @@ export function BacktestPanel() {
       )}
 
       {optimization && (
-        <table className="w-full text-left text-xs">
+        <table className="w-full animate-fade-in text-left text-xs">
           <thead className="text-neutral-500">
             <tr>
-              <th className="py-1">Params</th>
-              <th>Return</th>
-              <th>Max DD</th>
-              <th>Trades</th>
-              <th>Win%</th>
+              <th className="py-1 font-medium">Params</th>
+              <th className="font-medium">Return</th>
+              <th className="font-medium">Max DD</th>
+              <th className="font-medium">Trades</th>
+              <th className="font-medium">Win%</th>
               <th />
             </tr>
           </thead>
           <tbody>
             {optimization.slice(0, 10).map((r, i) => (
-              <tr key={i} className="border-t border-neutral-800">
+              <tr key={i} className="border-t border-white/5 transition-colors hover:bg-white/5">
                 <td className="py-1 font-mono">
                   {i === 0 && !r.error ? "🏆 " : ""}
                   {Object.entries(r.params)
@@ -197,7 +188,7 @@ export function BacktestPanel() {
                   </td>
                 ) : (
                   <>
-                    <td className={r.total_return_pct >= 0 ? "text-green-400" : "text-red-400"}>
+                    <td className={r.total_return_pct >= 0 ? "text-emerald-400" : "text-red-400"}>
                       {pct(r.total_return_pct)}
                     </td>
                     <td className="text-red-400">{pct(-r.max_drawdown_pct)}</td>
@@ -209,9 +200,9 @@ export function BacktestPanel() {
                           setParams({ ...(r.params as Record<string, number>) });
                           setOptimization(null);
                         }}
-                        className="text-indigo-400 hover:underline"
+                        className="font-medium text-brand-400 hover:text-brand-300 hover:underline"
                       >
-                        use
+                        套用
                       </button>
                     </td>
                   </>
@@ -223,19 +214,19 @@ export function BacktestPanel() {
       )}
 
       {comparison && (
-        <table className="w-full text-left text-xs">
+        <table className="w-full animate-fade-in text-left text-xs">
           <thead className="text-neutral-500">
             <tr>
-              <th className="py-1">Strategy</th>
-              <th>Return</th>
-              <th>Max DD</th>
-              <th>Trades</th>
-              <th>Win%</th>
+              <th className="py-1 font-medium">Strategy</th>
+              <th className="font-medium">Return</th>
+              <th className="font-medium">Max DD</th>
+              <th className="font-medium">Trades</th>
+              <th className="font-medium">Win%</th>
             </tr>
           </thead>
           <tbody>
             {comparison.map((r, i) => (
-              <tr key={r.strategy} className="border-t border-neutral-800">
+              <tr key={r.strategy} className="border-t border-white/5 transition-colors hover:bg-white/5">
                 <td className="py-1">
                   {i === 0 && !r.error ? "🏆 " : ""}
                   {r.strategy}
@@ -246,7 +237,7 @@ export function BacktestPanel() {
                   </td>
                 ) : (
                   <>
-                    <td className={r.total_return_pct >= 0 ? "text-green-400" : "text-red-400"}>
+                    <td className={r.total_return_pct >= 0 ? "text-emerald-400" : "text-red-400"}>
                       {pct(r.total_return_pct)}
                     </td>
                     <td className="text-red-400">{pct(-r.max_drawdown_pct)}</td>
@@ -263,12 +254,21 @@ export function BacktestPanel() {
   );
 }
 
-function Metric({ label, value, good }: { label: string; value: string; good?: boolean }) {
-  const color = good === undefined ? "text-neutral-100" : good ? "text-green-400" : "text-red-400";
+function Spinner() {
   return (
-    <div className="rounded bg-neutral-800/60 p-2">
-      <div className="text-xs text-neutral-500">{label}</div>
-      <div className={`font-semibold ${color}`}>{value}</div>
+    <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+      <path className="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+    </svg>
+  );
+}
+
+function Metric({ label, value, good }: { label: string; value: string; good?: boolean }) {
+  const color = good === undefined ? "text-neutral-100" : good ? "text-emerald-400" : "text-red-400";
+  return (
+    <div className="rounded-lg border border-white/5 bg-neutral-800/50 p-2">
+      <div className="text-[11px] text-neutral-500">{label}</div>
+      <div className={`mt-0.5 font-semibold tabular ${color}`}>{value}</div>
     </div>
   );
 }
