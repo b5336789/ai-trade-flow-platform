@@ -10,6 +10,9 @@
 
 每根記錄權益(現金+部位市值),計算回撤。
 
+### 成交時點(M0.2,消除前視偏差)
+訊號以「資料 ≤ `close[i]`」決策,但成交於**下一根開盤 `open[i+1]`**——**絕不**用觸發訊號的當根收盤成交(那是前視偏差:實際下單時無法知道當根會收在哪)。最後一根訊號無次根可成交→**不開新倉**(明確記為無交易)。權益於每根 `close[i]` 標記,反映「至該根開盤前已成交」建立的部位。
+
 ### 交易成本(M0.1)
 **每一筆成交都套用 `trading/costs.py` 的 `CostModel`**(手續費、台股證交稅僅賣出、滑價),成本預設 **ON**——零成本的報酬數字是錯的。`run_backtest(..., market=..., cost_model=None)`:`cost_model=None` 用 `Settings` 設定值;測量毛報酬時傳 `CostModel.zero()`。`Trade.pnl` 為**淨額**,另有 `gross_pnl` 與 `cost` 明細。買→賣的已實現淨損益恆等於 `gross_pnl − buy_cost − sell_cost − sell_tax`。
 
