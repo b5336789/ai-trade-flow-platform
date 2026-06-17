@@ -52,11 +52,16 @@ def run_backtest(
     market: MarketKind = MarketKind.crypto,
     cost_model: CostModel | None = None,
 ) -> BacktestResult:
-    """Bar-by-bar long-only backtest with transaction costs applied to every fill (M0.1).
+    """Bar-by-bar long-only backtest with transaction costs applied to every fill (M0.1 + M0.2).
 
-    Costs default to the configured :class:`CostModel`; pass ``CostModel.zero()`` to measure
-    gross performance. ``Trade.pnl`` is net of costs; ``Trade.gross_pnl`` / ``Trade.cost`` expose
-    the breakdown.
+    Fill convention (M0.2 — no look-ahead bias): a signal is decided on data **up to and including
+    ``close[i]``**, and the resulting order fills at the **next bar's open ``open[i+1]``** — never at
+    the decision bar's own close. A signal on the final bar has no next bar to fill at, so it opens
+    no position (recorded as no trade). Equity is marked-to-market at each ``close[i]`` reflecting the
+    position established by fills up to that bar's open.
+
+    Costs default to the configured :class:`CostModel`; pass ``CostModel.zero()`` to measure gross
+    performance. ``Trade.pnl`` is net of costs; ``Trade.gross_pnl`` / ``Trade.cost`` expose the breakdown.
     """
     if len(candles) < 2:
         raise ValueError("backtest requires at least 2 candles")
@@ -69,24 +74,19 @@ def run_backtest(
     entry_price = 0.0
     entry_time = ""
     entry_fee = 0.0
+    pending: SignalAction | None = None  # action decided at the previous close, fills at this open
     trades: list[Trade] = []
     equity_curve: list[EquityPoint] = []
     peak_equity = starting_cash
     max_drawdown = 0.0
 
     for i in range(1, len(candles)):
-        window = candles[: i + 1]
-        price = window[-1].close
-        ts = window[-1].timestamp.isoformat()
+        bar = candles[i]
+        ts = bar.timestamp.isoformat()
 
-        try:
-            signal = strategy.generate(window)
-            action = signal.action
-        except ValueError:
-            action = SignalAction.hold  # not enough data yet for this strategy
-
-        if action == SignalAction.buy and qty == 0.0 and cash > 0:
-            fill_price = costs.slippage_price(OrderSide.buy, price)
+        # 1) Execute the action decided at the previous bar's close, at THIS bar's open.
+        if pending == SignalAction.buy and qty == 0.0 and cash > 0:
+            fill_price = costs.slippage_price(OrderSide.buy, bar.open)
             spend = cash * position_fraction
             qty = spend / fill_price
             buy_fee = costs.fill_cost(market, OrderSide.buy, fill_price, qty).total
@@ -99,8 +99,8 @@ def run_backtest(
             entry_price = fill_price
             entry_fee = buy_fee
             entry_time = ts
-        elif action == SignalAction.sell and qty > 0.0:
-            fill_price = costs.slippage_price(OrderSide.sell, price)
+        elif pending == SignalAction.sell and qty > 0.0:
+            fill_price = costs.slippage_price(OrderSide.sell, bar.open)
             sell_cost = costs.fill_cost(market, OrderSide.sell, fill_price, qty)
             cash += qty * fill_price - sell_cost.total
             gross_pnl = (fill_price - entry_price) * qty
@@ -119,8 +119,19 @@ def run_backtest(
                 )
             )
             qty = 0.0
+        pending = None
 
-        equity = cash + qty * price
+        # 2) Decide on data through close[i]; the order (if any) fills at the next bar's open.
+        window = candles[: i + 1]
+        try:
+            action = strategy.generate(window).action
+        except ValueError:
+            action = SignalAction.hold  # not enough data yet for this strategy
+        if action in (SignalAction.buy, SignalAction.sell):
+            pending = action
+
+        # 3) Mark-to-market at close[i].
+        equity = cash + qty * bar.close
         equity_curve.append(EquityPoint(timestamp=ts, equity=equity))
         peak_equity = max(peak_equity, equity)
         if peak_equity > 0:

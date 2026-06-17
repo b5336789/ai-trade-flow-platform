@@ -27,7 +27,7 @@
 | 階段 | 範圍 | 狀態 | 備註 |
 | --- | --- | --- | --- |
 | **v1 骨架** | Checkpoint 1–15 | ✅ 全數完成 | crypto + paper 端到端可運行,70 測試 |
-| **v2 Phase 0** | M0.1–M0.7(接真錢前最低門檻) | 🟡 進行中(M0.1 ✅,其餘未完成) | **Phase 0 全綠前禁止 live** |
+| **v2 Phase 0** | M0.1–M0.7(接真錢前最低門檻) | 🟡 進行中(M0.1、M0.2 ✅,其餘未完成) | **Phase 0 全綠前禁止 live** |
 | **v2 Phase 1** | M1.1–M1.5(跨市場一致性 + broker) | ⬜ 未開始 | |
 | **v2 Phase 2** | M2.1–M2.3(招牌功能) | ⬜ 未開始 | M2.2 策略室為最高風險 |
 | **Backlog** | 非目標 / 未來 | ⬜ 不在本期 | 美股 live(IBKR/Alpaca)等 |
@@ -77,12 +77,12 @@
 | 0.1.6 | [x] | 測試 | 🟡 | 新增 `test_costs.py`(11);更新既有零成本斷言為含費精確值 | `tests/test_costs.py` 等 |
 | 0.1.7 | [x] | 文件 | 🟢 | `PRD-v2.md`、`backtesting.md`、`development-log.md` | `docs/` |
 
-## M0.2 — 修正成交時點(消除前視偏差)⬜
+## M0.2 — 修正成交時點(消除前視偏差)✅ 已完成
 
 | ID | ✓ | 任務 | Effort | 內容 | 大致位置 |
 | --- | --- | --- | --- | --- | --- |
-| 0.2.1 | [ ] | next-bar open 成交 | 🟢 | 訊號用「資料 ≤ close[i]」決策、成交於 **open[i+1]**;最後一根無次根→不開新倉(明確記錄) | `backtest/engine.py` |
-| 0.2.2 | [ ] | 成交慣例 docstring + 測試 | 🟢 | 構造 close[i] 觸發 buy,斷言成交價 == `open[i+1]` ≠ `close[i]`;docstring 寫明慣例 | `backtest/engine.py`、`tests/test_backtest.py` |
+| 0.2.1 | [x] | next-bar open 成交 | 🟢 | 訊號用「資料 ≤ close[i]」決策、成交於 **open[i+1]**(pending-action 狀態機);最後一根無次根→不開新倉(明確記錄) | `backtest/engine.py` |
+| 0.2.2 | [x] | 成交慣例 docstring + 測試 | 🟢 | 構造 close[i] 觸發 buy,斷言成交價 == `open[i+1]` ≠ `close[i]`;末根訊號不開倉;docstring 寫明慣例 | `backtest/engine.py`、`tests/test_backtest.py` |
 
 ## M0.3 — 回測指標擴充 ⬜
 
