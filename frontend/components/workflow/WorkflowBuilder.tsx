@@ -19,6 +19,7 @@ const DEFAULTS: Record<NodeType, Record<string, unknown>> = {
   data_source: { symbol: "BTC/USDT", timeframe: "1h", limit: 100 },
   strategy: { name: "ma_cross", fast: 10, slow: 20 },
   ai_signal: {},
+  risk_exit: { stop_loss_pct: 5, take_profit_pct: 10 },
   order: { quantity: 0.01 },
   logger: {},
 };
@@ -116,7 +117,7 @@ export function WorkflowBuilder() {
     }
   }
 
-  const NODE_BUTTONS: NodeType[] = ["data_source", "strategy", "ai_signal", "order", "logger"];
+  const NODE_BUTTONS: NodeType[] = ["data_source", "strategy", "ai_signal", "risk_exit", "order", "logger"];
 
   return (
     <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4">

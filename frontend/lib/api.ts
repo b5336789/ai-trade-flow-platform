@@ -57,7 +57,7 @@ export interface AppConfig {
 }
 
 // Workflow graph types (mirror backend app/workflow/schema.py)
-export type NodeType = "data_source" | "strategy" | "ai_signal" | "order" | "logger";
+export type NodeType = "data_source" | "strategy" | "ai_signal" | "risk_exit" | "order" | "logger";
 
 export interface GraphNode {
   id: string;
