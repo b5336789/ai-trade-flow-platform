@@ -40,7 +40,8 @@ def test_place_order_then_list_and_portfolio(client):
     assert any(o["broker_order_id"] == order["id"] for o in listed)
 
     portfolio = client.get("/api/orders/portfolio", params={"market": "crypto"}).json()
-    assert portfolio["cash"] == pytest.approx(9_500.0)  # 10000 - 5*100
+    # 10000 - 5*100 - 0.375 crypto taker fee (7.5 bps on 500 notional, M0.1)
+    assert portfolio["cash"] == pytest.approx(9_500.0 - 0.375)
     assert portfolio["positions"][0]["symbol"] == "BTC/USDT"
 
 

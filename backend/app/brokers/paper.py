@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 
 from app.brokers.base import Broker
 from app.config import settings
+from app.trading.costs import CostModel
 from app.schemas import (
     Balance,
     Candle,
@@ -34,11 +35,13 @@ class PaperBroker(Broker):
         starting_cash: float | None = None,
         quote_asset: str | None = None,
         store=None,
+        cost_model: CostModel | None = None,
     ) -> None:
         self._data = data_provider
         self.market = data_provider.market
         self._cash = starting_cash if starting_cash is not None else settings.paper_starting_cash
         self._quote = quote_asset or settings.paper_quote_asset
+        self._cost = cost_model or CostModel.from_settings()
         self._positions: dict[str, Position] = {}
         self._ids = itertools.count(1)
         self._store = store
@@ -72,17 +75,22 @@ class PaperBroker(Broker):
     # --- simulated execution ---
     def create_order(self, request: OrderRequest) -> OrderResult:
         if request.type == OrderType.limit and request.limit_price:
-            fill_price = request.limit_price
+            base_price = request.limit_price
         else:
-            fill_price = self._data.get_ticker(request.symbol).price
+            base_price = self._data.get_ticker(request.symbol).price
+
+        # Slippage moves the fill price against us; fees/tax are deducted from cash (M0.1).
+        fill_price = self._cost.slippage_price(request.side, base_price)
+        fill_cost = self._cost.fill_cost(self.market, request.side, fill_price, request.quantity)
 
         if request.side == OrderSide.buy:
-            cost = fill_price * request.quantity
-            if cost > self._cash + 1e-9:
+            need = fill_price * request.quantity + fill_cost.total
+            if need > self._cash + 1e-9:
                 raise RuntimeError(
-                    f"Insufficient paper cash: need {cost:.2f} {self._quote}, have {self._cash:.2f}"
+                    f"Insufficient paper cash: need {need:.2f} {self._quote} "
+                    f"(incl. fees {fill_cost.total:.2f}), have {self._cash:.2f}"
                 )
-            self._cash -= cost
+            self._cash -= need
             self._apply_position(request.symbol, request.quantity, fill_price)
         else:  # sell
             pos = self._positions.get(request.symbol)
@@ -92,7 +100,7 @@ class PaperBroker(Broker):
                     f"Insufficient position to sell {request.symbol}: "
                     f"have {held}, requested {request.quantity}"
                 )
-            self._cash += fill_price * request.quantity
+            self._cash += fill_price * request.quantity - fill_cost.total
             self._apply_position(request.symbol, -request.quantity, fill_price)
 
         self._persist()
@@ -106,6 +114,7 @@ class PaperBroker(Broker):
             mode=TradingMode.paper,
             broker=self.name,
             timestamp=datetime.now(timezone.utc),
+            info={"fee": fill_cost.fee, "tax": fill_cost.tax},
         )
 
     def _apply_position(self, symbol: str, delta_qty: float, price: float) -> None:

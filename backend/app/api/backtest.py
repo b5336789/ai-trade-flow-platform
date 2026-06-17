@@ -68,6 +68,7 @@ def compare(req: CompareRequest) -> list[CompareRow]:
                 build_strategy(name),
                 starting_cash=req.starting_cash,
                 position_fraction=req.position_fraction,
+                market=req.market,
             )
             rows.append(
                 CompareRow(
@@ -121,6 +122,7 @@ def optimize(req: OptimizeRequest) -> list[OptimizeRow]:
             starting_cash=req.starting_cash,
             position_fraction=req.position_fraction,
             max_combinations=req.max_combinations,
+            market=req.market,
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
@@ -140,6 +142,7 @@ def backtest(req: BacktestRequest) -> BacktestResult:
             strategy,
             starting_cash=req.starting_cash,
             position_fraction=req.position_fraction,
+            market=req.market,
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
