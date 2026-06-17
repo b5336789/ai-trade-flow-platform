@@ -15,6 +15,7 @@ const TITLES: Record<NodeType, string> = {
   data_source: "Data Source",
   strategy: "Strategy",
   ai_signal: "AI Signal",
+  risk_exit: "Risk Exit (SL/TP)",
   order: "Order",
   logger: "Logger",
 };
@@ -98,6 +99,13 @@ export function TradeNode({ id, data }: NodeProps) {
 
       {d.nodeType === "ai_signal" && (
         <Field label="model (optional)" value={p.model} onChange={(v) => set("model", v || undefined)} />
+      )}
+
+      {d.nodeType === "risk_exit" && (
+        <>
+          <Field label="stop_loss_pct" type="number" value={p.stop_loss_pct} onChange={(v) => set("stop_loss_pct", Number(v))} />
+          <Field label="take_profit_pct" type="number" value={p.take_profit_pct} onChange={(v) => set("take_profit_pct", Number(v))} />
+        </>
       )}
 
       {d.nodeType === "order" && (

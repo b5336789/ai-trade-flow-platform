@@ -30,8 +30,9 @@ pytest                 # 53 passed
 | `test_notifications.py` | 通知(站內寫入、webhook 派送/未設/錯誤吞掉、成交自動通知) |
 | `test_stock_brokers.py` | CSV 解析、元大/Firstrade live fail loud、匯入後 CsvDataBroker 供應資料、台股端對端回測 |
 | `test_paper_persistence.py` | 紙上帳戶持久化(跨實例載入、賣出後重載、reset 清除) |
+| `test_risk_exit.py` | 停損/停利節點(觸發停損賣出、觸發停利賣出、區間內持有、無部位持有) |
 
-共 **66** 項測試。`conftest.py` 在測試開始前建立所有資料表。
+共 **70** 項測試。`conftest.py` 在測試開始前建立所有資料表。
 
 ## 環境限制說明(Fail Loud)
 本開發沙箱**封鎖對外網路**,因此無法在此對 Binance 真實抓取行情;相關程式路徑正確且會明確

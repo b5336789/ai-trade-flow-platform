@@ -10,6 +10,7 @@
 | `data_source` | — | `Candle[]` | `symbol, market, timeframe, limit` |
 | `strategy` | candles | `Signal` | `name` + 該策略參數 |
 | `ai_signal` | candles | `Signal` | `symbol?, model?` |
+| `risk_exit` | candles | `Signal`(停損/停利→sell,否則 hold) | `stop_loss_pct, take_profit_pct, symbol?, market?` |
 | `order` | Signal | `OrderResult`(hold 則 None) | `quantity, symbol?, market?` |
 | `logger` | 任意 | 透傳 | — |
 

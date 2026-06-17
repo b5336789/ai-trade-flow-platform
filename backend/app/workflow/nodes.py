@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import Any, Callable
 
 from app.ai.signal_agent import generate_ai_signal
-from app.brokers.registry import get_data_broker
+from app.brokers.registry import get_broker, get_data_broker
 from app.schemas import (
     Candle,
     MarketKind,
@@ -71,6 +71,49 @@ def _run_ai_signal(node: NodeConfig, inputs: list[Any], ctx: RunContext) -> Sign
     return generate_ai_signal(symbol, candles, model=node.params.get("model"))
 
 
+def _run_risk_exit(node: NodeConfig, inputs: list[Any], ctx: RunContext) -> Signal:
+    """Emit a sell when the held position breaches stop-loss or take-profit, else hold.
+
+    A threshold of 0 (or absent) disables that side. Needs candles upstream for the current price
+    and reads the position's average cost from the (paper/live) broker.
+    """
+    candles = _first_candles(inputs)
+    price = candles[-1].close
+    p = node.params
+    symbol = p.get("symbol") or ctx.scratch.get("symbol")
+    if not symbol:
+        raise ValueError("risk_exit node requires 'symbol' (or an upstream data_source)")
+    market = MarketKind(p["market"]) if p.get("market") else ctx.scratch.get("market", MarketKind.crypto)
+    stop_loss_pct = float(p.get("stop_loss_pct", 0) or 0)
+    take_profit_pct = float(p.get("take_profit_pct", 0) or 0)
+
+    broker = get_broker(market)
+    position = next((pos for pos in broker.get_positions() if pos.symbol == symbol), None)
+    if position is None or position.quantity <= 0 or position.avg_price <= 0:
+        return Signal(action=SignalAction.hold, reason="no open position", source="risk_exit")
+
+    pnl_pct = (price / position.avg_price - 1) * 100
+    if stop_loss_pct > 0 and pnl_pct <= -stop_loss_pct:
+        return Signal(
+            action=SignalAction.sell,
+            confidence=1.0,
+            reason=f"stop-loss hit: {pnl_pct:.2f}% <= -{stop_loss_pct:.2f}%",
+            source="risk_exit",
+        )
+    if take_profit_pct > 0 and pnl_pct >= take_profit_pct:
+        return Signal(
+            action=SignalAction.sell,
+            confidence=1.0,
+            reason=f"take-profit hit: {pnl_pct:.2f}% >= {take_profit_pct:.2f}%",
+            source="risk_exit",
+        )
+    return Signal(
+        action=SignalAction.hold,
+        reason=f"within thresholds (P&L {pnl_pct:.2f}%)",
+        source="risk_exit",
+    )
+
+
 def _run_order(node: NodeConfig, inputs: list[Any], ctx: RunContext):
     signal = _first_signal(inputs)
     if signal.action == SignalAction.hold:
@@ -94,6 +137,7 @@ NODE_RUNNERS: dict[NodeType, Callable[[NodeConfig, list[Any], RunContext], Any]]
     NodeType.data_source: _run_data_source,
     NodeType.strategy: _run_strategy,
     NodeType.ai_signal: _run_ai_signal,
+    NodeType.risk_exit: _run_risk_exit,
     NodeType.order: _run_order,
     NodeType.logger: _run_logger,
 }

@@ -1,0 +1,185 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 760" font-size="13">
+<rect width="1200" height="760" fill="#0a0a0a"/>
+<text x="24" y="40" text-anchor="start" fill="#e5e5e5" font-size="22" font-weight="bold" font-family="Segoe UI, Helvetica, Arial, sans-serif">AI Trade Flow</text>
+<text x="196" y="40" text-anchor="start" fill="#71717a" font-size="13" font-weight="normal" font-family="Segoe UI, Helvetica, Arial, sans-serif">crypto · 台股 (元大) · 美股 (元大複委託 / Firstrade)</text>
+<rect x="1050" y="24" width="126" height="22" rx="5" fill="#4f46e5"/><text x="1113.0" y="39" text-anchor="middle" fill="#ffffff" font-size="12" font-family="Segoe UI, Helvetica, Arial, sans-serif">📖 使用說明書</text>
+<rect x="24" y="64" width="740" height="300" rx="10" fill="#171717" stroke="#262626"/>
+<text x="40" y="92" text-anchor="start" fill="#e5e5e5" font-size="15" font-weight="bold" font-family="Segoe UI, Helvetica, Arial, sans-serif">Market</text>
+<rect x="116" y="76" width="110" height="24" rx="5" fill="#1c1c1f" stroke="#262626"/><text x="124" y="92" text-anchor="start" fill="#a1a1aa" font-size="12" font-weight="normal" font-family="Segoe UI, Helvetica, Arial, sans-serif">BTC/USDT</text>
+<rect x="234" y="76" width="56" height="24" rx="5" fill="#1c1c1f" stroke="#262626"/><text x="242" y="92" text-anchor="start" fill="#a1a1aa" font-size="12" font-weight="normal" font-family="Segoe UI, Helvetica, Arial, sans-serif">1h</text>
+<rect x="298" y="76" width="78" height="22" rx="5" fill="#4f46e5"/><text x="337.0" y="91" text-anchor="middle" fill="#ffffff" font-size="12" font-family="Segoe UI, Helvetica, Arial, sans-serif">AI Signal</text>
+<rect x="40" y="112" width="708" height="150" rx="6" fill="#09090b"/>
+<line x1="40" y1="149.5" x2="748" y2="149.5" stroke="#262626" stroke-width="0.5"/>
+<line x1="40" y1="187.0" x2="748" y2="187.0" stroke="#262626" stroke-width="0.5"/>
+<line x1="40" y1="224.5" x2="748" y2="224.5" stroke="#262626" stroke-width="0.5"/>
+<line x1="53.6" y1="123.8" x2="53.6" y2="152.2" stroke="#ef4444" stroke-width="1"/>
+<rect x="46.1" y="129.2" width="15.0" height="8.7" fill="#ef4444"/>
+<line x1="80.8" y1="125.7" x2="80.8" y2="170.3" stroke="#ef4444" stroke-width="1"/>
+<rect x="73.4" y="137.9" width="15.0" height="23.2" fill="#ef4444"/>
+<line x1="108.1" y1="149.4" x2="108.1" y2="188.5" stroke="#ef4444" stroke-width="1"/>
+<rect x="100.6" y="161.1" width="15.0" height="24.0" fill="#ef4444"/>
+<line x1="135.3" y1="181.1" x2="135.3" y2="191.9" stroke="#ef4444" stroke-width="1"/>
+<rect x="127.8" y="185.1" width="15.0" height="2.4" fill="#ef4444"/>
+<line x1="162.5" y1="170.1" x2="162.5" y2="195.4" stroke="#ef4444" stroke-width="1"/>
+<rect x="155.1" y="187.6" width="15.0" height="3.0" fill="#ef4444"/>
+<line x1="189.8" y1="176.6" x2="189.8" y2="224.6" stroke="#ef4444" stroke-width="1"/>
+<rect x="182.3" y="190.5" width="15.0" height="14.5" fill="#ef4444"/>
+<line x1="217.0" y1="189.5" x2="217.0" y2="225.1" stroke="#22c55e" stroke-width="1"/>
+<rect x="209.5" y="199.2" width="15.0" height="5.8" fill="#22c55e"/>
+<line x1="244.2" y1="181.3" x2="244.2" y2="231.8" stroke="#ef4444" stroke-width="1"/>
+<rect x="236.7" y="199.2" width="15.0" height="24.7" fill="#ef4444"/>
+<line x1="271.5" y1="219.1" x2="271.5" y2="251.1" stroke="#ef4444" stroke-width="1"/>
+<rect x="264.0" y="223.9" width="15.0" height="19.0" fill="#ef4444"/>
+<line x1="298.7" y1="217.5" x2="298.7" y2="256.0" stroke="#22c55e" stroke-width="1"/>
+<rect x="291.2" y="223.4" width="15.0" height="19.5" fill="#22c55e"/>
+<line x1="325.9" y1="204.7" x2="325.9" y2="235.9" stroke="#22c55e" stroke-width="1"/>
+<rect x="318.4" y="214.1" width="15.0" height="9.3" fill="#22c55e"/>
+<line x1="353.2" y1="210.3" x2="353.2" y2="244.2" stroke="#ef4444" stroke-width="1"/>
+<rect x="345.7" y="214.1" width="15.0" height="23.7" fill="#ef4444"/>
+<line x1="380.4" y1="215.8" x2="380.4" y2="246.1" stroke="#22c55e" stroke-width="1"/>
+<rect x="372.9" y="226.1" width="15.0" height="11.7" fill="#22c55e"/>
+<line x1="407.6" y1="209.0" x2="407.6" y2="234.2" stroke="#22c55e" stroke-width="1"/>
+<rect x="400.1" y="219.8" width="15.0" height="6.3" fill="#22c55e"/>
+<line x1="434.8" y1="186.4" x2="434.8" y2="226.9" stroke="#22c55e" stroke-width="1"/>
+<rect x="427.4" y="201.6" width="15.0" height="18.3" fill="#22c55e"/>
+<line x1="462.1" y1="183.9" x2="462.1" y2="219.8" stroke="#22c55e" stroke-width="1"/>
+<rect x="454.6" y="195.9" width="15.0" height="5.6" fill="#22c55e"/>
+<line x1="489.3" y1="173.6" x2="489.3" y2="216.1" stroke="#22c55e" stroke-width="1"/>
+<rect x="481.8" y="181.4" width="15.0" height="14.5" fill="#22c55e"/>
+<line x1="516.5" y1="171.2" x2="516.5" y2="218.1" stroke="#ef4444" stroke-width="1"/>
+<rect x="509.1" y="181.4" width="15.0" height="20.5" fill="#ef4444"/>
+<line x1="543.8" y1="190.5" x2="543.8" y2="224.0" stroke="#ef4444" stroke-width="1"/>
+<rect x="536.3" y="201.9" width="15.0" height="18.6" fill="#ef4444"/>
+<line x1="571.0" y1="193.2" x2="571.0" y2="233.5" stroke="#22c55e" stroke-width="1"/>
+<rect x="563.5" y="209.5" width="15.0" height="11.0" fill="#22c55e"/>
+<line x1="598.2" y1="178.3" x2="598.2" y2="224.6" stroke="#22c55e" stroke-width="1"/>
+<rect x="590.7" y="186.6" width="15.0" height="22.9" fill="#22c55e"/>
+<line x1="625.5" y1="166.8" x2="625.5" y2="197.5" stroke="#22c55e" stroke-width="1"/>
+<rect x="618.0" y="179.8" width="15.0" height="6.8" fill="#22c55e"/>
+<line x1="652.7" y1="139.5" x2="652.7" y2="191.0" stroke="#22c55e" stroke-width="1"/>
+<rect x="645.2" y="159.0" width="15.0" height="20.9" fill="#22c55e"/>
+<line x1="679.9" y1="144.4" x2="679.9" y2="174.2" stroke="#22c55e" stroke-width="1"/>
+<rect x="672.4" y="148.2" width="15.0" height="10.8" fill="#22c55e"/>
+<line x1="707.2" y1="118.0" x2="707.2" y2="165.5" stroke="#22c55e" stroke-width="1"/>
+<rect x="699.7" y="138.4" width="15.0" height="9.8" fill="#22c55e"/>
+<line x1="734.4" y1="128.8" x2="734.4" y2="164.0" stroke="#ef4444" stroke-width="1"/>
+<rect x="726.9" y="138.4" width="15.0" height="11.0" fill="#ef4444"/>
+<rect x="40" y="276" width="708" height="72" rx="6" fill="#1c1c1f" stroke="#262626"/>
+<text x="52" y="302" text-anchor="start" fill="#22c55e" font-size="14" font-weight="bold" font-family="Segoe UI, Helvetica, Arial, sans-serif">BUY</text>
+<text x="90" y="302" text-anchor="start" fill="#a1a1aa" font-size="12" font-weight="normal" font-family="Segoe UI, Helvetica, Arial, sans-serif">(confidence 72% · claude)</text>
+<text x="52" y="326" text-anchor="start" fill="#a1a1aa" font-size="12" font-weight="normal" font-family="Segoe UI, Helvetica, Arial, sans-serif">MACD 黃金交叉且 RSI 自超賣回升,短線動能轉強;量能放大支持續攻,</text>
+<text x="52" y="342" text-anchor="start" fill="#a1a1aa" font-size="12" font-weight="normal" font-family="Segoe UI, Helvetica, Arial, sans-serif">惟接近前高壓力,建議分批進場並設停損。</text>
+<rect x="24" y="380" width="740" height="196" rx="10" fill="#171717" stroke="#262626"/>
+<text x="40" y="408" text-anchor="start" fill="#e5e5e5" font-size="15" font-weight="bold" font-family="Segoe UI, Helvetica, Arial, sans-serif">Workflow Builder</text>
+<rect x="192" y="394" width="82" height="22" rx="5" fill="#1c1c1f"/><text x="233.0" y="409" text-anchor="middle" fill="#a1a1aa" font-size="11" font-family="Segoe UI, Helvetica, Arial, sans-serif">+ data_source</text>
+<rect x="278" y="394" width="82" height="22" rx="5" fill="#1c1c1f"/><text x="319.0" y="409" text-anchor="middle" fill="#a1a1aa" font-size="11" font-family="Segoe UI, Helvetica, Arial, sans-serif">+ strategy</text>
+<rect x="364" y="394" width="82" height="22" rx="5" fill="#1c1c1f"/><text x="405.0" y="409" text-anchor="middle" fill="#a1a1aa" font-size="11" font-family="Segoe UI, Helvetica, Arial, sans-serif">+ ai_signal</text>
+<rect x="450" y="394" width="82" height="22" rx="5" fill="#1c1c1f"/><text x="491.0" y="409" text-anchor="middle" fill="#a1a1aa" font-size="11" font-family="Segoe UI, Helvetica, Arial, sans-serif">+ order</text>
+<rect x="536" y="394" width="82" height="22" rx="5" fill="#1c1c1f"/><text x="577.0" y="409" text-anchor="middle" fill="#a1a1aa" font-size="11" font-family="Segoe UI, Helvetica, Arial, sans-serif">+ logger</text>
+<rect x="614" y="394" width="58" height="22" rx="5" fill="#2563eb"/><text x="643.0" y="409" text-anchor="middle" fill="#ffffff" font-size="12" font-family="Segoe UI, Helvetica, Arial, sans-serif">Save</text>
+<rect x="678" y="394" width="54" height="22" rx="5" fill="#16a34a"/><text x="705.0" y="409" text-anchor="middle" fill="#ffffff" font-size="12" font-family="Segoe UI, Helvetica, Arial, sans-serif">Run</text>
+<rect x="40" y="432" width="708" height="124" rx="6" fill="#09090b" stroke="#262626"/>
+<rect x="64" y="466" width="140" height="54" rx="8" fill="#1c1c1f" stroke="#16a34a"/>
+<rect x="64" y="466" width="140" height="18" rx="8" fill="#16a34a" opacity="0.25"/>
+<text x="74" y="480" text-anchor="start" fill="#e5e5e5" font-size="12" font-weight="bold" font-family="Segoe UI, Helvetica, Arial, sans-serif">data_source</text>
+<text x="74" y="504" text-anchor="start" fill="#a1a1aa" font-size="11" font-weight="normal" font-family="Segoe UI, Helvetica, Arial, sans-serif">BTC/USDT · 1h</text>
+<rect x="232" y="466" width="140" height="54" rx="8" fill="#1c1c1f" stroke="#9333ea"/>
+<rect x="232" y="466" width="140" height="18" rx="8" fill="#9333ea" opacity="0.25"/>
+<text x="242" y="480" text-anchor="start" fill="#e5e5e5" font-size="12" font-weight="bold" font-family="Segoe UI, Helvetica, Arial, sans-serif">strategy</text>
+<text x="242" y="504" text-anchor="start" fill="#a1a1aa" font-size="11" font-weight="normal" font-family="Segoe UI, Helvetica, Arial, sans-serif">ma_cross 10/20</text>
+<rect x="400" y="466" width="140" height="54" rx="8" fill="#1c1c1f" stroke="#d97706"/>
+<rect x="400" y="466" width="140" height="18" rx="8" fill="#d97706" opacity="0.25"/>
+<text x="410" y="480" text-anchor="start" fill="#e5e5e5" font-size="12" font-weight="bold" font-family="Segoe UI, Helvetica, Arial, sans-serif">order</text>
+<text x="410" y="504" text-anchor="start" fill="#a1a1aa" font-size="11" font-weight="normal" font-family="Segoe UI, Helvetica, Arial, sans-serif">qty 0.01</text>
+<rect x="568" y="466" width="140" height="54" rx="8" fill="#1c1c1f" stroke="#71717a"/>
+<rect x="568" y="466" width="140" height="18" rx="8" fill="#71717a" opacity="0.25"/>
+<text x="578" y="480" text-anchor="start" fill="#e5e5e5" font-size="12" font-weight="bold" font-family="Segoe UI, Helvetica, Arial, sans-serif">logger</text>
+<line x1="204" y1="493" x2="232" y2="493" stroke="#71717a" stroke-width="1.5" marker-end="url(#ar)"/>
+<line x1="372" y1="493" x2="400" y2="493" stroke="#71717a" stroke-width="1.5" marker-end="url(#ar)"/>
+<line x1="540" y1="493" x2="568" y2="493" stroke="#71717a" stroke-width="1.5" marker-end="url(#ar)"/>
+<rect x="24" y="592" width="740" height="168" rx="10" fill="#171717" stroke="#262626"/>
+<text x="40" y="620" text-anchor="start" fill="#e5e5e5" font-size="15" font-weight="bold" font-family="Segoe UI, Helvetica, Arial, sans-serif">Backtest</text>
+<rect x="384" y="606" width="50" height="22" rx="5" fill="#4f46e5"/><text x="409.0" y="621" text-anchor="middle" fill="#ffffff" font-size="12" font-family="Segoe UI, Helvetica, Arial, sans-serif">Run</text>
+<rect x="440" y="606" width="92" height="22" rx="5" fill="#9333ea"/><text x="486.0" y="621" text-anchor="middle" fill="#ffffff" font-size="12" font-family="Segoe UI, Helvetica, Arial, sans-serif">Compare all</text>
+<rect x="538" y="606" width="78" height="22" rx="5" fill="#d97706"/><text x="577.0" y="621" text-anchor="middle" fill="#ffffff" font-size="12" font-family="Segoe UI, Helvetica, Arial, sans-serif">Optimize</text>
+<path d="M40.0,681.4 L58.2,680.3 L76.3,680.4 L94.5,678.9 L112.6,677.2 L130.8,679.4 L148.9,682.0 L167.1,678.8 L185.2,679.7 L203.4,680.8 L221.5,676.5 L239.7,675.9 L257.8,672.7 L276.0,672.1 L294.2,670.3 L312.3,671.9 L330.5,670.2 L348.6,666.8 L366.8,665.8 L384.9,663.3 L403.1,661.3 L421.2,663.6 L439.4,661.0 L457.5,659.5 L475.7,660.1 L493.8,662.6 L512.0,659.2 L530.2,658.6 L548.3,656.2 L566.5,652.8 L584.6,650.5 L602.8,646.7 L620.9,646.7 L639.1,643.7 L657.2,643.3 L675.4,639.5 L693.5,636.0 L711.7,638.0 L729.8,639.8 L748.0,640.9" fill="none" stroke="#22c55e" stroke-width="1.5"/>
+<rect x="40.0" y="692" width="169.5" height="50" rx="6" fill="#1c1c1f"/>
+<text x="52.0" y="712" text-anchor="start" fill="#71717a" font-size="11" font-weight="normal" font-family="Segoe UI, Helvetica, Arial, sans-serif">Return</text>
+<text x="52.0" y="732" text-anchor="start" fill="#22c55e" font-size="14" font-weight="bold" font-family="Segoe UI, Helvetica, Arial, sans-serif">+18.42%</text>
+<rect x="219.5" y="692" width="169.5" height="50" rx="6" fill="#1c1c1f"/>
+<text x="231.5" y="712" text-anchor="start" fill="#71717a" font-size="11" font-weight="normal" font-family="Segoe UI, Helvetica, Arial, sans-serif">Buy &amp; Hold</text>
+<text x="231.5" y="732" text-anchor="start" fill="#22c55e" font-size="14" font-weight="bold" font-family="Segoe UI, Helvetica, Arial, sans-serif">+11.07%</text>
+<rect x="399.0" y="692" width="169.5" height="50" rx="6" fill="#1c1c1f"/>
+<text x="411.0" y="712" text-anchor="start" fill="#71717a" font-size="11" font-weight="normal" font-family="Segoe UI, Helvetica, Arial, sans-serif">Max DD</text>
+<text x="411.0" y="732" text-anchor="start" fill="#ef4444" font-size="14" font-weight="bold" font-family="Segoe UI, Helvetica, Arial, sans-serif">-7.85%</text>
+<rect x="578.5" y="692" width="169.5" height="50" rx="6" fill="#1c1c1f"/>
+<text x="590.5" y="712" text-anchor="start" fill="#71717a" font-size="11" font-weight="normal" font-family="Segoe UI, Helvetica, Arial, sans-serif">Trades</text>
+<text x="590.5" y="732" text-anchor="start" fill="#e5e5e5" font-size="14" font-weight="bold" font-family="Segoe UI, Helvetica, Arial, sans-serif">14 (57% win)</text>
+<rect x="784" y="64" width="392" height="286" rx="10" fill="#171717" stroke="#262626"/>
+<text x="800" y="92" text-anchor="start" fill="#e5e5e5" font-size="15" font-weight="bold" font-family="Segoe UI, Helvetica, Arial, sans-serif">Portfolio</text>
+<rect x="896" y="76" width="58" height="22" rx="5" fill="#16a34a"/><text x="925.0" y="91" text-anchor="middle" fill="#ffffff" font-size="12" font-family="Segoe UI, Helvetica, Arial, sans-serif">PAPER</text>
+<rect x="1080" y="76" width="80" height="22" rx="5" fill="#1c1c1f"/><text x="1120.0" y="91" text-anchor="middle" fill="#a1a1aa" font-size="11" font-family="Segoe UI, Helvetica, Arial, sans-serif">Reset paper</text>
+<rect x="800.0" y="108" width="114.66666666666667" height="46" rx="6" fill="#1c1c1f"/>
+<text x="810.0" y="126" text-anchor="start" fill="#71717a" font-size="11" font-weight="normal" font-family="Segoe UI, Helvetica, Arial, sans-serif">Cash</text>
+<text x="810.0" y="144" text-anchor="start" fill="#e5e5e5" font-size="13" font-weight="bold" font-family="Segoe UI, Helvetica, Arial, sans-serif">8,420.55</text>
+<rect x="922.6666666666666" y="108" width="114.66666666666667" height="46" rx="6" fill="#1c1c1f"/>
+<text x="932.6666666666666" y="126" text-anchor="start" fill="#71717a" font-size="11" font-weight="normal" font-family="Segoe UI, Helvetica, Arial, sans-serif">Positions</text>
+<text x="932.6666666666666" y="144" text-anchor="start" fill="#e5e5e5" font-size="13" font-weight="bold" font-family="Segoe UI, Helvetica, Arial, sans-serif">1,640.00</text>
+<rect x="1045.3333333333333" y="108" width="114.66666666666667" height="46" rx="6" fill="#1c1c1f"/>
+<text x="1055.3333333333333" y="126" text-anchor="start" fill="#71717a" font-size="11" font-weight="normal" font-family="Segoe UI, Helvetica, Arial, sans-serif">Equity</text>
+<text x="1055.3333333333333" y="144" text-anchor="start" fill="#e5e5e5" font-size="13" font-weight="bold" font-family="Segoe UI, Helvetica, Arial, sans-serif">10,060.55</text>
+<text x="800" y="176" text-anchor="start" fill="#71717a" font-size="11" font-weight="normal" font-family="Segoe UI, Helvetica, Arial, sans-serif">Symbol      Qty       Avg        Price       uPnL</text>
+<line x1="800" y1="184" x2="1160" y2="184" stroke="#262626" stroke-width="0.5"/>
+<text x="800" y="198" text-anchor="start" fill="#e5e5e5" font-size="11" font-weight="normal" font-family="Segoe UI, Helvetica, Arial, sans-serif">BTC/USDT</text>
+<text x="892" y="198" text-anchor="start" fill="#a1a1aa" font-size="11" font-weight="normal" font-family="Segoe UI, Helvetica, Arial, sans-serif">0.020</text>
+<text x="952" y="198" text-anchor="start" fill="#a1a1aa" font-size="11" font-weight="normal" font-family="Segoe UI, Helvetica, Arial, sans-serif">61,200</text>
+<text x="1028" y="198" text-anchor="start" fill="#a1a1aa" font-size="11" font-weight="normal" font-family="Segoe UI, Helvetica, Arial, sans-serif">62,050</text>
+<text x="1104" y="198" text-anchor="start" fill="#22c55e" font-size="11" font-weight="normal" font-family="Segoe UI, Helvetica, Arial, sans-serif">+17.00</text>
+<line x1="800" y1="206" x2="1160" y2="206" stroke="#262626" stroke-width="0.5"/>
+<text x="800" y="220" text-anchor="start" fill="#e5e5e5" font-size="11" font-weight="normal" font-family="Segoe UI, Helvetica, Arial, sans-serif">ETH/USDT</text>
+<text x="892" y="220" text-anchor="start" fill="#a1a1aa" font-size="11" font-weight="normal" font-family="Segoe UI, Helvetica, Arial, sans-serif">0.300</text>
+<text x="952" y="220" text-anchor="start" fill="#a1a1aa" font-size="11" font-weight="normal" font-family="Segoe UI, Helvetica, Arial, sans-serif">3,380</text>
+<text x="1028" y="220" text-anchor="start" fill="#a1a1aa" font-size="11" font-weight="normal" font-family="Segoe UI, Helvetica, Arial, sans-serif">3,300</text>
+<text x="1104" y="220" text-anchor="start" fill="#ef4444" font-size="11" font-weight="normal" font-family="Segoe UI, Helvetica, Arial, sans-serif">-24.00</text>
+<text x="800" y="270" text-anchor="start" fill="#a1a1aa" font-size="12" font-weight="bold" font-family="Segoe UI, Helvetica, Arial, sans-serif">Recent orders</text>
+<text x="800" y="292" text-anchor="start" fill="#22c55e" font-size="11" font-weight="normal" font-family="Segoe UI, Helvetica, Arial, sans-serif">BUY 0.01 BTC/USDT</text>
+<text x="1160" y="292" text-anchor="end" fill="#a1a1aa" font-size="11" font-weight="normal" font-family="Segoe UI, Helvetica, Arial, sans-serif">@ 61,200</text>
+<text x="800" y="310" text-anchor="start" fill="#ef4444" font-size="11" font-weight="normal" font-family="Segoe UI, Helvetica, Arial, sans-serif">SELL 0.02 ETH/USDT</text>
+<text x="1160" y="310" text-anchor="end" fill="#a1a1aa" font-size="11" font-weight="normal" font-family="Segoe UI, Helvetica, Arial, sans-serif">@ 3,300</text>
+<text x="800" y="328" text-anchor="start" fill="#22c55e" font-size="11" font-weight="normal" font-family="Segoe UI, Helvetica, Arial, sans-serif">BUY 0.30 ETH/USDT</text>
+<text x="1160" y="328" text-anchor="end" fill="#a1a1aa" font-size="11" font-weight="normal" font-family="Segoe UI, Helvetica, Arial, sans-serif">@ 3,380</text>
+<rect x="784" y="366" width="392" height="380" rx="10" fill="#171717" stroke="#262626"/>
+<text x="800" y="394" text-anchor="start" fill="#e5e5e5" font-size="15" font-weight="bold" font-family="Segoe UI, Helvetica, Arial, sans-serif">Notifications</text>
+<rect x="1106" y="378" width="54" height="22" rx="5" fill="#4f46e5"/><text x="1133.0" y="393" text-anchor="middle" fill="#ffffff" font-size="11" font-family="Segoe UI, Helvetica, Arial, sans-serif">3 new</text>
+<rect x="800" y="418" width="360" height="42" rx="6" fill="#1c1c1f" stroke="#262626"/>
+<rect x="810" y="427" width="56" height="22" rx="5" fill="#27272a"/><text x="838.0" y="442" text-anchor="middle" fill="#22c55e" font-size="10" font-family="Segoe UI, Helvetica, Arial, sans-serif">order</text>
+<text x="876" y="436" text-anchor="start" fill="#e5e5e5" font-size="11" font-weight="normal" font-family="Segoe UI, Helvetica, Arial, sans-serif">Filled BUY 0.01 BTC/USDT @ 61,200</text>
+<text x="1150" y="436" text-anchor="end" fill="#71717a" font-size="10" font-weight="normal" font-family="Segoe UI, Helvetica, Arial, sans-serif">12:04</text>
+<text x="876" y="451" text-anchor="start" fill="#71717a" font-size="9" font-weight="normal" font-family="Segoe UI, Helvetica, Arial, sans-serif">in-app feed · optional webhook</text>
+<rect x="800" y="468" width="360" height="42" rx="6" fill="#1c1c1f" stroke="#262626"/>
+<rect x="810" y="477" width="56" height="22" rx="5" fill="#27272a"/><text x="838.0" y="492" text-anchor="middle" fill="#4f46e5" font-size="10" font-family="Segoe UI, Helvetica, Arial, sans-serif">signal</text>
+<text x="876" y="486" text-anchor="start" fill="#e5e5e5" font-size="11" font-weight="normal" font-family="Segoe UI, Helvetica, Arial, sans-serif">AI: BUY BTC/USDT (conf 72%)</text>
+<text x="1150" y="486" text-anchor="end" fill="#71717a" font-size="10" font-weight="normal" font-family="Segoe UI, Helvetica, Arial, sans-serif">12:03</text>
+<text x="876" y="501" text-anchor="start" fill="#71717a" font-size="9" font-weight="normal" font-family="Segoe UI, Helvetica, Arial, sans-serif">in-app feed · optional webhook</text>
+<rect x="800" y="518" width="360" height="42" rx="6" fill="#1c1c1f" stroke="#262626"/>
+<rect x="810" y="527" width="56" height="22" rx="5" fill="#27272a"/><text x="838.0" y="542" text-anchor="middle" fill="#a1a1aa" font-size="10" font-family="Segoe UI, Helvetica, Arial, sans-serif">schedule</text>
+<text x="876" y="536" text-anchor="start" fill="#e5e5e5" font-size="11" font-weight="normal" font-family="Segoe UI, Helvetica, Arial, sans-serif">Workflow #2 ran — ok</text>
+<text x="1150" y="536" text-anchor="end" fill="#71717a" font-size="10" font-weight="normal" font-family="Segoe UI, Helvetica, Arial, sans-serif">12:00</text>
+<text x="876" y="551" text-anchor="start" fill="#71717a" font-size="9" font-weight="normal" font-family="Segoe UI, Helvetica, Arial, sans-serif">in-app feed · optional webhook</text>
+<rect x="800" y="568" width="360" height="42" rx="6" fill="#1c1c1f" stroke="#262626"/>
+<rect x="810" y="577" width="56" height="22" rx="5" fill="#27272a"/><text x="838.0" y="592" text-anchor="middle" fill="#ef4444" font-size="10" font-family="Segoe UI, Helvetica, Arial, sans-serif">signal</text>
+<text x="876" y="586" text-anchor="start" fill="#e5e5e5" font-size="11" font-weight="normal" font-family="Segoe UI, Helvetica, Arial, sans-serif">ma_cross: SELL ETH/USDT</text>
+<text x="1150" y="586" text-anchor="end" fill="#71717a" font-size="10" font-weight="normal" font-family="Segoe UI, Helvetica, Arial, sans-serif">11:48</text>
+<text x="876" y="601" text-anchor="start" fill="#71717a" font-size="9" font-weight="normal" font-family="Segoe UI, Helvetica, Arial, sans-serif">in-app feed · optional webhook</text>
+<rect x="800" y="618" width="360" height="42" rx="6" fill="#1c1c1f" stroke="#262626"/>
+<rect x="810" y="627" width="56" height="22" rx="5" fill="#27272a"/><text x="838.0" y="642" text-anchor="middle" fill="#ef4444" font-size="10" font-family="Segoe UI, Helvetica, Arial, sans-serif">order</text>
+<text x="876" y="636" text-anchor="start" fill="#e5e5e5" font-size="11" font-weight="normal" font-family="Segoe UI, Helvetica, Arial, sans-serif">Filled SELL 0.02 ETH/USDT @ 3,300</text>
+<text x="1150" y="636" text-anchor="end" fill="#71717a" font-size="10" font-weight="normal" font-family="Segoe UI, Helvetica, Arial, sans-serif">11:48</text>
+<text x="876" y="651" text-anchor="start" fill="#71717a" font-size="9" font-weight="normal" font-family="Segoe UI, Helvetica, Arial, sans-serif">in-app feed · optional webhook</text>
+<rect x="800" y="668" width="360" height="42" rx="6" fill="#1c1c1f" stroke="#262626"/>
+<rect x="810" y="677" width="56" height="22" rx="5" fill="#27272a"/><text x="838.0" y="692" text-anchor="middle" fill="#d97706" font-size="10" font-family="Segoe UI, Helvetica, Arial, sans-serif">risk</text>
+<text x="876" y="686" text-anchor="start" fill="#e5e5e5" font-size="11" font-weight="normal" font-family="Segoe UI, Helvetica, Arial, sans-serif">Order blocked: position cap (422)</text>
+<text x="1150" y="686" text-anchor="end" fill="#71717a" font-size="10" font-weight="normal" font-family="Segoe UI, Helvetica, Arial, sans-serif">11:30</text>
+<text x="876" y="701" text-anchor="start" fill="#71717a" font-size="9" font-weight="normal" font-family="Segoe UI, Helvetica, Arial, sans-serif">in-app feed · optional webhook</text>
+<defs><marker id="ar" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#71717a"/></marker></defs>
+</svg>

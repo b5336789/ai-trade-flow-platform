@@ -11,6 +11,7 @@ class NodeType(str, enum.Enum):
     data_source = "data_source"  # fetch OHLCV -> candles
     strategy = "strategy"        # indicator strategy -> Signal
     ai_signal = "ai_signal"      # LLM -> Signal
+    risk_exit = "risk_exit"      # stop-loss / take-profit on the held position -> Signal
     order = "order"              # Signal -> OrderResult (paper/live)
     logger = "logger"            # pass-through, records to run log
 
