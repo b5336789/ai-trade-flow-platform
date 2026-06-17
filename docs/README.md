@@ -8,6 +8,14 @@
 
 ## 文件清單(所有過程文件)
 
+### 規格與規劃 / Specs & Planning
+| 文件 | 內容 |
+| --- | --- |
+| [`PRD-v2.md`](./PRD-v2.md) | **v2 產品需求文件**:Phase 0/1/2 各 milestone、驗收標準、鐵則、已確認決定(基準幣別 TWD、元大 SPARK、美股 signal-only) |
+| [`task-backlog.md`](./task-backlog.md) | **任務總表與路線圖**:v1+v2 所有任務,依 effort(low/medium)分類,含項目名稱/內容/修改位置與完成狀態(✅/⬜)——判斷「做到哪裡」的單一事實來源 |
+| [`development-log.md`](./development-log.md) | 開發歷程:v1 Checkpoint 1–16 + v2 里程碑(完成內容、驗證方式) |
+
+### 技術文件 / Technical Docs
 | 文件 | 內容 |
 | --- | --- |
 | [`architecture.md`](./architecture.md) | 系統架構、元件圖、資料流、核心設計決策(含 Mermaid 圖) |
@@ -15,10 +23,9 @@
 | [`api-reference.md`](./api-reference.md) | 所有 HTTP API 端點:路徑、參數、回應、錯誤碼 |
 | [`strategies.md`](./strategies.md) | 技術指標與 4 種策略(MA交叉 / RSI / MACD / 布林通道) |
 | [`workflow.md`](./workflow.md) | 工作流引擎:節點型別、圖執行、排程自動化 |
-| [`backtesting.md`](./backtesting.md) | 回測引擎、多策略比較、參數最佳化 |
-| [`configuration.md`](./configuration.md) | 環境變數、交易模式、安全閘門 |
+| [`backtesting.md`](./backtesting.md) | 回測引擎(含交易成本)、多策略比較、參數最佳化 |
+| [`configuration.md`](./configuration.md) | 環境變數、交易模式、安全閘門、交易成本設定 |
 | [`testing.md`](./testing.md) | 測試套件總覽與如何執行 |
-| [`development-log.md`](./development-log.md) | 開發歷程:Checkpoint 1–11(完成內容、驗證方式、剩餘項目) |
 
 ## 快速導覽
 
