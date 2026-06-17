@@ -22,6 +22,14 @@
 | 14 | 紙上帳戶持久化 | `PaperAccount`/`PaperPosition` 資料表、`trading/paper_store.py`、`PaperBroker` 載入/儲存、`/api/orders/paper/reset`、前端 Reset 鈕 | 66 測試 |
 | 15 | 停損/停利 | `risk_exit` 工作流節點(依持倉均價與現價判斷停損/停利→sell)、前端節點 | 70 測試 |
 
+## v2 (依 `docs/PRD-v2.md`，Phase 0：金融正確性與安全地基)
+
+> 基準幣別 = **TWD**;本期實作範圍 = **Phase 0 (M0.1–M0.7)**。Phase 0 全綠前**禁止 live**。
+
+| # | 里程碑 | 完成內容 | 驗證 |
+| --- | --- | --- | --- |
+| M0.1 | 交易成本模型 | `trading/costs.py`(`CostModel`/`FillCost`,依 `MarketKind`:crypto bps、台股手續費+證交稅僅賣出、美股費率+最低收費、共同滑價);`config.py` 8 個 `COST_*` 設定 + `.env.example`;`brokers/paper.py` 與 `backtest/engine.py` 每筆成交套用成本(`Trade` 加 `gross_pnl`/`cost`,`pnl` 改為淨額);`api/backtest.py`/`optimize.py` 傳入 `market`。成本預設 ON。 | 81 測試(新增 `test_costs.py` 11 項:費率/賣出稅/折讓/最低收費/滑價/env 覆寫/fail-loud/紙上淨額恆等式/回測淨額恆等式/高換手淨<毛);既有受影響的零成本斷言已更新為含費精確值 |
+
 ## 設計原則落實(對照 `CLAUDE.md`)
 - **Simplicity First**:先做 crypto+紙上一條完整切片,再水平擴充。
 - **Surgical Changes**:重構策略 registry 時只動相關處。

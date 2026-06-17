@@ -4,21 +4,24 @@
 逐根 K 線模擬**做多**進出,完全離線、可重現。
 
 流程:從第 2 根起,對「目前看到的歷史切片」呼叫策略 `generate`:
-- `buy` 且空手:以 `position_fraction` 比例的現金買進(成交價=當根收盤)
+- `buy` 且空手:以 `position_fraction` 比例的現金買進
 - `sell` 且持有:全數賣出,記錄一筆交易
 - 策略資料不足(`ValueError`)視為 `hold`
 
 每根記錄權益(現金+部位市值),計算回撤。
 
-`run_backtest(candles, strategy, starting_cash=100000, position_fraction=1.0) -> BacktestResult`:
+### 交易成本(M0.1)
+**每一筆成交都套用 `trading/costs.py` 的 `CostModel`**(手續費、台股證交稅僅賣出、滑價),成本預設 **ON**——零成本的報酬數字是錯的。`run_backtest(..., market=..., cost_model=None)`:`cost_model=None` 用 `Settings` 設定值;測量毛報酬時傳 `CostModel.zero()`。`Trade.pnl` 為**淨額**,另有 `gross_pnl` 與 `cost` 明細。買→賣的已實現淨損益恆等於 `gross_pnl − buy_cost − sell_cost − sell_tax`。
+
+`run_backtest(candles, strategy, starting_cash=100000, position_fraction=1.0, market=crypto, cost_model=None) -> BacktestResult`:
 
 | 指標 | 說明 |
 | --- | --- |
-| `total_return_pct` | 期末權益 / 起始現金 - 1 |
+| `total_return_pct` | 期末權益 / 起始現金 - 1(已計入成本) |
 | `buy_hold_return_pct` | 買入持有對照(末價/首價) |
-| `num_trades` / `wins` / `win_rate` | 完成交易數 / 獲利筆數 / 勝率 |
+| `num_trades` / `wins` / `win_rate` | 完成交易數 / 獲利筆數(淨) / 勝率 |
 | `max_drawdown_pct` | 權益曲線最大回撤 |
-| `trades[]` / `equity_curve[]` | 交易明細與權益曲線 |
+| `trades[]` / `equity_curve[]` | 交易明細(含 `gross_pnl`/`cost`)與權益曲線 |
 
 ```mermaid
 flowchart LR

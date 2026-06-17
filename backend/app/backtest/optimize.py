@@ -11,7 +11,7 @@ import itertools
 from pydantic import BaseModel
 
 from app.backtest.engine import run_backtest
-from app.schemas import Candle
+from app.schemas import Candle, MarketKind
 from app.strategies.registry import build_strategy
 
 _METRICS = {"total_return_pct", "win_rate"}
@@ -34,6 +34,7 @@ def grid_search(
     starting_cash: float = 100_000.0,
     position_fraction: float = 1.0,
     max_combinations: int = 200,
+    market: MarketKind = MarketKind.crypto,
 ) -> list[OptimizeRow]:
     if metric not in _METRICS:
         raise ValueError(f"metric must be one of {sorted(_METRICS)}")
@@ -55,6 +56,7 @@ def grid_search(
                 build_strategy(strategy_name, params),
                 starting_cash=starting_cash,
                 position_fraction=position_fraction,
+                market=market,
             )
             rows.append(
                 OptimizeRow(
