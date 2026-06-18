@@ -166,6 +166,14 @@ export interface OptimizeRow {
   win_rate: number;
   max_drawdown_pct: number;
   error: string | null;
+  // M0.4 split mode: in-sample vs out-of-sample, surfaced so overfitting is visible.
+  is_return_pct?: number | null;
+  oos_return_pct?: number | null;
+  is_oos_gap_pct?: number | null;
+  oos_sharpe?: number | null;
+  oos_max_drawdown_pct?: number | null;
+  oos_return_over_maxdd?: number | null;
+  rank_score?: number | null;
 }
 
 export interface OptimizeRequest {
@@ -176,6 +184,10 @@ export interface OptimizeRequest {
   strategy: string;
   param_grid: Record<string, number[]>;
   metric?: string;
+  // M0.4: rank by out-of-sample risk-adjusted metric instead of raw in-sample return.
+  split?: boolean;
+  oos_fraction?: number;
+  rank_metric?: string;
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
