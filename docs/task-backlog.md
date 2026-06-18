@@ -36,6 +36,39 @@
 
 ---
 
+## 依賴分析 / Dependency Analysis
+
+一個 milestone「**unblocked(可開工)**」= 它所有依賴都已 merge。以此決定哪些能**並行開發**(各開獨立分支/worktree + 獨立 PR),哪些必須**等前置**。
+
+| Milestone | 依賴(前置) | 狀態 | 主要修改區(衝突面) |
+| --- | --- | --- | --- |
+| M0.1 成本 | — | ✅ done | `trading/costs`、`backtest`、`paper` |
+| M0.2 成交時點 | M0.1 | ✅ done | `backtest/engine` |
+| M0.3 指標 | M0.2 | ✅ done | `backtest/metrics`、`engine` |
+| **M0.4 Walk-forward/OOS** | M0.3(OOS Sharpe 排序) | 🟢 **unblocked** | `backtest/validation`(新)、`optimize`、`api/backtest`、前端 Backtest |
+| **M0.5 冪等下單 + 現貨上限** | —(地基已在) | 🟢 **unblocked** | `trading/execution`、`workflow/nodes`、`brokers/crypto_ccxt`、`models`、`trading/risk` |
+| M0.6 投組風控 + kill switch | **M0.5**(市值部位)+ FX seam(內建) | 🔴 blocked by M0.5 | `trading/risk`、`marketdata/fx`(新)、`models`、`api`、`config` |
+| **M0.7 存取鎖定 + 金鑰** | —(獨立) | 🟢 **unblocked** | `main`、`api/deps`(新)、`config`、`frontend/lib/api` |
+| M0.8 go-live checklist | M0.4–M0.7 全完成 | 🔴 blocked | `docs/` |
+| M1.1 FX | M0.6(升級其 FX seam) | 🔴 blocked | `marketdata/fx`、`portfolio`、`risk` |
+| M1.2 Broker 故事 | Broker ABC(已在) | 🟢 unblocked(建議 Phase 0 後) | `brokers/*`、`registry`、`notifications`、`vendor` |
+| M1.3 FIFO 帳本 | M0.1(成本)✅ | 🟢 unblocked(建議 Phase 0 後) | `trading/ledger`(新)、`models`、`paper`、`api` |
+| M1.4 行事曆 gating | —(獨立) | 🟢 unblocked(建議 Phase 0 後) | `marketdata/calendar`(新)、`scheduler`、`models` |
+| M1.5 工作流回測 + AI 重播 | workflow/ai(已在)、M0.4(共用回測)較佳 | 🟡 大致 unblocked | `workflow/engine`、`ai/signal_agent`、`backtest`、`models` |
+| M2.1 邏輯/組合節點 | workflow(已在) | 🟢 unblocked | `workflow/nodes`、`schema`、前端 |
+| M2.2 策略室 + 沙箱 | Strategy ABC(已在) | 🟢 unblocked(**最高風險,需安全審查**) | `strategy_lab/*`(新)、`models`、`api`、前端 |
+| M2.3 市場消息 | `signal_agent`(已在) | 🟢 unblocked | `marketdata/news`(新)、`signal_agent`、`config` |
+
+### 並行波次 / Parallel waves
+- **Wave 1(現在,並行 3 條):** **M0.4**、**M0.5**、**M0.7** — 依賴皆已滿足,修改區大致不重疊(各自獨立分支 + PR)。
+- **Wave 2:** **M0.6**(等 M0.5 merge,取得市值部位)。
+- **Wave 3:** **M0.8**(等 M0.4–M0.7 全 merge)→ Phase 0 完成、可考慮 live。
+- **Phase 1/2:** M1.4 / M2.1 / M2.3 等彼此獨立、可在 Phase 0 後再並行;M1.1 等 M0.6;M2.2 需單獨安全審查 checkpoint。
+
+> **並行守則:** 各分支自 `main` 切出、只動自己的修改區;**`docs/task-backlog.md` 與 `docs/development-log.md` 由主控集中更新**(避免跨分支文件衝突);每條完成前跑完整 `pytest` 保持綠燈;PR 逐一 review + merge,後 merge 者必要時 rebase。
+
+---
+
 # Part A — v1 骨架(Checkpoint 1–15)✅ 全數完成
 
 > 對應 [`development-log.md`](./development-log.md)。以下皆**已完成**,列出供回溯。
