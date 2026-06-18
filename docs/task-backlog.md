@@ -27,12 +27,12 @@
 | 階段 | 範圍 | 狀態 | 備註 |
 | --- | --- | --- | --- |
 | **v1 骨架** | Checkpoint 1–15 | ✅ 全數完成 | crypto + paper 端到端可運行,70 測試 |
-| **v2 Phase 0** | M0.1–M0.7(接真錢前最低門檻) | 🟡 進行中(M0.1–M0.5、M0.7 ✅;剩 M0.6、M0.8) | **Phase 0 全綠前禁止 live** |
+| **v2 Phase 0** | M0.1–M0.8(接真錢前最低門檻) | ✅ **全數完成**(M0.1–M0.8,128 測試綠) | live 前須逐項完成 `go-live-checklist.md` |
 | **v2 Phase 1** | M1.1–M1.5(跨市場一致性 + broker) | ⬜ 未開始 | |
 | **v2 Phase 2** | M2.1–M2.3(招牌功能) | ⬜ 未開始 | M2.2 策略室為最高風險 |
 | **Backlog** | 非目標 / 未來 | ⬜ 不在本期 | 美股 live(IBKR/Alpaca)等 |
 
-> **基準幣別 = TWD**(已確認)。**目前 Phase 0 未完成 → 系統禁止 live 交易。**
+> **基準幣別 = TWD**(已確認)。**Phase 0 程式已全部完成;切 live 前務必逐項完成 [`go-live-checklist.md`](./go-live-checklist.md)。**
 
 ---
 
@@ -47,10 +47,10 @@
 | M0.3 指標 | M0.2 | ✅ done | `backtest/metrics`、`engine` |
 | M0.4 Walk-forward/OOS | M0.3(OOS Sharpe 排序) | ✅ done | `backtest/validation`(新)、`optimize`、`api/backtest`、前端 Backtest |
 | M0.5 冪等下單 + 現貨上限 | —(地基已在) | ✅ done | `trading/execution`、`workflow/nodes`、`brokers/crypto_ccxt`、`models`、`trading/risk` |
-| **M0.6 投組風控 + kill switch** | M0.5(市值部位)✅ + FX seam(內建) | 🟢 **unblocked**(Wave 2) | `trading/risk`、`marketdata/fx`(新)、`models`、`api`、`config` |
+| M0.6 投組風控 + kill switch | M0.5(市值部位)✅ + FX seam(內建) | ✅ done | `trading/risk`、`marketdata/fx`(新)、`models`、`api`、`config` |
 | M0.7 存取鎖定 + 金鑰 | —(獨立) | ✅ done | `main`、`api/deps`(新)、`config`、`frontend/lib/api` |
-| **M0.8 go-live checklist** | M0.6(M0.4/M0.5/M0.7 已完成) | 🟡 等 M0.6 | `docs/` |
-| M1.1 FX | M0.6(升級其 FX seam) | 🔴 blocked | `marketdata/fx`、`portfolio`、`risk` |
+| M0.8 go-live checklist | M0.6 ✅(M0.4/M0.5/M0.7 已完成) | ✅ done | `docs/go-live-checklist.md`、`tests/conftest.py` |
+| **M1.1 FX** | M0.6 ✅(升級其 FX seam) | 🟢 **unblocked** | `marketdata/fx`、`portfolio`、`risk` |
 | M1.2 Broker 故事 | Broker ABC(已在) | 🟢 unblocked(建議 Phase 0 後) | `brokers/*`、`registry`、`notifications`、`vendor` |
 | M1.3 FIFO 帳本 | M0.1(成本)✅ | 🟢 unblocked(建議 Phase 0 後) | `trading/ledger`(新)、`models`、`paper`、`api` |
 | M1.4 行事曆 gating | —(獨立) | 🟢 unblocked(建議 Phase 0 後) | `marketdata/calendar`(新)、`scheduler`、`models` |
@@ -60,9 +60,10 @@
 | M2.3 市場消息 | `signal_agent`(已在) | 🟢 unblocked | `marketdata/news`(新)、`signal_agent`、`config` |
 
 ### 並行波次 / Parallel waves
-- **Wave 1 ✅ 完成:** M0.4、M0.5、M0.7 — 三條並行 subagent 開發,各自 PR(#13/#14/#12)已 merge,116 測試綠。
-- **Wave 2(現在):** **M0.6**(M0.5 已 merge,可取得市值部位)。
-- **Wave 3:** **M0.8**(等 M0.6)→ Phase 0 完成、可考慮 live。
+- **Wave 1 ✅ 完成:** M0.4、M0.5、M0.7 — 三條並行 subagent,PR #13/#14/#12 已 merge。
+- **Wave 2 ✅ 完成:** M0.6(subagent,PR #16)+ wrap-up(CAGR/conftest)。
+- **Wave 3 ✅ 完成:** M0.8 go-live checklist + 測試 DB 決定性 → **Phase 0 完成(128 測試綠)**。
+- **下一步:Phase 1**(M1.1 FX 已 unblocked;M1.4/M2.1/M2.3 彼此獨立可並行;M2.2 需安全審查)。
 - **Phase 1/2:** M1.4 / M2.1 / M2.3 等彼此獨立、可在 Phase 0 後再並行;M1.1 等 M0.6;M2.2 需單獨安全審查 checkpoint。
 
 > **並行守則:** 各分支自 `main` 切出、只動自己的修改區;**`docs/task-backlog.md` 與 `docs/development-log.md` 由主控集中更新**(避免跨分支文件衝突);每條完成前跑完整 `pytest` 保持綠燈;PR 逐一 review + merge,後 merge 者必要時 rebase。
@@ -96,7 +97,7 @@
 
 # Part B — v2 Phase 0:金融正確性與安全地基
 
-> **接任何真錢前必須全部完成。** 目前僅 M0.1 完成。
+> **接任何真錢前必須全部完成 → 已全部完成(M0.1–M0.8)。** 切 live 仍須逐項完成 `go-live-checklist.md`。
 
 ## M0.1 — 交易成本模型 ✅ 已完成
 
@@ -146,19 +147,19 @@
 | 0.5.5 | [x] | 部位上限改用市值 | 🟢 | `RiskGuard.check(..., current_price)` 以現價市值判斷部位上限 | `trading/risk.py` |
 | 0.5.6 | [x] | 測試 | 🟡 | 連續 buy×5→≤1 筆;同 run_id 重跑→1 筆;現貨買超上限→拒絕(7 項) | `tests/test_orders_api.py`、`tests/test_workflow.py` |
 
-## M0.6 — 投組級風控 + Kill switch ⛔ 已切割
+## M0.6 — 投組級風控 + Kill switch ✅ 已完成
 
 > 依賴 **最小 FX seam**(Phase 0:config 靜態匯率、缺匯率 fail-loud;M1.1 換成線上 provider)。
 
 | ID | ✓ | 任務 | Effort | 內容 | 大致位置 |
 | --- | --- | --- | --- | --- | --- |
-| 0.6.1 | [ ] | 最小 FX seam | 🟢 | config 靜態匯率換算成基準幣別(TWD);缺匯率 fail-loud。介面預留 M1.1 換 provider | `marketdata/fx.py`(新)、`config.py` |
-| 0.6.2 | [ ] | 風控設定 | 🟢 | `max_total_exposure_value`/`max_daily_loss`/`max_orders_per_day`/`kill_switch` 設定欄位 | `config.py`、`.env.example` |
-| 0.6.3 | [ ] | runtime flag 持久化 | 🟢 | 可由 API/DB 切換的 halt / kill-switch 持久化旗標 | `models.py` |
-| 0.6.4 | [ ] | PortfolioGuard | 🟡 | 全以基準幣別計:總曝險、單日虧損(觸發 halt)、單日下單數、kill switch;觸發→拒新進場、仍允許出清、設 halt、通知 | `trading/risk.py` |
-| 0.6.5 | [ ] | kill switch 端點 | 🟢 | API 切換 kill switch / 查 halt 狀態 | `api/`(新或擴充) |
-| 0.6.6 | [ ] | 接線進下單路徑 | 🟢 | `execute_order` 套用 PortfolioGuard | `trading/execution.py` |
-| 0.6.7 | [ ] | 測試 | 🟡 | 每個上限各一測試 + halt 期間出清單仍可執行 | `tests/test_risk_*.py` |
+| 0.6.1 | [x] | 最小 FX seam | 🟢 | config 靜態匯率換算成基準幣別(TWD);缺匯率 fail-loud。介面預留 M1.1 換 provider | `marketdata/fx.py`(新)、`config.py` |
+| 0.6.2 | [x] | 風控設定 | 🟢 | `max_total_exposure_value`/`max_daily_loss`/`max_orders_per_day`/`kill_switch` 設定欄位 | `config.py`、`.env.example` |
+| 0.6.3 | [x] | runtime flag 持久化 | 🟢 | 可由 API/DB 切換的 halt / kill-switch 持久化旗標 | `models.py` |
+| 0.6.4 | [x] | PortfolioGuard | 🟡 | 全以基準幣別計:總曝險、單日虧損(觸發 halt)、單日下單數、kill switch;觸發→拒新進場、仍允許出清、設 halt、通知 | `trading/risk.py` |
+| 0.6.5 | [x] | kill switch 端點 | 🟢 | API 切換 kill switch / 查 halt 狀態 | `api/`(新或擴充) |
+| 0.6.6 | [x] | 接線進下單路徑 | 🟢 | `execute_order` 套用 PortfolioGuard | `trading/execution.py` |
+| 0.6.7 | [x] | 測試 | 🟡 | 每個上限各一測試 + halt 期間出清單仍可執行 | `tests/test_risk_*.py` |
 
 ## M0.7 — 存取鎖定 + 金鑰權限 ✅ 已完成
 
@@ -170,11 +171,11 @@
 | 0.7.4 | [x] | 安全文件 | 🟢 | 幣安關提領 + 綁 IP、唯讀/下單分鑰 | `docs/configuration.md`、`README.md` |
 | 0.7.5 | [x] | 測試 | 🟢 | 無 token→401、正確→200、錯/非 Bearer→401、空 token 開放(6 項) | `tests/test_auth.py` |
 
-## M0.8 — Phase 0 完成定義 ⬜
+## M0.8 — Phase 0 完成定義 ✅ 已完成
 
 | ID | ✓ | 任務 | Effort | 內容 | 大致位置 |
 | --- | --- | --- | --- | --- | --- |
-| 0.8.1 | [ ] | go-live checklist | 🟢 | `docs/go-live-checklist.md`(小額起步、各風控閘已設、kill switch 已實測、金鑰權限已確認);文件標示「Phase 0 完成前禁止 live」 | `docs/go-live-checklist.md`(新) |
+| 0.8.1 | [x] | go-live checklist | 🟢 | `docs/go-live-checklist.md`(小額起步、各風控閘已設、kill switch 已實測、金鑰權限已確認);文件標示「Phase 0 完成前禁止 live」 | `docs/go-live-checklist.md`(新) |
 
 ---
 
