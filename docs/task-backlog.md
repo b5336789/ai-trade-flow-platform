@@ -27,7 +27,7 @@
 | 階段 | 範圍 | 狀態 | 備註 |
 | --- | --- | --- | --- |
 | **v1 骨架** | Checkpoint 1–15 | ✅ 全數完成 | crypto + paper 端到端可運行,70 測試 |
-| **v2 Phase 0** | M0.1–M0.7(接真錢前最低門檻) | 🟡 進行中(M0.1、M0.2 ✅,其餘未完成) | **Phase 0 全綠前禁止 live** |
+| **v2 Phase 0** | M0.1–M0.7(接真錢前最低門檻) | 🟡 進行中(M0.1、M0.2、M0.3 ✅,其餘未完成) | **Phase 0 全綠前禁止 live** |
 | **v2 Phase 1** | M1.1–M1.5(跨市場一致性 + broker) | ⬜ 未開始 | |
 | **v2 Phase 2** | M2.1–M2.3(招牌功能) | ⬜ 未開始 | M2.2 策略室為最高風險 |
 | **Backlog** | 非目標 / 未來 | ⬜ 不在本期 | 美股 live(IBKR/Alpaca)等 |
@@ -84,13 +84,13 @@
 | 0.2.1 | [x] | next-bar open 成交 | 🟢 | 訊號用「資料 ≤ close[i]」決策、成交於 **open[i+1]**(pending-action 狀態機);最後一根無次根→不開新倉(明確記錄) | `backtest/engine.py` |
 | 0.2.2 | [x] | 成交慣例 docstring + 測試 | 🟢 | 構造 close[i] 觸發 buy,斷言成交價 == `open[i+1]` ≠ `close[i]`;末根訊號不開倉;docstring 寫明慣例 | `backtest/engine.py`、`tests/test_backtest.py` |
 
-## M0.3 — 回測指標擴充 ⬜
+## M0.3 — 回測指標擴充 ✅ 已完成
 
 | ID | ✓ | 任務 | Effort | 內容 | 大致位置 |
 | --- | --- | --- | --- | --- | --- |
-| 0.3.1 | [ ] | 年化基礎 | 🟢 | 由 timeframe 推導 `periods_per_year`(或參數傳入);無風險利率可設定(預設 0) | `backtest/engine.py`、`config.py` |
-| 0.3.2 | [ ] | 風險指標計算 | 🟡 | `BacktestResult` 新增 `cagr`/`annualized_volatility`/`sharpe`/`sortino`/`calmar`/`profit_factor`/`avg_win`/`avg_loss`/`exposure_pct`/`max_consecutive_losses`/`turnover` | `backtest/engine.py` |
-| 0.3.3 | [ ] | 指標測試 | 🟢 | 對已知收益序列手算對照 Sharpe/Sortino/profit_factor;勝率不得為唯一排序依據 | `tests/test_backtest.py` |
+| 0.3.1 | [x] | 年化基礎 | 🟢 | `metrics.periods_per_year(timeframe)` 推導;`run_backtest` 加 `timeframe`/`risk_free_rate`;`config.backtest_risk_free_rate`(預設 0) | `backtest/metrics.py`、`backtest/engine.py`、`config.py` |
+| 0.3.2 | [x] | 風險指標計算 | 🟡 | `BacktestResult` 新增 `cagr`/`annualized_volatility`/`sharpe`/`sortino`/`calmar`/`profit_factor`/`avg_win`/`avg_loss`/`exposure_pct`/`max_consecutive_losses`/`turnover`(純函式於 `metrics.py`) | `backtest/metrics.py`、`backtest/engine.py` |
+| 0.3.3 | [x] | 指標測試 | 🟢 | `test_metrics.py` 手算對照 Sharpe/Sortino/PF/CAGR/Calmar/PPY;勝率非唯一排序依據(docstring 註記) | `tests/test_metrics.py`、`tests/test_backtest.py` |
 
 ## M0.4 — Optimizer:樣本外 / Walk-forward(消除過擬合)⛔ 已切割
 

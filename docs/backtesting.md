@@ -16,13 +16,24 @@
 ### 交易成本(M0.1)
 **每一筆成交都套用 `trading/costs.py` 的 `CostModel`**(手續費、台股證交稅僅賣出、滑價),成本預設 **ON**——零成本的報酬數字是錯的。`run_backtest(..., market=..., cost_model=None)`:`cost_model=None` 用 `Settings` 設定值;測量毛報酬時傳 `CostModel.zero()`。`Trade.pnl` 為**淨額**,另有 `gross_pnl` 與 `cost` 明細。買→賣的已實現淨損益恆等於 `gross_pnl − buy_cost − sell_cost − sell_tax`。
 
-`run_backtest(candles, strategy, starting_cash=100000, position_fraction=1.0, market=crypto, cost_model=None) -> BacktestResult`:
+### 風險/報酬指標(M0.3)
+純函式在 `backtest/metrics.py`(可單元測試、`walk_forward` M0.4 共用)。年化用的 `periods_per_year` 由 `timeframe` 推導(如 `1h`→8766、`1d`→365.25);無風險利率由 `Settings.backtest_risk_free_rate` 設定(預設 0)。
+
+`run_backtest(candles, strategy, starting_cash=100000, position_fraction=1.0, market=crypto, cost_model=None, timeframe="1h", risk_free_rate=None) -> BacktestResult`:
 
 | 指標 | 說明 |
 | --- | --- |
-| `total_return_pct` | 期末權益 / 起始現金 - 1(已計入成本) |
-| `buy_hold_return_pct` | 買入持有對照(末價/首價) |
-| `num_trades` / `wins` / `win_rate` | 完成交易數 / 獲利筆數(淨) / 勝率 |
+| `total_return_pct` / `buy_hold_return_pct` | 總報酬(已計入成本)/ 買入持有對照 |
+| `cagr` | 年化複合成長率 |
+| `annualized_volatility` | 年化波動度(每根報酬樣本標準差 × √ppy) |
+| `sharpe` / `sortino` | 風險調整報酬(Sortino 只罰下檔波動) |
+| `calmar` | CAGR / 最大回撤 |
+| `profit_factor` | 毛利 / 毛損(無虧損交易時為 `null`) |
+| `avg_win` / `avg_loss` | 平均獲利 / 平均虧損(淨) |
+| `exposure_pct` | 持倉根數佔比 |
+| `max_consecutive_losses` | 最長連續虧損次數 |
+| `turnover` | 總成交名目 / 起始現金 |
+| `num_trades` / `wins` / `win_rate` | 完成交易數 / 獲利筆數(淨) / 勝率(**不可作唯一排序依據**) |
 | `max_drawdown_pct` | 權益曲線最大回撤 |
 | `trades[]` / `equity_curve[]` | 交易明細(含 `gross_pnl`/`cost`)與權益曲線 |
 

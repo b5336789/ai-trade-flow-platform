@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
+from app.backtest import metrics
+from app.config import settings
 from app.schemas import Candle, MarketKind, OrderSide, SignalAction
 from app.strategies.base import Strategy
 from app.trading.costs import CostModel
@@ -40,6 +42,18 @@ class BacktestResult(BaseModel):
     wins: int
     win_rate: float
     max_drawdown_pct: float
+    # Risk/return metrics (M0.3) — see backtest/metrics.py.
+    cagr: float = 0.0
+    annualized_volatility: float = 0.0
+    sharpe: float = 0.0
+    sortino: float = 0.0
+    calmar: float = 0.0
+    profit_factor: float | None = None  # None when there are no losing trades
+    avg_win: float = 0.0
+    avg_loss: float = 0.0  # negative
+    exposure_pct: float = 0.0  # % of bars holding a position
+    max_consecutive_losses: int = 0
+    turnover: float = 0.0  # total traded notional / starting cash
     trades: list[Trade] = Field(default_factory=list)
     equity_curve: list[EquityPoint] = Field(default_factory=list)
 
@@ -51,6 +65,8 @@ def run_backtest(
     position_fraction: float = 1.0,
     market: MarketKind = MarketKind.crypto,
     cost_model: CostModel | None = None,
+    timeframe: str = "1h",
+    risk_free_rate: float | None = None,
 ) -> BacktestResult:
     """Bar-by-bar long-only backtest with transaction costs applied to every fill (M0.1 + M0.2).
 
@@ -69,6 +85,7 @@ def run_backtest(
         raise ValueError("position_fraction must be in (0, 1]")
 
     costs = cost_model or CostModel.from_settings()
+    rf = risk_free_rate if risk_free_rate is not None else settings.backtest_risk_free_rate
     cash = starting_cash
     qty = 0.0
     entry_price = 0.0
@@ -79,6 +96,8 @@ def run_backtest(
     equity_curve: list[EquityPoint] = []
     peak_equity = starting_cash
     max_drawdown = 0.0
+    bars_in_position = 0  # bars marked while holding (for exposure_pct)
+    traded_value = 0.0  # total notional bought + sold (for turnover)
 
     for i in range(1, len(candles)):
         bar = candles[i]
@@ -96,6 +115,7 @@ def run_backtest(
                 buy_fee = costs.fill_cost(market, OrderSide.buy, fill_price, qty).total
                 outlay = qty * fill_price + buy_fee
             cash -= outlay
+            traded_value += qty * fill_price
             entry_price = fill_price
             entry_fee = buy_fee
             entry_time = ts
@@ -103,6 +123,7 @@ def run_backtest(
             fill_price = costs.slippage_price(OrderSide.sell, bar.open)
             sell_cost = costs.fill_cost(market, OrderSide.sell, fill_price, qty)
             cash += qty * fill_price - sell_cost.total
+            traded_value += qty * fill_price
             gross_pnl = (fill_price - entry_price) * qty
             total_cost = entry_fee + sell_cost.total
             trades.append(
@@ -133,14 +154,25 @@ def run_backtest(
         # 3) Mark-to-market at close[i].
         equity = cash + qty * bar.close
         equity_curve.append(EquityPoint(timestamp=ts, equity=equity))
+        if qty > 0.0:
+            bars_in_position += 1
         peak_equity = max(peak_equity, equity)
         if peak_equity > 0:
             max_drawdown = max(max_drawdown, (peak_equity - equity) / peak_equity * 100)
 
     final_equity = cash + qty * candles[-1].close
-    wins = sum(1 for t in trades if t.pnl > 0)
+    pnls = [t.pnl for t in trades]
+    win_pnls = [p for p in pnls if p > 0]
+    loss_pnls = [p for p in pnls if p < 0]
+    wins = len(win_pnls)
     first_price = candles[0].close
     last_price = candles[-1].close
+
+    # Per-bar returns (prepend starting cash so the first bar's return is captured), then annualise.
+    equities = [starting_cash] + [p.equity for p in equity_curve]
+    returns = [equities[k] / equities[k - 1] - 1 for k in range(1, len(equities)) if equities[k - 1] > 0]
+    ppy = metrics.periods_per_year(timeframe)
+    cagr = metrics.cagr(starting_cash, final_equity, len(returns), ppy)
 
     return BacktestResult(
         starting_cash=starting_cash,
@@ -151,6 +183,17 @@ def run_backtest(
         wins=wins,
         win_rate=(wins / len(trades) * 100) if trades else 0.0,
         max_drawdown_pct=max_drawdown,
+        cagr=cagr,
+        annualized_volatility=metrics.annualized_volatility(returns, ppy),
+        sharpe=metrics.sharpe_ratio(returns, ppy, rf),
+        sortino=metrics.sortino_ratio(returns, ppy, rf),
+        calmar=metrics.calmar_ratio(cagr, max_drawdown),
+        profit_factor=metrics.profit_factor(pnls),
+        avg_win=(sum(win_pnls) / len(win_pnls)) if win_pnls else 0.0,
+        avg_loss=(sum(loss_pnls) / len(loss_pnls)) if loss_pnls else 0.0,
+        exposure_pct=(bars_in_position / len(equity_curve) * 100) if equity_curve else 0.0,
+        max_consecutive_losses=metrics.max_consecutive_losses(pnls),
+        turnover=(traded_value / starting_cash) if starting_cash > 0 else 0.0,
         trades=trades,
         equity_curve=equity_curve,
     )
