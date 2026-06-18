@@ -68,3 +68,23 @@ flowchart TB
 ```
 
 前端 `BacktestPanel` 提供 **Run / Compare all / Optimize** 三鈕;最佳化結果可一鍵「use」套回參數。
+
+## 樣本外排序與 Walk-forward(M0.4,消除過擬合)
+
+只在「全資料樣本內」挑報酬最高的參數會過擬合——那組數字在實盤通常崩掉。M0.4 引入兩個機制。
+
+### `grid_search` 的 train/test 切分模式
+`grid_search(..., split=True, oos_fraction=0.3, rank_metric="oos_sharpe")`:
+- 把歷史切成「樣本內(IS)前段」與「樣本外(OOS)後段 = `oos_fraction`」。
+- 每組參數在 **IS 與 OOS 各跑一次** `run_backtest`,`OptimizeRow` 同時揭露兩邊:`is_return_pct`、`oos_return_pct`、`is_oos_gap_pct`(= IS − OOS,正值代表 OOS 衰退,**不隱藏**)、`oos_sharpe`/`oos_sortino`/`oos_calmar`/`oos_return_over_maxdd`、`rank_score`。
+- 排名依**風險調整後的 OOS 指標**(`rank_metric`,預設 `oos_sharpe`;另支援 `oos_sortino`/`oos_calmar`/`oos_return_over_maxdd`)——**絕不**用原始報酬。未知 `rank_metric` fail loud。
+- 既有非切分模式(預設)維持向後相容:仍依原始 `metric`(`total_return_pct`/`win_rate`)在全資料排名。
+- `rows[0]` 即 OOS 選出的最佳參數;`/api/backtest/optimize` 加 `split`/`oos_fraction`/`rank_metric`,前端「use」套用的就是這組。
+
+### `backtest/validation.py` `walk_forward(...)`
+`walk_forward(candles, strategy_name, param_grid, n_folds=4, metric="sharpe", anchored=True, ...)`:
+- 把歷史切成 `n_folds` 段連續的 OOS 測試窗;每折在其**之前**的資料(anchored:從頭累積;rolling:僅前一段)選 IS 最佳參數,再於該折 OOS 窗評分。
+- 回傳 `WalkForwardReport`:每折 `FoldResult`(`best_params`、`is_metric`、`oos_metric`、`oos_return_pct`、窗界 index 等)與 `aggregate_oos_metric`(各折 OOS 指標平均)。
+- 選參指標為風險調整後(預設 Sharpe);未知 `metric`、`n_folds<2`、資料不足皆 fail loud。
+
+**驗收(已寫成測試):** 構造一組「IS 極佳、OOS 失敗」的參數,在 OOS 排序下**不會排第 1**(`backend/app/tests/test_optimize.py::test_overfit_combo_does_not_rank_first`、`test_validation.py`)。

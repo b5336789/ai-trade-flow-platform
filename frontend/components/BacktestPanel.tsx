@@ -57,7 +57,17 @@ export function BacktestPanel() {
     resetOutputs();
     try {
       setOptimization(
-        await api.optimize({ symbol, market, strategy, param_grid: OPTIMIZE_GRID[strategy], timeframe: "1h", limit: 500 }),
+        // M0.4: split mode ranks by out-of-sample Sharpe (not raw in-sample return) to avoid overfitting.
+        await api.optimize({
+          symbol,
+          market,
+          strategy,
+          param_grid: OPTIMIZE_GRID[strategy],
+          timeframe: "1h",
+          limit: 500,
+          split: true,
+          rank_metric: "oos_sharpe",
+        }),
       );
     } catch (e) {
       setError((e as Error).message);
@@ -175,7 +185,9 @@ export function BacktestPanel() {
           <thead className="text-neutral-500">
             <tr>
               <th className="py-1">Params</th>
-              <th>Return</th>
+              <th>OOS Ret</th>
+              <th>IS→OOS Gap</th>
+              <th>OOS Sharpe</th>
               <th>Max DD</th>
               <th>Trades</th>
               <th>Win%</th>
@@ -192,13 +204,20 @@ export function BacktestPanel() {
                     .join(", ")}
                 </td>
                 {r.error ? (
-                  <td colSpan={5} className="text-red-400">
+                  <td colSpan={7} className="text-red-400">
                     {r.error}
                   </td>
                 ) : (
                   <>
-                    <td className={r.total_return_pct >= 0 ? "text-green-400" : "text-red-400"}>
-                      {pct(r.total_return_pct)}
+                    {/* M0.4: headline is the out-of-sample return; IS→OOS gap exposes overfitting. */}
+                    <td className={(r.oos_return_pct ?? r.total_return_pct) >= 0 ? "text-green-400" : "text-red-400"}>
+                      {pct(r.oos_return_pct ?? r.total_return_pct)}
+                    </td>
+                    <td className={(r.is_oos_gap_pct ?? 0) > 0 ? "text-amber-400" : "text-neutral-400"}>
+                      {r.is_oos_gap_pct == null ? "—" : pct(r.is_oos_gap_pct)}
+                    </td>
+                    <td className={(r.oos_sharpe ?? 0) >= 0 ? "text-green-400" : "text-red-400"}>
+                      {r.oos_sharpe == null ? "—" : r.oos_sharpe.toFixed(2)}
                     </td>
                     <td className="text-red-400">{pct(-r.max_drawdown_pct)}</td>
                     <td>{r.num_trades}</td>
