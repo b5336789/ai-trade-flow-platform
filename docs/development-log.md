@@ -35,6 +35,8 @@
 | M0.5 | 部位感知 + 冪等下單 + 修現貨部位上限 | 目標部位語意重寫 `_run_order`;`OrderRecord.client_order_id` + `sha1(run_id:node_id)` 冪等鍵(排程傳每-tick 穩定 run_id);`CcxtBroker.get_positions()` 由餘額合成現貨部位;`RiskGuard` 改以現價市值判斷部位上限。**並行 subagent 開發(Wave 1)**,PR #14。 | 100 測試(新增 7:連續 buy ≤1 筆、同 run_id 1 筆、現貨超上限拒絕等) |
 | M0.7 | 存取鎖定 + 金鑰權限 | `api/deps.py` `require_api_token` 全域套用 `/api/*`(`/health` 開放,空 token=開放+警告);`config` 加 `api_token`/`api_cors_origins`(移除 `"*"`);前端帶 bearer;安全文件(幣安關提領/綁 IP/分鑰)。**並行 subagent 開發(Wave 1)**,PR #12。 | 99 測試(新增 `test_auth.py` 6) |
 | (wrap-up) | Wave 1 整合 + CAGR 加固 | 三條並行分支合併後完整套件 **116 測試**綠;`metrics.cagr` 改以 log 空間 + 夾擠避免短樣本年化 `OverflowError`;`task-backlog`/`development-log` 集中勾選 M0.4/M0.5/M0.7;`.gitignore` 加 `.claude/`。 | 116 測試(含 CAGR 短樣本不溢位 1 項) |
+| M0.6 | 投組級風控 + Kill switch | 新增 `marketdata/fx.py`(`FxConverter`,靜態匯率換 TWD、缺率 fail-loud)、`trading/runtime_state.py` + `models.RuntimeFlag`(kill switch/halted/day-start equity/當日單數)、`trading/risk.py` `PortfolioGuard`(四閘以 TWD 計,**任一觸發擋進場、永遠放行出場**,單日虧損觸發設 halted)、`api/risk.py`(status/kill-switch/resume,掛 auth)、`execute_order` 接線。**Wave 2 subagent**,PR #16。 | 128 測試(新增 `test_risk_portfolio.py` 11:每閘拒 buy + halt/kill 放行 sell + FxConverter) |
+| M0.8 | Phase 0 完成定義 | 新增 `docs/go-live-checklist.md`(DB 遷移/存取/金鑰/成本/風控+kill switch 實測/OOS/範圍/小額起步);`tests/conftest.py` 改為 session 起始 drop+create,讓測試 DB 決定性(消除 schema 漂移與當日單數累積)。**Phase 0(M0.1–M0.8)全數完成。** | 128 測試(連跑多次穩定) |
 
 ## 設計原則落實(對照 `CLAUDE.md`)
 - **Simplicity First**:先做 crypto+紙上一條完整切片,再水平擴充。
