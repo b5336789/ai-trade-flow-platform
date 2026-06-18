@@ -103,6 +103,23 @@ def test_fills_at_next_bar_open_not_decision_close():
     assert t.exit_price == 88.0  # open[5]
 
 
+# --- M0.3: expanded risk/return metrics on the result --------------------
+def test_backtest_populates_risk_metrics():
+    prices = [10, 10, 10, 10, 12, 16, 20, 24, 28, 30, 30, 30, 30, 28, 26, 24, 22]
+    result = run_backtest(
+        make_candles(prices), MaCrossStrategy(fast=2, slow=4), starting_cash=10_000.0, timeframe="1d"
+    )
+    assert result.num_trades >= 1
+    # All metrics are present and finite; profit_factor may be None only if there are no losses.
+    for field in ("cagr", "annualized_volatility", "sharpe", "sortino", "calmar", "turnover", "exposure_pct"):
+        assert isinstance(getattr(result, field), float)
+    assert 0.0 <= result.exposure_pct <= 100.0
+    assert result.turnover > 0.0  # at least one round trip moved notional
+    assert result.max_consecutive_losses >= 0
+    if result.wins == result.num_trades:  # no losses in this profitable fixture
+        assert result.profit_factor is None
+
+
 def test_last_bar_signal_opens_no_position():
     # A buy decided on the final bar has no next-bar open to fill at -> no position opened.
     candles = _ohlc([10, 11, 12, 13], [10, 11, 12, 13])

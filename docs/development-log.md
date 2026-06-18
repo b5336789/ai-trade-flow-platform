@@ -30,6 +30,7 @@
 | --- | --- | --- | --- |
 | M0.1 | 交易成本模型 | `trading/costs.py`(`CostModel`/`FillCost`,依 `MarketKind`:crypto bps、台股手續費+證交稅僅賣出、美股費率+最低收費、共同滑價);`config.py` 8 個 `COST_*` 設定 + `.env.example`;`brokers/paper.py` 與 `backtest/engine.py` 每筆成交套用成本(`Trade` 加 `gross_pnl`/`cost`,`pnl` 改為淨額);`api/backtest.py`/`optimize.py` 傳入 `market`。成本預設 ON。 | 81 測試(新增 `test_costs.py` 11 項:費率/賣出稅/折讓/最低收費/滑價/env 覆寫/fail-loud/紙上淨額恆等式/回測淨額恆等式/高換手淨<毛);既有受影響的零成本斷言已更新為含費精確值 |
 | M0.2 | 修正成交時點(消除前視偏差) | `backtest/engine.py` 改用 pending-action 狀態機:訊號以資料 ≤ `close[i]` 決策、成交於 **`open[i+1]`**;最後一根訊號不開新倉;權益於 `close[i]` 標記;docstring 寫明成交慣例。 | 83 測試(新增 2 項:成交價 == `open[i+1]` ≠ `close[i]`、末根訊號不開倉);既有「獲利回合」測試改用誠實 next-bar 成交下仍獲利的價格序列 |
+| M0.3 | 回測指標擴充 | 新增 `backtest/metrics.py`(純函式:`periods_per_year`、Sharpe/Sortino/Calmar、`profit_factor`、`cagr`、`max_consecutive_losses` 等);`BacktestResult` 加 `cagr`/`annualized_volatility`/`sharpe`/`sortino`/`calmar`/`profit_factor`/`avg_win`/`avg_loss`/`exposure_pct`/`max_consecutive_losses`/`turnover`;`run_backtest` 加 `timeframe`/`risk_free_rate`,迴圈追蹤曝險與成交名目;`config` 加 `backtest_risk_free_rate`;`api`/`optimize` 串接 `timeframe`。 | 93 測試(新增 `test_metrics.py` 9 項手算對照 Sharpe/Sortino/PF/CAGR/Calmar/PPY + 1 項回測指標齊備) |
 
 ## 設計原則落實(對照 `CLAUDE.md`)
 - **Simplicity First**:先做 crypto+紙上一條完整切片,再水平擴充。

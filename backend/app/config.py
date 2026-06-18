@@ -47,5 +47,8 @@ class Settings(BaseSettings):
     cost_us_fee_min: float = 0.0  # 複委託最低收費
     cost_slippage_bps: float = 0.0  # 固定滑價 (買進成交較高、賣出較低)
 
+    # Backtest metrics (M0.3): annual risk-free rate for Sharpe/Sortino (0 = ignore).
+    backtest_risk_free_rate: float = 0.0
+
 
 settings = Settings()
