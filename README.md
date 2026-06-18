@@ -148,6 +148,12 @@ npm run dev
   valid exchange API keys; `risk.py` enforces position-size / max-loss guards before any live
   order is sent.
 - Secrets are read only from `.env` (git-ignored). Never hardcode keys.
+- **API auth (M0.7):** all `/api/*` routes require `Authorization: Bearer <API_TOKEN>` (`GET /health`
+  stays public); CORS origins come from `API_CORS_ORIGINS` (no more `"*"`). A blank `API_TOKEN`
+  disables auth for local dev/tests and logs a loud warning — set a strong token for any networked
+  deployment. See [`docs/configuration.md`](./docs/configuration.md).
+- **Exchange keys:** create Binance API keys with **withdrawals DISABLED** and an **IP allowlist**;
+  use a **read-only** key for market data and a separate **trade-only, locked-down** key for orders.
 
 ## Documentation
 
