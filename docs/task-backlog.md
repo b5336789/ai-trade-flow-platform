@@ -27,7 +27,7 @@
 | 階段 | 範圍 | 狀態 | 備註 |
 | --- | --- | --- | --- |
 | **v1 骨架** | Checkpoint 1–15 | ✅ 全數完成 | crypto + paper 端到端可運行,70 測試 |
-| **v2 Phase 0** | M0.1–M0.7(接真錢前最低門檻) | 🟡 進行中(M0.1、M0.2、M0.3 ✅,其餘未完成) | **Phase 0 全綠前禁止 live** |
+| **v2 Phase 0** | M0.1–M0.7(接真錢前最低門檻) | 🟡 進行中(M0.1–M0.5、M0.7 ✅;剩 M0.6、M0.8) | **Phase 0 全綠前禁止 live** |
 | **v2 Phase 1** | M1.1–M1.5(跨市場一致性 + broker) | ⬜ 未開始 | |
 | **v2 Phase 2** | M2.1–M2.3(招牌功能) | ⬜ 未開始 | M2.2 策略室為最高風險 |
 | **Backlog** | 非目標 / 未來 | ⬜ 不在本期 | 美股 live(IBKR/Alpaca)等 |
@@ -45,11 +45,11 @@
 | M0.1 成本 | — | ✅ done | `trading/costs`、`backtest`、`paper` |
 | M0.2 成交時點 | M0.1 | ✅ done | `backtest/engine` |
 | M0.3 指標 | M0.2 | ✅ done | `backtest/metrics`、`engine` |
-| **M0.4 Walk-forward/OOS** | M0.3(OOS Sharpe 排序) | 🟢 **unblocked** | `backtest/validation`(新)、`optimize`、`api/backtest`、前端 Backtest |
-| **M0.5 冪等下單 + 現貨上限** | —(地基已在) | 🟢 **unblocked** | `trading/execution`、`workflow/nodes`、`brokers/crypto_ccxt`、`models`、`trading/risk` |
-| M0.6 投組風控 + kill switch | **M0.5**(市值部位)+ FX seam(內建) | 🔴 blocked by M0.5 | `trading/risk`、`marketdata/fx`(新)、`models`、`api`、`config` |
-| **M0.7 存取鎖定 + 金鑰** | —(獨立) | 🟢 **unblocked** | `main`、`api/deps`(新)、`config`、`frontend/lib/api` |
-| M0.8 go-live checklist | M0.4–M0.7 全完成 | 🔴 blocked | `docs/` |
+| M0.4 Walk-forward/OOS | M0.3(OOS Sharpe 排序) | ✅ done | `backtest/validation`(新)、`optimize`、`api/backtest`、前端 Backtest |
+| M0.5 冪等下單 + 現貨上限 | —(地基已在) | ✅ done | `trading/execution`、`workflow/nodes`、`brokers/crypto_ccxt`、`models`、`trading/risk` |
+| **M0.6 投組風控 + kill switch** | M0.5(市值部位)✅ + FX seam(內建) | 🟢 **unblocked**(Wave 2) | `trading/risk`、`marketdata/fx`(新)、`models`、`api`、`config` |
+| M0.7 存取鎖定 + 金鑰 | —(獨立) | ✅ done | `main`、`api/deps`(新)、`config`、`frontend/lib/api` |
+| **M0.8 go-live checklist** | M0.6(M0.4/M0.5/M0.7 已完成) | 🟡 等 M0.6 | `docs/` |
 | M1.1 FX | M0.6(升級其 FX seam) | 🔴 blocked | `marketdata/fx`、`portfolio`、`risk` |
 | M1.2 Broker 故事 | Broker ABC(已在) | 🟢 unblocked(建議 Phase 0 後) | `brokers/*`、`registry`、`notifications`、`vendor` |
 | M1.3 FIFO 帳本 | M0.1(成本)✅ | 🟢 unblocked(建議 Phase 0 後) | `trading/ledger`(新)、`models`、`paper`、`api` |
@@ -60,9 +60,9 @@
 | M2.3 市場消息 | `signal_agent`(已在) | 🟢 unblocked | `marketdata/news`(新)、`signal_agent`、`config` |
 
 ### 並行波次 / Parallel waves
-- **Wave 1(現在,並行 3 條):** **M0.4**、**M0.5**、**M0.7** — 依賴皆已滿足,修改區大致不重疊(各自獨立分支 + PR)。
-- **Wave 2:** **M0.6**(等 M0.5 merge,取得市值部位)。
-- **Wave 3:** **M0.8**(等 M0.4–M0.7 全 merge)→ Phase 0 完成、可考慮 live。
+- **Wave 1 ✅ 完成:** M0.4、M0.5、M0.7 — 三條並行 subagent 開發,各自 PR(#13/#14/#12)已 merge,116 測試綠。
+- **Wave 2(現在):** **M0.6**(M0.5 已 merge,可取得市值部位)。
+- **Wave 3:** **M0.8**(等 M0.6)→ Phase 0 完成、可考慮 live。
 - **Phase 1/2:** M1.4 / M2.1 / M2.3 等彼此獨立、可在 Phase 0 後再並行;M1.1 等 M0.6;M2.2 需單獨安全審查 checkpoint。
 
 > **並行守則:** 各分支自 `main` 切出、只動自己的修改區;**`docs/task-backlog.md` 與 `docs/development-log.md` 由主控集中更新**(避免跨分支文件衝突);每條完成前跑完整 `pytest` 保持綠燈;PR 逐一 review + merge,後 merge 者必要時 rebase。
@@ -125,26 +125,26 @@
 | 0.3.2 | [x] | 風險指標計算 | 🟡 | `BacktestResult` 新增 `cagr`/`annualized_volatility`/`sharpe`/`sortino`/`calmar`/`profit_factor`/`avg_win`/`avg_loss`/`exposure_pct`/`max_consecutive_losses`/`turnover`(純函式於 `metrics.py`) | `backtest/metrics.py`、`backtest/engine.py` |
 | 0.3.3 | [x] | 指標測試 | 🟢 | `test_metrics.py` 手算對照 Sharpe/Sortino/PF/CAGR/Calmar/PPY;勝率非唯一排序依據(docstring 註記) | `tests/test_metrics.py`、`tests/test_backtest.py` |
 
-## M0.4 — Optimizer:樣本外 / Walk-forward(消除過擬合)⛔ 已切割
+## M0.4 — Optimizer:樣本外 / Walk-forward(消除過擬合)✅ 已完成
 
 | ID | ✓ | 任務 | Effort | 內容 | 大致位置 |
 | --- | --- | --- | --- | --- | --- |
-| 0.4.1 | [ ] | walk_forward | 🟡 | anchored/rolling 多折,回傳每折**樣本外(OOS)**表現 + 彙總 | `backtest/validation.py`(新) |
-| 0.4.2 | [ ] | grid_search train/test | 🟡 | 加切分模式,**同時**回報 IS + OOS,依**風險調整後 OOS**(預設 OOS Sharpe)排序而非原始報酬 | `backtest/optimize.py` |
-| 0.4.3 | [ ] | API 套用 OOS 最佳值 | 🟢 | 「套用最佳值」套 OOS 選出的參數,回傳 IS↔OOS 落差(不可隱藏) | `api/backtest.py` |
-| 0.4.4 | [ ] | 前端顯示 IS/OOS 落差 | 🟢 | Optimize 結果顯示 OOS 指標與落差 | `frontend/components/BacktestPanel.tsx` |
-| 0.4.5 | [ ] | 過擬合測試 | 🟡 | 構造「IS 極佳/OOS 失敗」參數,斷言不會排第 1 | `tests/test_validation.py`、`tests/test_optimize.py` |
+| 0.4.1 | [x] | walk_forward | 🟡 | `walk_forward(...)` anchored/rolling 多折,每折 IS 選參、OOS 評分,回傳 `FoldResult` + 彙總;`selection_score` 共用 | `backtest/validation.py`(新) |
+| 0.4.2 | [x] | grid_search train/test | 🟡 | `split` 模式同時回報 IS+OOS、揭露落差,依**風險調整後 OOS**(預設 `oos_sharpe`)排序;舊模式保留 | `backtest/optimize.py` |
+| 0.4.3 | [x] | API 套用 OOS 最佳值 | 🟢 | `OptimizeRequest` 加 `split`/`oos_fraction`/`rank_metric`;`rows[0]` 為 OOS 選出、附 IS↔OOS 落差 | `api/backtest.py` |
+| 0.4.4 | [x] | 前端顯示 IS/OOS 落差 | 🟢 | Optimize 用 `split:true`+`oos_sharpe`;表格顯示 OOS Return / IS→OOS Gap / OOS Sharpe | `frontend/components/BacktestPanel.tsx` |
+| 0.4.5 | [x] | 過擬合測試 | 🟡 | `test_overfit_combo_does_not_rank_first`(IS +108%/OOS −98% 不排第 1)+ `test_validation.py` | `tests/test_validation.py`、`tests/test_optimize.py` |
 
-## M0.5 — 部位感知 + 冪等下單 + 修現貨部位上限 ⛔ 已切割
+## M0.5 — 部位感知 + 冪等下單 + 修現貨部位上限 ✅ 已完成
 
 | ID | ✓ | 任務 | Effort | 內容 | 大致位置 |
 | --- | --- | --- | --- | --- | --- |
-| 0.5.1 | [ ] | `client_order_id` 欄位 | 🟢 | `OrderRecord` 新增 `client_order_id`(索引);schema 相容 | `models.py` |
-| 0.5.2 | [ ] | 目標部位語意 | 🟡 | buy⇒持有(size 由節點設定)、sell⇒出清、hold⇒不動作;執行層算差額,已在目標→no-op | `trading/execution.py`、`workflow/nodes.py` |
-| 0.5.3 | [ ] | 冪等鍵 | 🟡 | 每次(排程執行×節點)產生 `client_order_id`,儲存;重複鍵→跳過並記錄 | `workflow/nodes.py`、`scheduler/service.py`、`trading/execution.py` |
-| 0.5.4 | [ ] | 現貨部位合成 | 🟡 | `CcxtBroker.get_positions()` 由非報價幣餘額合成 `Position`(數量取自餘額) | `brokers/crypto_ccxt.py` |
-| 0.5.5 | [ ] | 部位上限改用市值 | 🟢 | 風控部位/總曝險上限以**當前市值(基準幣別)**判斷,不依賴 avg_price | `trading/risk.py` |
-| 0.5.6 | [ ] | 測試 | 🟡 | 連續 buy×5→≤1 筆;同鍵重跑→1 筆;現貨買超上限→拒絕 | `tests/test_orders_api.py`、`tests/test_workflow.py` |
+| 0.5.1 | [x] | `client_order_id` 欄位 | 🟢 | `OrderRecord` 新增 nullable/indexed `client_order_id` | `models.py` |
+| 0.5.2 | [x] | 目標部位語意 | 🟡 | `_run_order` 重寫:buy⇒持有 qty、sell⇒flat、hold⇒no-op;只交易差額,已在目標→no-op | `trading/execution.py`、`workflow/nodes.py` |
+| 0.5.3 | [x] | 冪等鍵 | 🟡 | `sha1("{run_id}:{node_id}")`;排程傳 `schedule-{id}-{tick_epoch}`;重複鍵→跳過+通知(`idempotent_skip`) | `workflow/{nodes,engine}.py`、`scheduler/service.py`、`trading/execution.py` |
+| 0.5.4 | [x] | 現貨部位合成 | 🟡 | `CcxtBroker.get_positions()` 由非報價幣餘額合成 `Position`(`avg_price=0`) | `brokers/crypto_ccxt.py` |
+| 0.5.5 | [x] | 部位上限改用市值 | 🟢 | `RiskGuard.check(..., current_price)` 以現價市值判斷部位上限 | `trading/risk.py` |
+| 0.5.6 | [x] | 測試 | 🟡 | 連續 buy×5→≤1 筆;同 run_id 重跑→1 筆;現貨買超上限→拒絕(7 項) | `tests/test_orders_api.py`、`tests/test_workflow.py` |
 
 ## M0.6 — 投組級風控 + Kill switch ⛔ 已切割
 
@@ -160,15 +160,15 @@
 | 0.6.6 | [ ] | 接線進下單路徑 | 🟢 | `execute_order` 套用 PortfolioGuard | `trading/execution.py` |
 | 0.6.7 | [ ] | 測試 | 🟡 | 每個上限各一測試 + halt 期間出清單仍可執行 | `tests/test_risk_*.py` |
 
-## M0.7 — 存取鎖定 + 金鑰權限 ⬜
+## M0.7 — 存取鎖定 + 金鑰權限 ✅ 已完成
 
 | ID | ✓ | 任務 | Effort | 內容 | 大致位置 |
 | --- | --- | --- | --- | --- | --- |
-| 0.7.1 | [ ] | token + CORS 設定 | 🟢 | `Settings.api_token`;CORS `allow_origins` 由 config(預設 `["http://localhost:3000"]`),移除 `"*"` | `config.py`、`.env.example` |
-| 0.7.2 | [ ] | bearer auth dependency | 🟢 | 所有 `/api/*` 需 bearer token,`/health` 開放;缺/錯→401 | `api/deps.py`(新)、`main.py` |
-| 0.7.3 | [ ] | 前端帶 token | 🟢 | `lib/api.ts` 共用 `request()` 帶 Authorization header(env 驅動) | `frontend/lib/api.ts` |
-| 0.7.4 | [ ] | 安全文件 | 🟢 | 幣安關提領 + 綁 IP、唯讀/下單分鑰;`docs/configuration.md` + README | `docs/configuration.md`、`README.md` |
-| 0.7.5 | [ ] | 測試 | 🟢 | 無 token→401、正確 token→200 | `tests/` |
+| 0.7.1 | [x] | token + CORS 設定 | 🟢 | `Settings.api_token`;`api_cors_origins`(逗號分隔 env,移除 `"*"`) | `config.py`、`.env.example` |
+| 0.7.2 | [x] | bearer auth dependency | 🟢 | `require_api_token` 全域套用 7 router + `/api/config`,`/health` 開放;缺/錯→401;空 token=開放(loud warning) | `api/deps.py`(新)、`main.py` |
+| 0.7.3 | [x] | 前端帶 token | 🟢 | `request()` 帶 `Authorization: Bearer`(`NEXT_PUBLIC_API_TOKEN`) | `frontend/lib/api.ts` |
+| 0.7.4 | [x] | 安全文件 | 🟢 | 幣安關提領 + 綁 IP、唯讀/下單分鑰 | `docs/configuration.md`、`README.md` |
+| 0.7.5 | [x] | 測試 | 🟢 | 無 token→401、正確→200、錯/非 Bearer→401、空 token 開放(6 項) | `tests/test_auth.py` |
 
 ## M0.8 — Phase 0 完成定義 ⬜
 

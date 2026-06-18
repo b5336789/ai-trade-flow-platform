@@ -59,3 +59,9 @@ def test_cagr_and_calmar_hand_computed():
     # CAGR 100% with 25% max drawdown -> Calmar 4.0.
     assert metrics.calmar_ratio(1.0, 25.0) == pytest.approx(4.0)
     assert metrics.calmar_ratio(1.0, 0.0) == 0.0  # no drawdown -> guarded
+
+
+def test_cagr_short_high_growth_sample_is_finite_not_overflow():
+    # 4 hourly bars (ppy 8766) with a gain annualises to an astronomical exponent; must stay finite.
+    value = metrics.cagr(100.0, 150.0, n_periods=4, ppy=8766.0)
+    assert math.isfinite(value)

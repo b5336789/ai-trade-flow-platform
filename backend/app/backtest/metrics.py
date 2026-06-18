@@ -99,7 +99,13 @@ def cagr(starting_equity: float, final_equity: float, n_periods: int, ppy: float
     if starting_equity <= 0 or final_equity <= 0 or n_periods <= 0 or ppy <= 0:
         return 0.0
     years = n_periods / ppy
-    return (final_equity / starting_equity) ** (1 / years) - 1
+    # Compute in log space and clamp the exponent: annualising a very short sample (few bars, high
+    # ppy) can otherwise overflow `**` with OverflowError. exp(±700) is near the float ceiling, so
+    # we return a finite (if absurd) number rather than raising — such a CAGR is statistically
+    # meaningless anyway and the caller still gets a usable result.
+    exponent = math.log(final_equity / starting_equity) / years
+    exponent = max(-700.0, min(700.0, exponent))
+    return math.exp(exponent) - 1
 
 
 def calmar_ratio(cagr_value: float, max_drawdown_pct: float) -> float:
