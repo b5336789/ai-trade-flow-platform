@@ -11,7 +11,7 @@
 | `strategy` | candles | `Signal` | `name` + 該策略參數 |
 | `ai_signal` | candles | `Signal` | `symbol?, model?` |
 | `risk_exit` | candles | `Signal`(停損/停利→sell,否則 hold) | `stop_loss_pct, take_profit_pct, symbol?, market?` |
-| `order` | Signal | `OrderResult`(hold 則 None) | `quantity, symbol?, market?` |
+| `order` | Signal | `OrderResult`(無動作則 None) | `quantity, symbol?, market?` |
 | `logger` | 任意 | 透傳 | — |
 
 ```mermaid
@@ -33,9 +33,11 @@ flowchart LR
 `RunResult { status, steps[], orders[], error }`。
 
 ## 節點執行器(`workflow/nodes.py`)
-- `RunContext`:跨節點暫存(如 data_source 設定的 `symbol`/`market`,供 order 節點預設)+ DB session。
+- `RunContext`:跨節點暫存(如 data_source 設定的 `symbol`/`market`,供 order 節點預設)+ DB session + `run_id`(本次邏輯執行的識別碼,預設隨機;排程器傳入「每個 tick 固定」的值)。
 - `_first_candles` / `_first_signal`:從上游輸入取出對應型別,缺少則 fail loud。
 - `order` 節點呼叫共用的 `trading/execution.execute_order`(含風控)。
+- **目標部位語意(M0.5)**:訊號代表「目標」而非動作——buy⇒持有 `quantity` 單位、sell⇒出清(0)、hold⇒不動作。節點讀取現有持倉、只交易差額(僅做多/出清,不放空);已達目標則不下單,故重複 tick 天然冪等。
+- **冪等鍵(M0.5)**:每筆下單以 `sha1("{run_id}:{node_id}")` 推導 `client_order_id` 傳入 `execute_order`;同一 `run_id` 重跑會得到相同鍵 → 跳過重複下單。排程的同一 tick 重試共用同鍵,下一 tick 取得新鍵。
 
 ## 自動執行(排程)
 已儲存的工作流可由 `Schedule` 綁定間隔,APScheduler 定時觸發 `run_scheduled_workflow`,
