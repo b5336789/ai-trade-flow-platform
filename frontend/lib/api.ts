@@ -1,6 +1,8 @@
 // Typed client for the backend API. Base URL from env (defaults to local backend).
 
 const BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+// M0.7: bearer token for the backend API. Empty in local dev (backend leaves auth open).
+const API_TOKEN = process.env.NEXT_PUBLIC_API_TOKEN ?? "";
 
 export interface Candle {
   timestamp: string;
@@ -177,9 +179,13 @@ export interface OptimizeRequest {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (API_TOKEN) {
+    headers.Authorization = `Bearer ${API_TOKEN}`;
+  }
   const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json" },
     ...init,
+    headers: { ...headers, ...(init?.headers as Record<string, string> | undefined) },
   });
   if (!res.ok) {
     let detail = res.statusText;

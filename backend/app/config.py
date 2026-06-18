@@ -6,7 +6,10 @@ See ``.env.example`` at the repo root for the documented variables.
 
 from __future__ import annotations
 
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import Annotated
+
+from pydantic import field_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 from app.schemas import TradingMode
 
@@ -25,6 +28,24 @@ class Settings(BaseSettings):
     binance_api_key: str = ""
     binance_api_secret: str = ""
     binance_testnet: bool = True
+
+    # API auth (M0.7). When ``api_token`` is empty, auth is DISABLED (open) so local dev and the
+    # test suite work out of the box — deps.py logs a loud warning in that case. Real deployments
+    # MUST set API_TOKEN. Clients authenticate via ``Authorization: Bearer <api_token>``.
+    api_token: str = ""
+    # CORS allowed origins (M0.7). Comma-separated in env, e.g.
+    # "http://localhost:3000,https://app.example.com". Replaces the previous wide-open "*".
+    # ``NoDecode`` disables pydantic-settings' default JSON decoding so the validator below can
+    # accept a plain comma-separated string from the env var.
+    api_cors_origins: Annotated[list[str], NoDecode] = ["http://localhost:3000"]
+
+    @field_validator("api_cors_origins", mode="before")
+    @classmethod
+    def _split_cors_origins(cls, value: object) -> object:
+        """Allow a comma-separated string from the env var; pass real lists through unchanged."""
+        if isinstance(value, str):
+            return [origin.strip() for origin in value.split(",") if origin.strip()]
+        return value
 
     # Persistence
     database_url: str = "sqlite:///./trade_flow.db"
