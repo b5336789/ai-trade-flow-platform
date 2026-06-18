@@ -22,7 +22,7 @@ SQLModel engine(預設 SQLite)。`init_db()` 建表;`get_session()` 為 FastAPI 
 | 檔案 | 內容 |
 | --- | --- |
 | `base.py` | `Broker` ABC,所有市場/模式的統一介面 |
-| `crypto_ccxt.py` | `CcxtBroker`:Binance(含 testnet)。公開行情免金鑰;`create_order` 無金鑰時 fail loud |
+| `crypto_ccxt.py` | `CcxtBroker`:Binance(含 testnet)。公開行情免金鑰;`create_order` 無金鑰時 fail loud。`get_positions()` 由現貨餘額合成 `Position`(非計價幣別資產;`avg_price=0` 因為餘額快照無成本基礎),讓現貨部位上限生效(M0.5) |
 | `paper.py` | `PaperBroker`:包一個資料來源 broker 取真實價,模擬撮合,記憶體追蹤現金/部位(加權平均成本) |
 | `yuanta.py` | `YuantaBroker`:台股 元大(及美股 元大複委託)live 骨架,所有方法 fail loud 並說明所需金鑰/SDK |
 | `firstrade.py` | `FirstradeBroker`:美股 Firstrade live 骨架;明確標示無官方 API、依賴非官方函式庫 |
@@ -47,9 +47,9 @@ SQLModel engine(預設 SQLite)。`init_db()` 建表;`get_session()` 為 FastAPI 
 
 | 檔案 | 內容 |
 | --- | --- |
-| `risk.py` | `RiskGuard.check(req, price, held)`:單筆金額上限、部位總值上限;違規拋 `RiskError` |
+| `risk.py` | `RiskGuard.check(req, fill_price, held, current_price)`:單筆金額上限、部位總值上限;部位上限改以**現價市值**判斷(現有持倉 × `current_price` + 新單 × `fill_price`),違規拋 `RiskError`(M0.5) |
 | `portfolio.py` | `build_portfolio(broker)`:部位帶入即時價、未實現損益、權益總值;取價失敗退回成本價並標記 |
-| `execution.py` | `execute_order(...)`:手動與工作流共用的唯一下單路徑(價→風控→撮合→存檔→通知) |
+| `execution.py` | `execute_order(...)`:手動與工作流共用的唯一下單路徑(冪等檢查→價→風控→撮合→存檔→通知)。可帶 `client_order_id`(M0.5):若該鍵已有 `OrderRecord` 則**跳過下單**並回傳既有結果(`info.idempotent_skip=True`);手動下單預設 `None`,行為不變 |
 | `paper_store.py` | `PaperStore`:把紙上帳戶現金/部位持久化到 DB,讓 `PaperBroker` 重啟後仍保留狀態 |
 
 ## `workflow/` — 節點圖引擎

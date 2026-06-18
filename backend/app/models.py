@@ -13,6 +13,10 @@ def _now() -> datetime:
 
 class OrderRecord(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
+    # Idempotency key (M0.5): deterministic per (scheduled-run × order node). Nullable so manual
+    # orders (which have no logical re-run identity) keep working unchanged; indexed for the
+    # duplicate lookup performed before every workflow-driven order.
+    client_order_id: str | None = Field(default=None, index=True)
     broker_order_id: str
     symbol: str
     side: str

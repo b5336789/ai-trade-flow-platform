@@ -117,5 +117,23 @@ class CcxtBroker(Broker):
         return out
 
     def get_positions(self) -> list[Position]:
-        # Spot trading: holdings are reflected in balances, not as derivative positions.
-        return []
+        """Synthesise spot positions from balances (M0.5).
+
+        Spot holdings live in balances, not as derivative positions. Every non-quote asset with a
+        non-zero total is materialised as a ``Position`` against the configured quote asset
+        (``symbol = f"{asset}/{quote}"``) so the position-value risk cap is live for spot.
+
+        Average entry cost is unknown from a balance snapshot, so ``avg_price`` is reported as 0;
+        the risk guard judges the exposure cap by current market value, not by avg cost.
+        """
+        if not self.has_credentials:
+            return []
+        quote = settings.paper_quote_asset
+        out: list[Position] = []
+        for balance in self.get_balance():
+            if balance.asset == quote or balance.total <= 0:
+                continue
+            out.append(
+                Position(symbol=f"{balance.asset}/{quote}", quantity=balance.total, avg_price=0.0)
+            )
+        return out

@@ -32,6 +32,7 @@ def _job_id(schedule_id: int) -> str:
 
 def run_scheduled_workflow(schedule_id: int) -> None:
     """Job body: load the schedule's workflow, run it, persist results. Fail loud into RunLog."""
+    now = datetime.now(timezone.utc)
     with Session(engine) as session:
         schedule = session.get(Schedule, schedule_id)
         if schedule is None or not schedule.enabled:
@@ -39,18 +40,22 @@ def run_scheduled_workflow(schedule_id: int) -> None:
         workflow = session.get(Workflow, schedule.workflow_id)
         if workflow is None:
             schedule.last_status = "error: workflow missing"
-            schedule.last_run_at = datetime.now(timezone.utc)
+            schedule.last_run_at = now
             session.add(schedule)
             session.commit()
             return
 
         graph = WorkflowGraph.model_validate(workflow.graph)
-        result = run_workflow(graph, session=session)
+        # Deterministic per scheduled tick: a misfire/retry of the SAME tick re-uses this run_id
+        # (so order nodes' client_order_ids match and the duplicate fill is skipped), while the
+        # next tick gets a fresh one. (M0.5)
+        run_id = f"schedule-{schedule_id}-{int(now.timestamp())}"
+        result = run_workflow(graph, session=session, run_id=run_id)
         session.add(
             RunLog(workflow_id=workflow.id, status=result.status, detail=result.model_dump(mode="json"))
         )
         schedule.last_status = result.status if result.status == "ok" else f"error: {result.error}"
-        schedule.last_run_at = datetime.now(timezone.utc)
+        schedule.last_run_at = now
         session.add(schedule)
         session.commit()
 

@@ -7,6 +7,8 @@ interchangeable because both emit a Signal.
 
 from __future__ import annotations
 
+import hashlib
+import uuid
 from typing import Any, Callable
 
 from app.ai.signal_agent import generate_ai_signal
@@ -23,11 +25,22 @@ from app.strategies.registry import build_strategy
 from app.trading.execution import execute_order
 from app.workflow.schema import NodeConfig, NodeType
 
+# Treat sub-unit quantity drift as "already at target" so float noise doesn't trigger churn.
+_QTY_EPS = 1e-9
+
 
 class RunContext:
-    def __init__(self, session=None) -> None:
+    def __init__(self, session=None, run_id: str | None = None) -> None:
         self.session = session
+        # Stable identity for this logical run; the order node folds it into a deterministic
+        # client_order_id so re-running the SAME run (same run_id) is idempotent (M0.5).
+        self.run_id = run_id or uuid.uuid4().hex
         self.scratch: dict[str, Any] = {}
+
+
+def _client_order_id(run_id: str, node_id: str) -> str:
+    """Deterministic idempotency key per (scheduled-run × order node)."""
+    return hashlib.sha1(f"{run_id}:{node_id}".encode()).hexdigest()
 
 
 def _first_candles(inputs: list[Any]) -> list[Candle]:
@@ -115,6 +128,13 @@ def _run_risk_exit(node: NodeConfig, inputs: list[Any], ctx: RunContext) -> Sign
 
 
 def _run_order(node: NodeConfig, inputs: list[Any], ctx: RunContext):
+    """Target-position semantics (M0.5).
+
+    A Signal names a TARGET, not an action: buy => hold ``quantity`` units, sell => flat (0),
+    hold => no-op. We read the current holding and trade only the delta to reach the target
+    (long/flat only — never short). Already at target => no order, so repeated identical ticks
+    are naturally idempotent.
+    """
     signal = _first_signal(inputs)
     if signal.action == SignalAction.hold:
         return None
@@ -123,9 +143,23 @@ def _run_order(node: NodeConfig, inputs: list[Any], ctx: RunContext):
     if not symbol:
         raise ValueError("order node requires 'symbol' (or an upstream data_source)")
     market = MarketKind(p["market"]) if p.get("market") else ctx.scratch.get("market", MarketKind.crypto)
-    side = OrderSide.buy if signal.action == SignalAction.buy else OrderSide.sell
-    request = OrderRequest(symbol=symbol, side=side, quantity=float(p.get("quantity", 1)))
-    return execute_order(request, market=market, session=ctx.session)
+
+    target_qty = float(p.get("quantity", 1)) if signal.action == SignalAction.buy else 0.0
+
+    broker = get_broker(market)
+    held = next((pos.quantity for pos in broker.get_positions() if pos.symbol == symbol), 0.0)
+    delta = target_qty - held
+    if abs(delta) <= _QTY_EPS:
+        return None  # already at target -> no-op (idempotent)
+
+    side = OrderSide.buy if delta > 0 else OrderSide.sell
+    request = OrderRequest(symbol=symbol, side=side, quantity=abs(delta))
+    return execute_order(
+        request,
+        market=market,
+        session=ctx.session,
+        client_order_id=_client_order_id(ctx.run_id, node.id),
+    )
 
 
 def _run_logger(node: NodeConfig, inputs: list[Any], ctx: RunContext) -> Any:
