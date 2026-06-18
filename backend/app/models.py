@@ -78,3 +78,16 @@ class PaperPosition(SQLModel, table=True):
     symbol: str
     quantity: float
     avg_price: float
+
+
+class RuntimeFlag(SQLModel, table=True):
+    """Persistent key/value runtime state (M0.6).
+
+    Holds the kill switch, the ``halted`` flag, and the per-day equity baseline (keyed by
+    ``equity_baseline:<YYYY-MM-DD>``) so portfolio-level risk survives restarts and is toggleable
+    via the DB/API. Values are stored as strings; helpers in trading/runtime_state.py coerce them.
+    """
+
+    key: str = Field(primary_key=True)
+    value: str = ""
+    updated_at: datetime = Field(default_factory=_now)
