@@ -47,6 +47,37 @@ class Settings(BaseSettings):
             return [origin.strip() for origin in value.split(",") if origin.strip()]
         return value
 
+    # FX seam (M0.6). All portfolio-level risk is judged in BASE_CURRENCY. ``fx_rates`` maps a
+    # currency code to its value in the base currency (e.g. "USD:31.5" => 1 USD = 31.5 TWD).
+    # Env form is a comma-separated "CCY:rate" string (NoDecode + validator below), e.g.
+    # "USD:31.5,USDT:31.5,TWD:1.0". M1.1 will replace these statics with a live provider.
+    base_currency: str = "TWD"
+    fx_rates: Annotated[dict[str, float], NoDecode] = {"TWD": 1.0, "USD": 31.5, "USDT": 31.5}
+
+    @field_validator("fx_rates", mode="before")
+    @classmethod
+    def _parse_fx_rates(cls, value: object) -> object:
+        """Parse a comma-separated "CCY:rate" env string; pass real dicts through unchanged."""
+        if isinstance(value, str):
+            parsed: dict[str, float] = {}
+            for pair in value.split(","):
+                pair = pair.strip()
+                if not pair:
+                    continue
+                ccy, _, rate = pair.partition(":")
+                ccy = ccy.strip()
+                if not ccy or not rate.strip():
+                    raise ValueError(f"invalid FX_RATES entry '{pair}'; expected 'CCY:rate'")
+                parsed[ccy] = float(rate)
+            return parsed
+        return value
+
+    # Portfolio-level risk (M0.6), all in BASE_CURRENCY (TWD). See trading/risk.py PortfolioGuard.
+    max_total_exposure_value: float = 1_000_000.0  # cap on total position market value
+    max_daily_loss: float = 100_000.0  # day-start equity minus current equity; breach -> halt
+    max_orders_per_day: int = 50  # max orders placed per UTC day
+    kill_switch: bool = False  # config-level kill switch (also a runtime DB flag)
+
     # Persistence
     database_url: str = "sqlite:///./trade_flow.db"
 

@@ -13,7 +13,7 @@ from app.brokers.registry import get_broker
 from app.models import OrderRecord
 from app.notifications.service import notify
 from app.schemas import MarketKind, OrderRequest, OrderResult, OrderSide, OrderType, TradingMode
-from app.trading.risk import RiskGuard
+from app.trading.risk import PortfolioGuard, RiskGuard
 
 _default_guard = RiskGuard()
 
@@ -41,6 +41,7 @@ def execute_order(
     guard: RiskGuard | None = None,
     session: Session | None = None,
     client_order_id: str | None = None,
+    portfolio_guard: PortfolioGuard | None = None,
 ) -> OrderResult:
     guard = guard or _default_guard
     broker = get_broker(market, mode)
@@ -71,6 +72,14 @@ def execute_order(
         (p.quantity for p in broker.get_positions() if p.symbol == request.symbol), 0.0
     )
     guard.check(request, fill_price, current_position_qty=held, current_price=current_price)
+
+    # Portfolio-level, base-currency gates (M0.6) — kill switch / halt / daily-loss / exposure /
+    # orders-per-day. Runs for paper AND live, after the per-order RiskGuard and before placement.
+    # Entries (buys) can be rejected; exits (position-reducing sells) always pass. Requires a DB
+    # session for the persistent runtime flags and the daily order count.
+    if session is not None:
+        pguard = portfolio_guard or PortfolioGuard.from_settings()
+        pguard.check(request, fill_price, market=market, broker=broker, session=session)
 
     result = broker.create_order(request)
 

@@ -15,7 +15,13 @@
 SQLModel engine(預設 SQLite)。`init_db()` 建表;`get_session()` 為 FastAPI 依賴。
 
 ## `models.py` — 資料表
-`OrderRecord`、`Workflow`、`RunLog`、`Schedule`。
+`OrderRecord`、`Workflow`、`RunLog`、`Schedule`、`Notification`、`PaperAccount`、`PaperPosition`、`RuntimeFlag`。
+`RuntimeFlag(key, value, updated_at)` 持久化 kill switch、`halted` 旗標,以及每日權益基準(鍵 `equity_baseline:<UTC日期>`),M0.6。
+
+## `marketdata/` — 行情接縫
+| 檔案 | 內容 |
+| --- | --- |
+| `fx.py` | `FxConverter(base_currency, rates)`:以**設定驅動的靜態匯率**把金額折算為基準幣;`to_base(amount, ccy)` 同幣別直接回傳、缺率 fail loud(`ValueError`);`from_settings()` 由設定建立;`MARKET_QUOTE_CURRENCY`/`quote_currency_for` 提供 市場→計價幣(crypto→USDT、tw_stock→TWD、us_stock→USD)。Phase-0 最小接縫,M1.1 在同介面換成即時來源 (M0.6) |
 
 ## `brokers/` — 券商抽象(核心接縫)
 
@@ -47,7 +53,8 @@ SQLModel engine(預設 SQLite)。`init_db()` 建表;`get_session()` 為 FastAPI 
 
 | 檔案 | 內容 |
 | --- | --- |
-| `risk.py` | `RiskGuard.check(req, fill_price, held, current_price)`:單筆金額上限、部位總值上限;部位上限改以**現價市值**判斷(現有持倉 × `current_price` + 新單 × `fill_price`),違規拋 `RiskError`(M0.5) |
+| `risk.py` | `RiskGuard.check(req, fill_price, held, current_price)`:單筆金額上限、部位總值上限;部位上限改以**現價市值**判斷(現有持倉 × `current_price` + 新單 × `fill_price`),違規拋 `RiskError`(M0.5)。`PortfolioGuard.check(req, fill_price, market, broker, session)`:以**基準幣 (TWD)** 經 `FxConverter` 判斷總曝險、當日虧損(觸發設 `halted`)、每日下單數、kill switch;任一觸發**只擋進場(買入),永遠放行出場(減倉賣出)**,並發 `notify`(M0.6) |
+| `runtime_state.py` | 隔離 `RuntimeFlag` 的持久化:get/set kill switch、get/set `halted`、`get_or_snapshot_day_start_equity`(依 UTC 日快照一次)、`count_orders_today`(`OrderRecord.created_at >= 今日 UTC 起點`)(M0.6) |
 | `portfolio.py` | `build_portfolio(broker)`:部位帶入即時價、未實現損益、權益總值;取價失敗退回成本價並標記 |
 | `execution.py` | `execute_order(...)`:手動與工作流共用的唯一下單路徑(冪等檢查→價→風控→撮合→存檔→通知)。可帶 `client_order_id`(M0.5):若該鍵已有 `OrderRecord` 則**跳過下單**並回傳既有結果(`info.idempotent_skip=True`);手動下單預設 `None`,行為不變 |
 | `paper_store.py` | `PaperStore`:把紙上帳戶現金/部位持久化到 DB,讓 `PaperBroker` 重啟後仍保留狀態 |
