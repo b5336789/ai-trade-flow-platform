@@ -223,6 +223,7 @@ resource "aws_db_instance" "main" {
   password               = random_password.db.result
   db_subnet_group_name   = aws_db_subnet_group.main.name
   vpc_security_group_ids = [aws_security_group.db.id]
+  storage_encrypted      = true
   publicly_accessible    = false
   skip_final_snapshot    = true
   deletion_protection    = false
@@ -241,6 +242,18 @@ resource "aws_secretsmanager_secret" "database_url" {
 resource "aws_secretsmanager_secret_version" "database_url" {
   secret_id     = aws_secretsmanager_secret.database_url.id
   secret_string = "postgresql+psycopg://${var.database_username}:${random_password.db.result}@${aws_db_instance.main.address}:5432/${var.database_name}"
+}
+
+resource "aws_secretsmanager_secret" "anthropic_api_key" {
+  name                    = "${local.name_prefix}/anthropic-api-key"
+  recovery_window_in_days = 0
+
+  tags = local.common_tags
+}
+
+resource "aws_secretsmanager_secret_version" "anthropic_api_key" {
+  secret_id     = aws_secretsmanager_secret.anthropic_api_key.id
+  secret_string = var.anthropic_api_key
 }
 
 resource "aws_lb" "app" {
@@ -369,6 +382,7 @@ resource "aws_iam_role_policy" "ecs_read_secrets" {
         ]
         Resource = [
           aws_secretsmanager_secret.database_url.arn,
+          aws_secretsmanager_secret.anthropic_api_key.arn,
         ]
       },
     ]
@@ -405,10 +419,10 @@ resource "aws_ecs_task_definition" "backend" {
         { name = "TRADING_MODE", value = "paper" },
         { name = "API_TOKEN", value = var.api_token },
         { name = "API_CORS_ORIGINS", value = "http://${aws_lb.app.dns_name}" },
-        { name = "ANTHROPIC_API_KEY", value = var.anthropic_api_key },
       ]
       secrets = [
         { name = "DATABASE_URL", valueFrom = aws_secretsmanager_secret.database_url.arn },
+        { name = "ANTHROPIC_API_KEY", valueFrom = aws_secretsmanager_secret.anthropic_api_key.arn },
       ]
       logConfiguration = {
         logDriver = "awslogs"
