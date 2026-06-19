@@ -1,0 +1,144 @@
+name: Deploy Production
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ap-southeast-2
+  TF_VAR_aws_region: ap-southeast-2
+  TF_VAR_project_name: ai-trade-flow
+  TF_VAR_environment: prod
+
+jobs:
+  deploy:
+    name: Deploy Production
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.8.5
+          terraform_wrapper: false
+
+      - name: Terraform init
+        working-directory: infra/terraform/prod
+        run: |
+          set -euo pipefail
+          terraform init \
+            -input=false \
+            -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
+            -backend-config="region=${{ env.AWS_REGION }}" \
+            -backend-config="dynamodb_table=${{ secrets.TF_LOCK_TABLE }}"
+
+      - name: Bootstrap ECR repositories and app secret containers
+        working-directory: infra/terraform/prod
+        env:
+          TF_VAR_app_secrets_revision: bootstrap
+          TF_VAR_backend_image: bootstrap/backend:bootstrap
+          TF_VAR_frontend_image: bootstrap/frontend:bootstrap
+        run: |
+          set -euo pipefail
+          terraform apply -input=false -auto-approve \
+            -target=aws_ecr_repository.backend \
+            -target=aws_ecr_repository.frontend \
+            -target=aws_secretsmanager_secret.api_token \
+            -target=aws_secretsmanager_secret.anthropic_api_key
+
+      - name: Capture bootstrap outputs
+        id: bootstrap
+        working-directory: infra/terraform/prod
+        run: |
+          set -euo pipefail
+          {
+            printf 'backend_repo=%s\n' "$(terraform output -raw backend_ecr_repository_url)"
+            printf 'frontend_repo=%s\n' "$(terraform output -raw frontend_ecr_repository_url)"
+            printf 'api_token_secret_name=%s\n' "$(terraform output -raw api_token_secret_name)"
+            printf 'anthropic_api_key_secret_name=%s\n' "$(terraform output -raw anthropic_api_key_secret_name)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Login to ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Write app secrets to Secrets Manager
+        env:
+          API_TOKEN: ${{ secrets.API_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "$API_TOKEN" ]; then
+            printf '%s\n' 'API_TOKEN secret is required for production deploy' >&2
+            exit 1
+          fi
+
+          aws secretsmanager put-secret-value \
+            --secret-id "${{ steps.bootstrap.outputs.api_token_secret_name }}" \
+            --secret-string "$API_TOKEN"
+
+          if [ -n "$ANTHROPIC_API_KEY" ]; then
+            aws secretsmanager put-secret-value \
+              --secret-id "${{ steps.bootstrap.outputs.anthropic_api_key_secret_name }}" \
+              --secret-string "$ANTHROPIC_API_KEY"
+          else
+            printf '%s\n' 'ANTHROPIC_API_KEY not set; AI features requiring it stay disabled'
+          fi
+
+      - name: Build and push backend image
+        id: backend_image
+        run: |
+          set -euo pipefail
+          backend_image="${{ steps.bootstrap.outputs.backend_repo }}:${{ github.sha }}"
+          docker build -t "$backend_image" backend
+          docker push "$backend_image"
+          printf 'image=%s\n' "$backend_image" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push frontend image
+        id: frontend_image
+        run: |
+          set -euo pipefail
+          frontend_image="${{ steps.bootstrap.outputs.frontend_repo }}:${{ github.sha }}"
+          docker build \
+            --build-arg NEXT_PUBLIC_API_BASE_URL="" \
+            --build-arg NEXT_PUBLIC_API_TOKEN="${{ secrets.NEXT_PUBLIC_API_TOKEN }}" \
+            -t "$frontend_image" \
+            frontend
+          docker push "$frontend_image"
+          printf 'image=%s\n' "$frontend_image" >> "$GITHUB_OUTPUT"
+
+      - name: Terraform apply
+        working-directory: infra/terraform/prod
+        env:
+          TF_VAR_backend_image: ${{ steps.backend_image.outputs.image }}
+          TF_VAR_frontend_image: ${{ steps.frontend_image.outputs.image }}
+          TF_VAR_app_secrets_revision: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          terraform apply -input=false -auto-approve
+
+      - name: Print outputs
+        working-directory: infra/terraform/prod
+        run: |
+          set -euo pipefail
+          alb_dns_name="$(terraform output -raw alb_dns_name)"
+          printf 'ALB DNS: http://%s\n' "$alb_dns_name"
+          printf 'Backend health: http://%s/health\n' "$alb_dns_name"
