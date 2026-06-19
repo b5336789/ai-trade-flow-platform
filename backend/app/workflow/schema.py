@@ -14,6 +14,9 @@ class NodeType(str, enum.Enum):
     risk_exit = "risk_exit"      # stop-loss / take-profit on the held position -> Signal
     order = "order"              # Signal -> OrderResult (paper/live)
     logger = "logger"            # pass-through, records to run log
+    condition = "condition"      # threshold on upstream candles -> pass/block Signal
+    combine = "combine"          # many Signals -> ONE (AND / OR / weighted vote)
+    branch = "branch"            # gate a Signal by a condition (pass through or hold)
 
 
 class NodeConfig(BaseModel):

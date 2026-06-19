@@ -22,6 +22,9 @@ const DEFAULTS: Record<NodeType, Record<string, unknown>> = {
   risk_exit: { stop_loss_pct: 5, take_profit_pct: 10 },
   order: { quantity: 0.01 },
   logger: {},
+  condition: { source: "close", operator: ">", value: 0 },
+  combine: { mode: "AND" },
+  branch: { source: "close", operator: ">", value: 0 },
 };
 
 function starterNodes(setParam: TradeNodeData["setParam"]): Node[] {
@@ -117,7 +120,17 @@ export function WorkflowBuilder() {
     }
   }
 
-  const NODE_BUTTONS: NodeType[] = ["data_source", "strategy", "ai_signal", "risk_exit", "order", "logger"];
+  const NODE_BUTTONS: NodeType[] = [
+    "data_source",
+    "strategy",
+    "ai_signal",
+    "risk_exit",
+    "condition",
+    "combine",
+    "branch",
+    "order",
+    "logger",
+  ];
 
   return (
     <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4">
