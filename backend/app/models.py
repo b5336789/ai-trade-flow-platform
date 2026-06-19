@@ -49,6 +49,11 @@ class Schedule(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     workflow_id: int
     interval_seconds: int
+    # Optional cron expression (5-field, APScheduler CronTrigger) as an alternative to the interval
+    # trigger; when set it takes precedence over interval_seconds (M1.4).
+    cron: str | None = Field(default=None)
+    # When True (default), skip ticks that fire while the workflow's market is closed (M1.4).
+    respect_market_hours: bool = True
     enabled: bool = True
     last_run_at: datetime | None = Field(default=None)
     last_status: str | None = Field(default=None)
