@@ -193,3 +193,134 @@ def test_node_failure_reports_which_node(monkeypatch):
     result = run_workflow(graph)
     assert result.status == "error"
     assert "s" in result.error
+
+
+# --- M2.1: logic / combine nodes ---------------------------------------------
+
+from app.schemas import Signal, SignalAction  # noqa: E402
+from app.workflow.nodes import RunContext, _run_combine, _run_condition  # noqa: E402
+
+
+def _sig(action: str, confidence: float = 1.0, source: str = "") -> Signal:
+    return Signal(action=SignalAction(action), confidence=confidence, source=source)
+
+
+def _combine(mode: str, signals, **params) -> Signal:
+    node = NodeConfig(id="c", type=NodeType.combine, params={"mode": mode, **params})
+    return _run_combine(node, list(signals), RunContext())
+
+
+def test_combine_and_conflicting_signals_holds():
+    """buy + sell into combine(AND) -> hold (no consensus)."""
+    out = _combine("AND", [_sig("buy"), _sig("sell")])
+    assert out.action == SignalAction.hold
+
+
+def test_combine_and_all_agree_passes_through():
+    out = _combine("AND", [_sig("buy", 0.9), _sig("buy", 0.6)])
+    assert out.action == SignalAction.buy
+    assert out.confidence == 0.6  # AND uses the weakest (min) agreeing confidence
+
+
+def test_combine_and_any_hold_blocks():
+    out = _combine("AND", [_sig("buy"), _sig("hold")])
+    assert out.action == SignalAction.hold
+
+
+def test_combine_or_conflict_uses_documented_bias():
+    """buy + sell into combine(OR): the configured bias wins (default buy)."""
+    buy_biased = _combine("OR", [_sig("buy", 0.5), _sig("sell", 0.9)])
+    assert buy_biased.action == SignalAction.buy
+
+    sell_biased = _combine("OR", [_sig("buy", 0.5), _sig("sell", 0.9)], bias="sell")
+    assert sell_biased.action == SignalAction.sell
+
+
+def test_combine_or_picks_actionable_over_hold():
+    out = _combine("OR", [_sig("hold"), _sig("sell", 0.7)])
+    assert out.action == SignalAction.sell
+    assert out.confidence == 0.7
+
+
+def test_combine_weighted_vote():
+    """Weighted confidence vote: heavier/confident sell beats weaker buy."""
+    out = _combine(
+        "weighted",
+        [_sig("buy", 0.4, source="a"), _sig("sell", 0.9, source="b")],
+        weights={"a": 1.0, "b": 2.0},
+    )
+    assert out.action == SignalAction.sell
+
+    # Balanced opposing votes net to ~0 -> hold.
+    tie = _combine("weighted", [_sig("buy", 0.5), _sig("sell", 0.5)])
+    assert tie.action == SignalAction.hold
+
+
+def test_combine_does_not_silently_keep_first_signal():
+    """combine must reduce ALL inputs, not return the first one."""
+    out = _combine("AND", [_sig("sell"), _sig("buy"), _sig("buy")])
+    assert out.action == SignalAction.hold  # not 'sell' (the first)
+
+
+def test_order_node_rejects_multiple_signals_no_silent_drop(seeded):
+    """Two strategy Signals fanning into one order node fail loud (no _first_signal drop)."""
+    graph = WorkflowGraph(
+        nodes=[
+            NodeConfig(id="d", type=NodeType.data_source, params={"symbol": "BTC/USDT"}),
+            NodeConfig(id="s1", type=NodeType.strategy, params={"name": "ma_cross", "fast": 2, "slow": 4}),
+            NodeConfig(id="s2", type=NodeType.strategy, params={"name": "ma_cross", "fast": 2, "slow": 4}),
+            NodeConfig(id="o", type=NodeType.order, params={"quantity": 10}),
+        ],
+        edges=[
+            Edge(source="d", target="s1"),
+            Edge(source="d", target="s2"),
+            Edge(source="s1", target="o"),
+            Edge(source="s2", target="o"),
+        ],
+    )
+    result = run_workflow(graph)
+    assert result.status == "error"
+    assert "o" in result.error
+    assert "combine" in result.error.lower()
+
+
+def test_combine_node_merges_two_strategies_then_orders(seeded):
+    """End-to-end: two strategies -> combine(AND) -> order. Both buy -> order placed."""
+    graph = WorkflowGraph(
+        nodes=[
+            NodeConfig(id="d", type=NodeType.data_source, params={"symbol": "BTC/USDT"}),
+            NodeConfig(id="s1", type=NodeType.strategy, params={"name": "ma_cross", "fast": 2, "slow": 4}),
+            NodeConfig(id="s2", type=NodeType.strategy, params={"name": "ma_cross", "fast": 2, "slow": 4}),
+            NodeConfig(id="c", type=NodeType.combine, params={"mode": "AND"}),
+            NodeConfig(id="o", type=NodeType.order, params={"quantity": 10}),
+        ],
+        edges=[
+            Edge(source="d", target="s1"),
+            Edge(source="d", target="s2"),
+            Edge(source="s1", target="c"),
+            Edge(source="s2", target="c"),
+            Edge(source="c", target="o"),
+        ],
+    )
+    result = run_workflow(graph)
+    assert result.status == "ok", result.error
+    assert len(result.orders) == 1
+    assert result.orders[0]["side"] == "buy"
+
+
+def test_condition_threshold_passes_and_blocks():
+    candles = make_candles([1, 2, 3, 4, 10])
+    ctx = RunContext()
+    passes = _run_condition(
+        NodeConfig(id="x", type=NodeType.condition, params={"source": "close", "operator": ">", "value": 5}),
+        [candles],
+        ctx,
+    )
+    assert passes.action == SignalAction.buy  # condition met -> pass (actionable)
+
+    blocked = _run_condition(
+        NodeConfig(id="x", type=NodeType.condition, params={"source": "close", "operator": ">", "value": 50}),
+        [candles],
+        ctx,
+    )
+    assert blocked.action == SignalAction.hold  # condition not met -> block

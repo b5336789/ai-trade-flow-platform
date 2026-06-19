@@ -18,7 +18,13 @@ const TITLES: Record<NodeType, string> = {
   risk_exit: "Risk Exit (SL/TP)",
   order: "Order",
   logger: "Logger",
+  condition: "Condition",
+  combine: "Combine",
+  branch: "Branch",
 };
+
+const COMBINE_MODES = ["AND", "OR", "weighted"];
+const CONDITION_OPERATORS = [">", ">=", "<", "<=", "==", "!="];
 
 function Field({
   label,
@@ -110,6 +116,72 @@ export function TradeNode({ id, data }: NodeProps) {
 
       {d.nodeType === "order" && (
         <Field label="quantity" type="number" value={p.quantity} onChange={(v) => set("quantity", Number(v))} />
+      )}
+
+      {d.nodeType === "combine" && (
+        <>
+          <label className="mb-1 block text-[10px] text-neutral-400">
+            mode
+            <select
+              value={String(p.mode ?? "AND")}
+              onChange={(e) => set("mode", e.target.value)}
+              className="mt-0.5 w-full rounded bg-neutral-800 px-1 py-0.5 text-xs"
+            >
+              {COMBINE_MODES.map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+            </select>
+          </label>
+          {String(p.mode ?? "AND") === "OR" && (
+            <Field label="bias (buy/sell)" value={p.bias} onChange={(v) => set("bias", v)} />
+          )}
+          <div className="text-[10px] text-neutral-500">merges many Signals into one</div>
+        </>
+      )}
+
+      {d.nodeType === "condition" && (
+        <>
+          <Field label="source" value={p.source} onChange={(v) => set("source", v)} />
+          <label className="mb-1 block text-[10px] text-neutral-400">
+            operator
+            <select
+              value={String(p.operator ?? ">")}
+              onChange={(e) => set("operator", e.target.value)}
+              className="mt-0.5 w-full rounded bg-neutral-800 px-1 py-0.5 text-xs"
+            >
+              {CONDITION_OPERATORS.map((o) => (
+                <option key={o} value={o}>
+                  {o}
+                </option>
+              ))}
+            </select>
+          </label>
+          <Field label="value" type="number" value={p.value} onChange={(v) => set("value", Number(v))} />
+        </>
+      )}
+
+      {d.nodeType === "branch" && (
+        <>
+          <Field label="source" value={p.source} onChange={(v) => set("source", v)} />
+          <label className="mb-1 block text-[10px] text-neutral-400">
+            operator
+            <select
+              value={String(p.operator ?? ">")}
+              onChange={(e) => set("operator", e.target.value)}
+              className="mt-0.5 w-full rounded bg-neutral-800 px-1 py-0.5 text-xs"
+            >
+              {CONDITION_OPERATORS.map((o) => (
+                <option key={o} value={o}>
+                  {o}
+                </option>
+              ))}
+            </select>
+          </label>
+          <Field label="value" type="number" value={p.value} onChange={(v) => set("value", Number(v))} />
+          <div className="text-[10px] text-neutral-500">passes Signal when condition holds, else hold</div>
+        </>
       )}
 
       {d.nodeType === "logger" && <div className="text-[10px] text-neutral-500">records run output</div>}
