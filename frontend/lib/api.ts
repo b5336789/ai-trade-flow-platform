@@ -201,6 +201,58 @@ export interface OptimizeRequest {
   rank_metric?: string;
 }
 
+// Strategy Lab (策略室) — declarative StrategySpec mirrors backend app/strategies/spec.py.
+// The condition trees (entry/exit) and indicators are passed through opaquely; the
+// frontend only edits param defaults and displays the rendered Python.
+export interface SpecParamDef {
+  name: string;
+  type: "int" | "float";
+  default: number;
+  min?: number | null;
+  max?: number | null;
+  step?: number | null;
+}
+
+export interface StrategySpec {
+  indicators: unknown[];
+  entry: unknown;
+  exit: unknown;
+  params: SpecParamDef[];
+}
+
+export interface DesignResponse {
+  spec: StrategySpec;
+  rendered_python: string;
+  explanation: string;
+}
+
+export interface StrategyListItem {
+  id: number;
+  name: string;
+  description: string;
+  source: string;
+  num_params: number;
+}
+
+export interface StrategyOut {
+  id: number;
+  name: string;
+  description: string;
+  source: string;
+  spec: StrategySpec;
+  rendered_python: string;
+}
+
+export interface SavedBacktestRequest {
+  symbol: string;
+  market?: string;
+  timeframe?: string;
+  limit?: number;
+  param_overrides?: Record<string, number>;
+  starting_cash?: number;
+  position_fraction?: number;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (API_TOKEN) {
@@ -268,6 +320,26 @@ export const api = {
     request<{ market: string; symbol: string; imported: number }>("/api/markets/import", {
       method: "POST",
       body: JSON.stringify({ market, symbol, csv }),
+    }),
+  // 策略室 — AI design + strategy library CRUD + per-strategy backtest.
+  designStrategy: (message: string, prior_spec?: StrategySpec, model?: string) =>
+    request<DesignResponse>("/api/strategies/design", {
+      method: "POST",
+      body: JSON.stringify({ message, prior_spec, model }),
+    }),
+  listSavedStrategies: () => request<StrategyListItem[]>("/api/strategies"),
+  getSavedStrategy: (id: number) => request<StrategyOut>(`/api/strategies/${id}`),
+  saveStrategy: (name: string, spec: StrategySpec, description = "") =>
+    request<StrategyOut>("/api/strategies", {
+      method: "POST",
+      body: JSON.stringify({ name, description, spec }),
+    }),
+  deleteStrategy: (id: number) =>
+    request<{ deleted: number }>(`/api/strategies/${id}`, { method: "DELETE" }),
+  backtestSavedStrategy: (id: number, req: SavedBacktestRequest) =>
+    request<BacktestResult>(`/api/strategies/${id}/backtest`, {
+      method: "POST",
+      body: JSON.stringify(req),
     }),
 };
 
