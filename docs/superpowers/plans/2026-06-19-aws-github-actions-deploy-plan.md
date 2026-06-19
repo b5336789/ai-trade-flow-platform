@@ -1408,13 +1408,20 @@ jobs:
 
       - name: Write app secrets to Secrets Manager
         working-directory: infra/terraform/prod
+        env:
+          API_TOKEN: ${{ secrets.API_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           aws secretsmanager put-secret-value \
             --secret-id "$(terraform output -raw api_token_secret_name)" \
-            --secret-string "${{ secrets.API_TOKEN }}"
-          aws secretsmanager put-secret-value \
-            --secret-id "$(terraform output -raw anthropic_api_key_secret_name)" \
-            --secret-string "${{ secrets.ANTHROPIC_API_KEY }}"
+            --secret-string "$API_TOKEN"
+          if [ -n "$ANTHROPIC_API_KEY" ]; then
+            aws secretsmanager put-secret-value \
+              --secret-id "$(terraform output -raw anthropic_api_key_secret_name)" \
+              --secret-string "$ANTHROPIC_API_KEY"
+          else
+            echo "ANTHROPIC_API_KEY not set; AI features requiring it stay disabled"
+          fi
 
       - name: Terraform apply
         working-directory: infra/terraform/prod
