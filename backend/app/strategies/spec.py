@@ -179,9 +179,9 @@ class SpecStrategy(Strategy):
             if key not in defs:
                 raise ValueError(f"unknown param override '{key}'")
             d = defs[key]
-            if d.min is not None and value < d.min - 1:
+            if d.min is not None and value < d.min:
                 raise ValueError(f"param '{key}'={value} below min {d.min}")
-            if d.max is not None and value > d.max + 1:
+            if d.max is not None and value > d.max:
                 raise ValueError(f"param '{key}'={value} above max {d.max}")
             self.params[key] = int(value) if d.type == "int" else float(value)
 

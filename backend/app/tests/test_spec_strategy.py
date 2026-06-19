@@ -46,7 +46,8 @@ def test_override_applies_and_validates():
 
 def test_hold_has_zero_confidence():
     spec = _rsi_reversion()
-    sig = SpecStrategy(spec, overrides={"os": 0.01, "ob": 99.99}).generate(make_candles([100.0] * 40))
+    prices = [100.0 if i % 2 == 0 else 101.0 for i in range(40)]
+    sig = SpecStrategy(spec, overrides={"os": 1, "ob": 99}).generate(make_candles(prices))
     assert sig.action == SignalAction.hold
     assert sig.confidence == 0.0
 
