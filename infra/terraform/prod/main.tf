@@ -229,6 +229,10 @@ resource "aws_db_instance" "main" {
   deletion_protection    = false
   apply_immediately      = true
 
+  lifecycle {
+    prevent_destroy = true
+  }
+
   tags = local.common_tags
 }
 
@@ -419,6 +423,8 @@ resource "aws_ecs_task_definition" "backend" {
         { name = "TRADING_MODE", value = "paper" },
         { name = "API_TOKEN", value = var.api_token },
         { name = "API_CORS_ORIGINS", value = "http://${aws_lb.app.dns_name}" },
+        { name = "DATABASE_URL_SECRET_VERSION", value = aws_secretsmanager_secret_version.database_url.version_id },
+        { name = "ANTHROPIC_API_KEY_SECRET_VERSION", value = aws_secretsmanager_secret_version.anthropic_api_key.version_id },
       ]
       secrets = [
         { name = "DATABASE_URL", valueFrom = aws_secretsmanager_secret.database_url.arn },
