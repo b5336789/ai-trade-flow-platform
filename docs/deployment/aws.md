@@ -39,7 +39,7 @@ Record these values for GitHub configuration.
 
 Create a `production` environment in the repository settings.
 
-Set these as repository/Environment secrets or vars:
+Set these as repository or Environment secrets:
 
 - `AWS_ACCOUNT_ID` (for operator notes and verification; not currently consumed by workflow logic).
 - `AWS_DEPLOY_ROLE_ARN` (from `github_deploy_role_arn` output).
@@ -50,6 +50,7 @@ Set these as repository/Environment secrets or vars:
 - `ANTHROPIC_API_KEY` (optional).
 
 `API_TOKEN` and `NEXT_PUBLIC_API_TOKEN` are required by the workflow and must match before any Secrets Manager writes.
+`NEXT_PUBLIC_API_TOKEN` is passed into the frontend build as a `NEXT_PUBLIC_*` value, so it is embedded into the browser bundle and visible to end users. It is therefore only a coarse shared API token, not a private server-side secret.
 
 ## 4. Deploy
 
