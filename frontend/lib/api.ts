@@ -1,6 +1,8 @@
 // Typed client for the backend API. Base URL from env (defaults to local backend).
 
 const BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+// M0.7: bearer token for the backend API. Empty in local dev (backend leaves auth open).
+const API_TOKEN = process.env.NEXT_PUBLIC_API_TOKEN ?? "";
 
 export interface Candle {
   timestamp: string;
@@ -57,7 +59,16 @@ export interface AppConfig {
 }
 
 // Workflow graph types (mirror backend app/workflow/schema.py)
-export type NodeType = "data_source" | "strategy" | "ai_signal" | "risk_exit" | "order" | "logger";
+export type NodeType =
+  | "data_source"
+  | "strategy"
+  | "ai_signal"
+  | "risk_exit"
+  | "order"
+  | "logger"
+  | "condition"
+  | "combine"
+  | "branch";
 
 export interface GraphNode {
   id: string;
@@ -164,6 +175,14 @@ export interface OptimizeRow {
   win_rate: number;
   max_drawdown_pct: number;
   error: string | null;
+  // M0.4 split mode: in-sample vs out-of-sample, surfaced so overfitting is visible.
+  is_return_pct?: number | null;
+  oos_return_pct?: number | null;
+  is_oos_gap_pct?: number | null;
+  oos_sharpe?: number | null;
+  oos_max_drawdown_pct?: number | null;
+  oos_return_over_maxdd?: number | null;
+  rank_score?: number | null;
 }
 
 export interface OptimizeRequest {
@@ -174,12 +193,20 @@ export interface OptimizeRequest {
   strategy: string;
   param_grid: Record<string, number[]>;
   metric?: string;
+  // M0.4: rank by out-of-sample risk-adjusted metric instead of raw in-sample return.
+  split?: boolean;
+  oos_fraction?: number;
+  rank_metric?: string;
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (API_TOKEN) {
+    headers.Authorization = `Bearer ${API_TOKEN}`;
+  }
   const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json" },
     ...init,
+    headers: { ...headers, ...(init?.headers as Record<string, string> | undefined) },
   });
   if (!res.ok) {
     let detail = res.statusText;

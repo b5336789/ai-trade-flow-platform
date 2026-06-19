@@ -20,7 +20,8 @@ class TestPaperBroker:
         broker = make_paper(cash=10_000.0, price=100.0)
         result = broker.create_order(OrderRequest(symbol="BTC/USDT", side=OrderSide.buy, quantity=10))
         assert result.status == "filled"
-        assert broker.cash == pytest.approx(9_000.0)  # 10 * 100
+        # 10 * 100 = 1000 notional + 0.75 crypto taker fee (7.5 bps, M0.1)
+        assert broker.cash == pytest.approx(9_000.0 - 0.75)
         pos = broker.get_positions()[0]
         assert pos.quantity == 10 and pos.avg_price == pytest.approx(100.0)
 
@@ -29,8 +30,8 @@ class TestPaperBroker:
         broker.create_order(OrderRequest(symbol="BTC/USDT", side=OrderSide.buy, quantity=10))
         broker._data.set_price("BTC/USDT", 120.0)
         broker.create_order(OrderRequest(symbol="BTC/USDT", side=OrderSide.sell, quantity=10))
-        # bought at 100 (-1000), sold at 120 (+1200) -> net +200 over starting cash
-        assert broker.cash == pytest.approx(10_200.0)
+        # bought at 100 (-1000, fee 0.75), sold at 120 (+1200, fee 0.90) -> +200 gross, -1.65 fees
+        assert broker.cash == pytest.approx(10_200.0 - 0.75 - 0.90)
         assert broker.get_positions() == []
 
     def test_weighted_average_cost_basis(self):
@@ -78,8 +79,8 @@ class TestPortfolio:
         broker.create_order(OrderRequest(symbol="BTC/USDT", side=OrderSide.buy, quantity=10))
         broker._data.set_price("BTC/USDT", 130.0)
         view = build_portfolio(broker)
-        assert view.cash == pytest.approx(9_000.0)
+        assert view.cash == pytest.approx(9_000.0 - 0.75)  # 1000 notional + 0.75 fee (M0.1)
         assert view.positions_value == pytest.approx(1_300.0)  # 10 * 130
-        assert view.equity == pytest.approx(10_300.0)
+        assert view.equity == pytest.approx(10_300.0 - 0.75)
         assert view.positions[0].unrealized_pnl == pytest.approx(300.0)
         assert view.positions[0].price_source == "live"

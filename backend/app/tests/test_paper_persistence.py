@@ -27,7 +27,8 @@ def test_state_persists_across_broker_instances(store):
 
     # Simulate a restart: a fresh broker over the same store hydrates from the DB.
     b2 = PaperBroker(StubBroker({"AAPL": 100.0}), starting_cash=999_999.0, store=store)
-    assert b2.cash == pytest.approx(9_500.0)  # 10000 - 5*100, not the new starting_cash
+    # 10000 - 5*100 - 0.375 fee (crypto 7.5 bps), persisted — not the new starting_cash
+    assert b2.cash == pytest.approx(9_500.0 - 0.375)
     positions = b2.get_positions()
     assert len(positions) == 1
     assert positions[0].symbol == "AAPL" and positions[0].quantity == 5
@@ -40,7 +41,8 @@ def test_sell_then_reload_reflects_closed_position(store):
 
     b2 = PaperBroker(StubBroker({"AAPL": 100.0}), store=store)
     assert b2.get_positions() == []
-    assert b2.cash == pytest.approx(10_000.0)
+    # round trip at 100: -0.375 buy fee - 0.375 sell fee (crypto 7.5 bps)
+    assert b2.cash == pytest.approx(10_000.0 - 0.75)
 
 
 def test_reset_clears_persisted_state(store):

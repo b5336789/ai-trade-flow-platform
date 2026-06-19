@@ -22,6 +22,31 @@
 | 14 | 紙上帳戶持久化 | `PaperAccount`/`PaperPosition` 資料表、`trading/paper_store.py`、`PaperBroker` 載入/儲存、`/api/orders/paper/reset`、前端 Reset 鈕 | 66 測試 |
 | 15 | 停損/停利 | `risk_exit` 工作流節點(依持倉均價與現價判斷停損/停利→sell)、前端節點 | 70 測試 |
 
+## v2 (依 `docs/PRD-v2.md`，Phase 0：金融正確性與安全地基)
+
+> 基準幣別 = **TWD**;本期實作範圍 = **Phase 0 (M0.1–M0.7)**。Phase 0 全綠前**禁止 live**。
+
+| # | 里程碑 | 完成內容 | 驗證 |
+| --- | --- | --- | --- |
+| M0.1 | 交易成本模型 | `trading/costs.py`(`CostModel`/`FillCost`,依 `MarketKind`:crypto bps、台股手續費+證交稅僅賣出、美股費率+最低收費、共同滑價);`config.py` 8 個 `COST_*` 設定 + `.env.example`;`brokers/paper.py` 與 `backtest/engine.py` 每筆成交套用成本(`Trade` 加 `gross_pnl`/`cost`,`pnl` 改為淨額);`api/backtest.py`/`optimize.py` 傳入 `market`。成本預設 ON。 | 81 測試(新增 `test_costs.py` 11 項:費率/賣出稅/折讓/最低收費/滑價/env 覆寫/fail-loud/紙上淨額恆等式/回測淨額恆等式/高換手淨<毛);既有受影響的零成本斷言已更新為含費精確值 |
+| M0.2 | 修正成交時點(消除前視偏差) | `backtest/engine.py` 改用 pending-action 狀態機:訊號以資料 ≤ `close[i]` 決策、成交於 **`open[i+1]`**;最後一根訊號不開新倉;權益於 `close[i]` 標記;docstring 寫明成交慣例。 | 83 測試(新增 2 項:成交價 == `open[i+1]` ≠ `close[i]`、末根訊號不開倉);既有「獲利回合」測試改用誠實 next-bar 成交下仍獲利的價格序列 |
+| M0.3 | 回測指標擴充 | 新增 `backtest/metrics.py`(純函式:`periods_per_year`、Sharpe/Sortino/Calmar、`profit_factor`、`cagr`、`max_consecutive_losses` 等);`BacktestResult` 加 `cagr`/`annualized_volatility`/`sharpe`/`sortino`/`calmar`/`profit_factor`/`avg_win`/`avg_loss`/`exposure_pct`/`max_consecutive_losses`/`turnover`;`run_backtest` 加 `timeframe`/`risk_free_rate`,迴圈追蹤曝險與成交名目;`config` 加 `backtest_risk_free_rate`;`api`/`optimize` 串接 `timeframe`。 | 93 測試(新增 `test_metrics.py` 9 項手算對照 Sharpe/Sortino/PF/CAGR/Calmar/PPY + 1 項回測指標齊備) |
+| M0.4 | Optimizer 樣本外/Walk-forward(消除過擬合) | 新增 `backtest/validation.py` `walk_forward`(anchored/rolling 多折、`selection_score`);`grid_search` 加 `split` 模式(同時算 IS+OOS、揭露落差、依風險調整後 **OOS Sharpe** 排序);`api/backtest` + 前端 `BacktestPanel` 串接並顯示 IS↔OOS 落差。**並行 subagent 開發(Wave 1)**,PR #13。 | 103 測試(新增 `test_validation.py` 4 + `test_optimize.py` +6,含 `test_overfit_combo_does_not_rank_first`) |
+| M0.5 | 部位感知 + 冪等下單 + 修現貨部位上限 | 目標部位語意重寫 `_run_order`;`OrderRecord.client_order_id` + `sha1(run_id:node_id)` 冪等鍵(排程傳每-tick 穩定 run_id);`CcxtBroker.get_positions()` 由餘額合成現貨部位;`RiskGuard` 改以現價市值判斷部位上限。**並行 subagent 開發(Wave 1)**,PR #14。 | 100 測試(新增 7:連續 buy ≤1 筆、同 run_id 1 筆、現貨超上限拒絕等) |
+| M0.7 | 存取鎖定 + 金鑰權限 | `api/deps.py` `require_api_token` 全域套用 `/api/*`(`/health` 開放,空 token=開放+警告);`config` 加 `api_token`/`api_cors_origins`(移除 `"*"`);前端帶 bearer;安全文件(幣安關提領/綁 IP/分鑰)。**並行 subagent 開發(Wave 1)**,PR #12。 | 99 測試(新增 `test_auth.py` 6) |
+| (wrap-up) | Wave 1 整合 + CAGR 加固 | 三條並行分支合併後完整套件 **116 測試**綠;`metrics.cagr` 改以 log 空間 + 夾擠避免短樣本年化 `OverflowError`;`task-backlog`/`development-log` 集中勾選 M0.4/M0.5/M0.7;`.gitignore` 加 `.claude/`。 | 116 測試(含 CAGR 短樣本不溢位 1 項) |
+| M0.6 | 投組級風控 + Kill switch | 新增 `marketdata/fx.py`(`FxConverter`,靜態匯率換 TWD、缺率 fail-loud)、`trading/runtime_state.py` + `models.RuntimeFlag`(kill switch/halted/day-start equity/當日單數)、`trading/risk.py` `PortfolioGuard`(四閘以 TWD 計,**任一觸發擋進場、永遠放行出場**,單日虧損觸發設 halted)、`api/risk.py`(status/kill-switch/resume,掛 auth)、`execute_order` 接線。**Wave 2 subagent**,PR #16。 | 128 測試(新增 `test_risk_portfolio.py` 11:每閘拒 buy + halt/kill 放行 sell + FxConverter) |
+| M0.8 | Phase 0 完成定義 | 新增 `docs/go-live-checklist.md`(DB 遷移/存取/金鑰/成本/風控+kill switch 實測/OOS/範圍/小額起步);`tests/conftest.py` 改為 session 起始 drop+create,讓測試 DB 決定性(消除 schema 漂移與當日單數累積)。**Phase 0(M0.1–M0.8)全數完成。** | 128 測試(連跑多次穩定) |
+
+## v2 Phase 1 / 2(並行 Wave 4)
+
+| # | 里程碑 | 完成內容 | 驗證 |
+| --- | --- | --- | --- |
+| M1.4 | 開盤行事曆 gating + cron | 新增 `marketdata/calendar.py` `is_market_open`(台股 09:00–13:30 Asia/Taipei、美股 09:30–16:00 ET、皆排除週末/內建假日,crypto 永遠開;dt naive 視為 UTC);`Schedule.respect_market_hours`/`cron`;scheduler 收盤跳過(`skipped: market closed`、非 error、不寫 RunLog)+ cron/interval + `max_instances=1`/`coalesce`/`misfire_grace_time`。**Wave 4 subagent**,PR #18。 | 142 測試(calendar 10 + scheduler 4;含 03:00 台北跳過驗收) |
+| M2.1 | 邏輯/組合節點 | `NodeType` 加 `condition`/`combine`/`branch`;`_first_signal`→`_only_signal`(多 Signal **fail loud**,終結靜默丟棄);`combine` AND/OR/weighted 合併;前端三節點。**Wave 4 subagent**,PR #19。 | 138 測試(新增 10:各 combine 模式 + 多 Signal 進 order 報錯 + condition) |
+| M1.3 | FIFO 損益帳本 | 新增 `trading/ledger.py`(`FifoLedger` FIFO 沖銷、逐筆已實現損益、`CostModel` 計費用/證交稅)、`models.Lot`/`RealizedPnL`、`api/ledger.py`(報表 + 報稅 CSV,掛 auth);接線 `execute_order`(冪等 skip 後、僅實際成交);賣超已記錄 lots 時消耗現有並發 warning(**不擋出場**)。**Wave 4 subagent**,PR #20。 | 135 測試(新增 7:毛額 650 恆等式 + 含費/證交稅 + 部分沖銷 + oversell + 整合 + 冪等不重複) |
+| (整合) | Wave 4 合併驗證 | 三條並行分支(M1.3/M1.4/M2.1)合併後完整套件綠、連跑穩定;`task-backlog`/`development-log` 集中勾選。 | **159 測試**(連跑多次穩定) |
+
 ## 設計原則落實(對照 `CLAUDE.md`)
 - **Simplicity First**:先做 crypto+紙上一條完整切片,再水平擴充。
 - **Surgical Changes**:重構策略 registry 時只動相關處。

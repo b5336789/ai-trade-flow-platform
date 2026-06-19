@@ -68,6 +68,8 @@ def compare(req: CompareRequest) -> list[CompareRow]:
                 build_strategy(name),
                 starting_cash=req.starting_cash,
                 position_fraction=req.position_fraction,
+                market=req.market,
+                timeframe=req.timeframe,
             )
             rows.append(
                 CompareRow(
@@ -106,11 +108,22 @@ class OptimizeRequest(BaseModel):
     starting_cash: float = 100_000.0
     position_fraction: float = 1.0
     max_combinations: int = Field(default=200, ge=1, le=500)
+    # M0.4 — out-of-sample ranking. With split=True the history is divided into an in-sample prefix
+    # and an oos_fraction out-of-sample suffix; combos are ranked by the risk-adjusted OOS rank_metric
+    # (default OOS Sharpe) and each row exposes the IS↔OOS gap so the frontend can show it.
+    split: bool = False
+    oos_fraction: float = Field(default=0.3, gt=0.0, lt=1.0)
+    rank_metric: str = "oos_sharpe"
 
 
 @router.post("/optimize", response_model=list[OptimizeRow])
 def optimize(req: OptimizeRequest) -> list[OptimizeRow]:
-    """Grid-search a strategy's parameters over the symbol's history; ranked best-first."""
+    """Grid-search a strategy's parameters over the symbol's history; ranked best-first.
+
+    With ``split=True`` ranking is by the out-of-sample (OOS) risk-adjusted ``rank_metric`` — never raw
+    return — and each row carries IS vs OOS values and their gap. "Apply best" applies ``rows[0]``,
+    which is the OOS-selected combo.
+    """
     try:
         candles = get_data_broker(req.market).get_ohlcv(req.symbol, req.timeframe, req.limit)
         return grid_search(
@@ -121,6 +134,11 @@ def optimize(req: OptimizeRequest) -> list[OptimizeRow]:
             starting_cash=req.starting_cash,
             position_fraction=req.position_fraction,
             max_combinations=req.max_combinations,
+            market=req.market,
+            timeframe=req.timeframe,
+            split=req.split,
+            oos_fraction=req.oos_fraction,
+            rank_metric=req.rank_metric,
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
@@ -140,6 +158,8 @@ def backtest(req: BacktestRequest) -> BacktestResult:
             strategy,
             starting_cash=req.starting_cash,
             position_fraction=req.position_fraction,
+            market=req.market,
+            timeframe=req.timeframe,
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
