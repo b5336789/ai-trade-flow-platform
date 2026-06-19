@@ -12,6 +12,7 @@ from sqlmodel import Session, select
 from app.brokers.registry import get_broker
 from app.models import OrderRecord
 from app.notifications.service import notify
+from app.trading.ledger import record_fill
 from app.schemas import MarketKind, OrderRequest, OrderResult, OrderSide, OrderType, TradingMode
 from app.trading.risk import PortfolioGuard, RiskGuard
 
@@ -98,6 +99,21 @@ def execute_order(
                 market=market.value,
             )
         )
+        # M1.3: FIFO realized-P&L ledger. Wired HERE (not in PaperBroker) so it is broker-agnostic
+        # and runs only when persisting a *new* fill — the idempotent-skip path (M0.5) returns
+        # above before reaching this block, so duplicate orders never produce duplicate lots. Only
+        # actual fills are ledgered. Uses the buy fee the broker actually charged (result.info)
+        # when present so the lot cost basis matches the cash deduction exactly.
+        if result.status == "filled":
+            record_fill(
+                session,
+                market=market,
+                symbol=result.symbol,
+                side=result.side,
+                price=result.price,
+                quantity=result.quantity,
+                fee=result.info.get("fee"),
+            )
         session.commit()
         notify(
             session,
