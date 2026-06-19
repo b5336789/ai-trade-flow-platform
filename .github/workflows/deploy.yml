@@ -16,8 +16,8 @@ concurrency:
 
 env:
   AWS_REGION: ap-southeast-2
-  IMAGE_TAG: ${{ github.sha }}-${{ github.run_attempt }}
-  APP_SECRETS_REVISION: ${{ github.sha }}-${{ github.run_attempt }}
+  IMAGE_TAG: ${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+  APP_SECRETS_REVISION: ${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
   TF_VAR_aws_region: ap-southeast-2
   TF_VAR_project_name: ai-trade-flow
   TF_VAR_environment: prod

@@ -1341,8 +1341,8 @@ concurrency:
 
 env:
   AWS_REGION: ap-southeast-2
-  IMAGE_TAG: ${{ github.sha }}-${{ github.run_attempt }}
-  APP_SECRETS_REVISION: ${{ github.sha }}-${{ github.run_attempt }}
+  IMAGE_TAG: ${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+  APP_SECRETS_REVISION: ${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
   TF_VAR_aws_region: ap-southeast-2
   TF_VAR_project_name: ai-trade-flow
   TF_VAR_environment: prod
@@ -1761,7 +1761,7 @@ NEXT_PUBLIC_API_TOKEN=<same strong random token>
 ANTHROPIC_API_KEY=<anthropic key or empty string>
 ```
 
-The deploy workflow writes `API_TOKEN` and `ANTHROPIC_API_KEY` into the production Secrets Manager secret containers and uses image tags plus `TF_VAR_app_secrets_revision` set to `${{ github.sha }}-${{ github.run_attempt }}` so reruns can publish new immutable ECR tags and roll ECS tasks. When `ANTHROPIC_API_KEY` is empty, the workflow writes `__disabled__` and the backend normalizes it back to an empty value.
+The deploy workflow writes `API_TOKEN` and `ANTHROPIC_API_KEY` into the production Secrets Manager secret containers and uses image tags plus `TF_VAR_app_secrets_revision` set to `${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}` so reruns can publish new immutable ECR tags and roll ECS tasks. When `ANTHROPIC_API_KEY` is empty, the workflow writes `__disabled__` and the backend normalizes it back to an empty value.
 
 - [ ] **Step 4: Run deploy workflow**
 
