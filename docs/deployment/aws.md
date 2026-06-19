@@ -11,6 +11,8 @@ This project ships an AWS production path on `main`:
 - Use Terraform `1.15.6` or newer. Older Terraform versions may reject `ap-east-2` during S3 backend initialization.
 - First release exposes the app on ALB HTTP DNS only. The domain `bwtseng.com` is registered, but Route 53 DNS records and ACM HTTPS are a follow-up.
 
+Current status: the production runtime stack was destroyed on 2026-06-19 to avoid ongoing AWS charges. The bootstrap resources remain, and the GitHub `Deploy Production` workflow is manually disabled. Re-enable the workflow before deploying again.
+
 Image tags are immutable and include GitHub metadata:
 
 `<sha>-<run_id>-<run_attempt>` (for example `f4b7c1a-123456789-2`).
@@ -59,6 +61,8 @@ Deployment runs when:
 
 - pushing to `main`, or
 - dispatching `.github/workflows/deploy.yml` via `workflow_dispatch`.
+
+This assumes the GitHub workflow is enabled. It is currently disabled to prevent accidental resource recreation after the cost-control shutdown.
 
 No extra local `.env` is needed once workflow secrets are set.
 

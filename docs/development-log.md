@@ -47,6 +47,14 @@
 | M1.3 | FIFO 損益帳本 | 新增 `trading/ledger.py`(`FifoLedger` FIFO 沖銷、逐筆已實現損益、`CostModel` 計費用/證交稅)、`models.Lot`/`RealizedPnL`、`api/ledger.py`(報表 + 報稅 CSV,掛 auth);接線 `execute_order`(冪等 skip 後、僅實際成交);賣超已記錄 lots 時消耗現有並發 warning(**不擋出場**)。**Wave 4 subagent**,PR #20。 | 135 測試(新增 7:毛額 650 恆等式 + 含費/證交稅 + 部分沖銷 + oversell + 整合 + 冪等不重複) |
 | (整合) | Wave 4 合併驗證 | 三條並行分支(M1.3/M1.4/M2.1)合併後完整套件綠、連跑穩定;`task-backlog`/`development-log` 集中勾選。 | **159 測試**(連跑多次穩定) |
 
+## Infra / AWS GitHub Actions 部署紀錄
+
+| 日期 | 主題 | 完成內容 | 驗證 / 狀態 |
+| --- | --- | --- | --- |
+| 2026-06-19 | AWS production deploy pipeline | PR #24 建立並合併 GitHub Actions CI + production deploy workflow、Terraform bootstrap/prod stacks、ECS Fargate + ECR + ALB + RDS PostgreSQL + Secrets Manager、frontend/backend production Docker path、`docs/deployment/aws.md`;部署區域從 `ap-southeast-2` 改為 `ap-east-2`;`bwtseng.com` 已註冊但第一版仍用 ALB DNS。 | 本機驗證:backend `190 passed, 1 warning`;frontend build pass;Terraform bootstrap/prod validate pass;workflow YAML parse pass;Docker backend/frontend build pass。PR #24 CI pass 後 merge。 |
+| 2026-06-19 | AWS bootstrap + first deploy | 使用 AWS SSO profile `AdministratorAccess-334317074103` 在 `ap-east-2` bootstrap Terraform state bucket、DynamoDB lock table、GitHub OIDC deploy role;設定 GitHub `production` environment secrets(`AWS_DEPLOY_ROLE_ARN`,`TF_STATE_BUCKET`,`TF_LOCK_TABLE`,`AWS_ACCOUNT_ID`,`API_TOKEN`,`NEXT_PUBLIC_API_TOKEN`);首次 production deploy 成功建立 ALB/ECS/RDS/VPC/ECR/Secrets。 | 修正 Terraform `1.8.5` 不認得 `ap-east-2` 的 S3 backend 問題:PR #25 升級 workflow 到 Terraform `1.15.6` 並合併。Deploy run `27822493926` 成功;ALB 曾為 `ai-trade-flow-prod-alb-1029134024.ap-east-2.elb.amazonaws.com`;`/health` 回 `200 OK {"status":"ok"}`;backend/frontend ECS 皆 running 1/1。 |
+| 2026-06-19 | 停止 AWS 付費資源 | 依成本控制要求關閉 production runtime:先將 backend/frontend ECS services scale 到 0,再 destroy Terraform prod stack;臨時解除 RDS `prevent_destroy` 並刪除 RDS;刪除 ALB、NAT Gateway/EIP、ECS services/cluster、VPC/subnets/security groups、CloudWatch log groups、Secrets Manager app secrets;ECR repos 因含 image 改用 AWS CLI `delete-repository --force` 刪除,再從 Terraform state 移除殘留。 | 驗證:RDS `NOT_FOUND`;ALB `NOT_FOUND`;NAT 無 active/deleting;ECR `NOT_FOUND`;ECS cluster `INACTIVE`;VPC tag 查詢無結果;Secrets Manager 無 `ai-trade-flow-prod/*`;prod Terraform state 為空。保留 bootstrap 資源(S3 state bucket、DynamoDB lock table、GitHub OIDC role/provider)以便日後重啟部署。GitHub `Deploy Production` workflow 已手動 disable,避免 push `main` 自動重建付費資源。 |
+
 ## 設計原則落實(對照 `CLAUDE.md`)
 - **Simplicity First**:先做 crypto+紙上一條完整切片,再水平擴充。
 - **Surgical Changes**:重構策略 registry 時只動相關處。
