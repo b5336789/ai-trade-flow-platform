@@ -1341,6 +1341,8 @@ concurrency:
 
 env:
   AWS_REGION: ap-southeast-2
+  IMAGE_TAG: ${{ github.sha }}-${{ github.run_attempt }}
+  APP_SECRETS_REVISION: ${{ github.sha }}-${{ github.run_attempt }}
   TF_VAR_aws_region: ap-southeast-2
   TF_VAR_project_name: ai-trade-flow
   TF_VAR_environment: prod
@@ -1370,6 +1372,7 @@ jobs:
         working-directory: infra/terraform/prod
         run: |
           terraform init \
+            -input=false \
             -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
             -backend-config="region=${{ env.AWS_REGION }}" \
             -backend-config="dynamodb_table=${{ secrets.TF_LOCK_TABLE }}"
@@ -1378,64 +1381,99 @@ jobs:
         working-directory: infra/terraform/prod
         env:
           TF_VAR_app_secrets_revision: bootstrap
-          TF_VAR_backend_image: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/ai-trade-flow-prod-backend:${{ github.sha }}
-          TF_VAR_frontend_image: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/ai-trade-flow-prod-frontend:${{ github.sha }}
+          TF_VAR_backend_image: bootstrap/backend:bootstrap
+          TF_VAR_frontend_image: bootstrap/frontend:bootstrap
         run: |
-          terraform apply -auto-approve \
+          terraform apply -input=false -auto-approve \
             -target=aws_ecr_repository.backend \
             -target=aws_ecr_repository.frontend \
             -target=aws_secretsmanager_secret.api_token \
             -target=aws_secretsmanager_secret.anthropic_api_key
 
+      - name: Capture bootstrap outputs
+        id: bootstrap
+        working-directory: infra/terraform/prod
+        run: |
+          {
+            printf 'backend_repo=%s\n' "$(terraform output -raw backend_ecr_repository_url)"
+            printf 'frontend_repo=%s\n' "$(terraform output -raw frontend_ecr_repository_url)"
+            printf 'api_token_secret_name=%s\n' "$(terraform output -raw api_token_secret_name)"
+            printf 'anthropic_api_key_secret_name=%s\n' "$(terraform output -raw anthropic_api_key_secret_name)"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Login to ECR
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build and push backend image
-        run: |
-          BACKEND_IMAGE="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/ai-trade-flow-prod-backend:${{ github.sha }}"
-          docker build -t "$BACKEND_IMAGE" backend
-          docker push "$BACKEND_IMAGE"
-
-      - name: Build and push frontend image
-        run: |
-          FRONTEND_IMAGE="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/ai-trade-flow-prod-frontend:${{ github.sha }}"
-          docker build \
-            --build-arg NEXT_PUBLIC_API_BASE_URL="" \
-            --build-arg NEXT_PUBLIC_API_TOKEN="${{ secrets.NEXT_PUBLIC_API_TOKEN }}" \
-            -t "$FRONTEND_IMAGE" \
-            frontend
-          docker push "$FRONTEND_IMAGE"
-
       - name: Write app secrets to Secrets Manager
-        working-directory: infra/terraform/prod
         env:
           API_TOKEN: ${{ secrets.API_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          aws secretsmanager put-secret-value \
-            --secret-id "$(terraform output -raw api_token_secret_name)" \
-            --secret-string "$API_TOKEN"
-          if [ -n "$ANTHROPIC_API_KEY" ]; then
-            aws secretsmanager put-secret-value \
-              --secret-id "$(terraform output -raw anthropic_api_key_secret_name)" \
-              --secret-string "$ANTHROPIC_API_KEY"
-          else
-            echo "ANTHROPIC_API_KEY not set; AI features requiring it stay disabled"
+          if [ -z "$API_TOKEN" ]; then
+            printf '%s\n' 'API_TOKEN secret is required for production deploy' >&2
+            exit 1
           fi
+
+          aws secretsmanager put-secret-value \
+            --secret-id "${{ steps.bootstrap.outputs.api_token_secret_name }}" \
+            --secret-string "$API_TOKEN"
+          anthropic_secret_value="$ANTHROPIC_API_KEY"
+          if [ -n "$ANTHROPIC_API_KEY" ]; then
+            :
+          else
+            anthropic_secret_value="__disabled__"
+            printf '%s\n' 'ANTHROPIC_API_KEY not set; AI features requiring it stay disabled'
+          fi
+          aws secretsmanager put-secret-value \
+            --secret-id "${{ steps.bootstrap.outputs.anthropic_api_key_secret_name }}" \
+            --secret-string "$anthropic_secret_value"
+
+      - name: Build and push backend image
+        id: backend_image
+        run: |
+          backend_image="${{ steps.bootstrap.outputs.backend_repo }}:${IMAGE_TAG}"
+          docker build -t "$backend_image" backend
+          docker push "$backend_image"
+          printf 'image=%s\n' "$backend_image" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push frontend image
+        id: frontend_image
+        env:
+          API_TOKEN: ${{ secrets.API_TOKEN }}
+          NEXT_PUBLIC_API_TOKEN: ${{ secrets.NEXT_PUBLIC_API_TOKEN }}
+        run: |
+          if [ -z "$NEXT_PUBLIC_API_TOKEN" ]; then
+            printf '%s\n' 'NEXT_PUBLIC_API_TOKEN secret is required for production deploy' >&2
+            exit 1
+          fi
+          if [ "$NEXT_PUBLIC_API_TOKEN" != "$API_TOKEN" ]; then
+            printf '%s\n' 'NEXT_PUBLIC_API_TOKEN must match API_TOKEN for production deploy' >&2
+            exit 1
+          fi
+
+          frontend_image="${{ steps.bootstrap.outputs.frontend_repo }}:${IMAGE_TAG}"
+          docker build \
+            --build-arg NEXT_PUBLIC_API_BASE_URL="" \
+            --build-arg NEXT_PUBLIC_API_TOKEN="$NEXT_PUBLIC_API_TOKEN" \
+            -t "$frontend_image" \
+            frontend
+          docker push "$frontend_image"
+          printf 'image=%s\n' "$frontend_image" >> "$GITHUB_OUTPUT"
 
       - name: Terraform apply
         working-directory: infra/terraform/prod
         env:
-          TF_VAR_app_secrets_revision: ${{ github.sha }}
-          TF_VAR_backend_image: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/ai-trade-flow-prod-backend:${{ github.sha }}
-          TF_VAR_frontend_image: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/ai-trade-flow-prod-frontend:${{ github.sha }}
-        run: terraform apply -auto-approve
+          TF_VAR_app_secrets_revision: ${{ env.APP_SECRETS_REVISION }}
+          TF_VAR_backend_image: ${{ steps.backend_image.outputs.image }}
+          TF_VAR_frontend_image: ${{ steps.frontend_image.outputs.image }}
+        run: terraform apply -input=false -auto-approve
 
       - name: Print outputs
         working-directory: infra/terraform/prod
         run: |
-          echo "ALB DNS: http://$(terraform output -raw alb_dns_name)"
-          echo "Backend health: http://$(terraform output -raw alb_dns_name)/health"
+          alb_dns_name="$(terraform output -raw alb_dns_name)"
+          printf 'ALB DNS: http://%s\n' "$alb_dns_name"
+          printf 'Backend health: http://%s/health\n' "$alb_dns_name"
 ```
 
 - [ ] **Step 2: Validate workflow YAML syntax**
@@ -1477,7 +1515,6 @@ Append this block:
 
 # --- AWS deployment notes ---
 # Production deploy uses GitHub Actions secrets for these values, not this local file:
-# AWS_ACCOUNT_ID
 # AWS_DEPLOY_ROLE_ARN
 # TF_STATE_BUCKET
 # TF_LOCK_TABLE
@@ -1525,7 +1562,6 @@ Create a GitHub Environment named `production`.
 
 Add these repository or environment secrets:
 
-- `AWS_ACCOUNT_ID`
 - `AWS_DEPLOY_ROLE_ARN`
 - `TF_STATE_BUCKET`
 - `TF_LOCK_TABLE`
@@ -1533,7 +1569,7 @@ Add these repository or environment secrets:
 - `NEXT_PUBLIC_API_TOKEN`
 - `ANTHROPIC_API_KEY`
 
-The deploy workflow writes `API_TOKEN` and `ANTHROPIC_API_KEY` into AWS Secrets Manager with the AWS CLI before the full Terraform apply. `API_TOKEN` and `NEXT_PUBLIC_API_TOKEN` must match. `NEXT_PUBLIC_API_TOKEN` is visible to browser clients, so it is not a private server secret.
+The deploy workflow writes `API_TOKEN` and `ANTHROPIC_API_KEY` into AWS Secrets Manager with the AWS CLI before the full Terraform apply. When `ANTHROPIC_API_KEY` is empty, it writes the sentinel value `__disabled__`, and the backend normalizes that sentinel back to an empty string so AI features remain disabled. The workflow also validates that `API_TOKEN` and `NEXT_PUBLIC_API_TOKEN` match before building the frontend image. `NEXT_PUBLIC_API_TOKEN` is visible to browser clients, so it is not a private server secret.
 
 ## Deploy
 
@@ -1717,7 +1753,6 @@ Expected: output values are available for GitHub secrets and production backend 
 In GitHub repository settings, create environment `production` and add:
 
 ```text
-AWS_ACCOUNT_ID=<actual account id>
 AWS_DEPLOY_ROLE_ARN=<github_deploy_role_arn output>
 TF_STATE_BUCKET=<terraform_state_bucket output>
 TF_LOCK_TABLE=<terraform_lock_table output>
@@ -1726,7 +1761,7 @@ NEXT_PUBLIC_API_TOKEN=<same strong random token>
 ANTHROPIC_API_KEY=<anthropic key or empty string>
 ```
 
-The deploy workflow writes `API_TOKEN` and `ANTHROPIC_API_KEY` into the production Secrets Manager secret containers and uses `TF_VAR_app_secrets_revision=${{ github.sha }}` to force a new backend task definition. `API_TOKEN` and `NEXT_PUBLIC_API_TOKEN` must have the same value for the first release.
+The deploy workflow writes `API_TOKEN` and `ANTHROPIC_API_KEY` into the production Secrets Manager secret containers and uses image tags plus `TF_VAR_app_secrets_revision` set to `${{ github.sha }}-${{ github.run_attempt }}` so reruns can publish new immutable ECR tags and roll ECS tasks. When `ANTHROPIC_API_KEY` is empty, the workflow writes `__disabled__` and the backend normalizes it back to an empty value.
 
 - [ ] **Step 4: Run deploy workflow**
 
