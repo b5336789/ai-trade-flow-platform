@@ -11,6 +11,7 @@
   "dependencies": {
     "@tanstack/react-query": "^5.51.0",
     "@xyflow/react": "^12.3.0",
+    "geist": "^1.7.2",
     "lightweight-charts": "^4.2.0",
     "next": "^14.2.5",
     "react": "^18.3.1",

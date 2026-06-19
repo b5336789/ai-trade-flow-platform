@@ -3,9 +3,25 @@ import type { Config } from "tailwindcss";
 const config: Config = {
   content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}"],
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        bg: "var(--bg)",
+        "surface-1": "var(--surface-1)", "surface-2": "var(--surface-2)", "surface-3": "var(--surface-3)",
+        border: "var(--border)", "border-strong": "var(--border-strong)",
+        text: "var(--text)", muted: "var(--muted)", faint: "var(--faint)",
+        accent: "var(--accent)", "accent-dim": "var(--accent-dim)",
+        up: "var(--up)", down: "var(--down)",
+        warning: "var(--warning)", error: "var(--error)", live: "var(--live)",
+      },
+      fontFamily: {
+        display: ["var(--font-display)", "var(--font-ui)", "sans-serif"],
+        ui: ["var(--font-ui)", "sans-serif"],
+        mono: ["var(--font-mono)", "monospace"],
+        code: ["var(--font-code)", "monospace"],
+      },
+      borderRadius: { sm: "4px", md: "6px", lg: "8px" },
+    },
   },
   plugins: [],
 };
-
 export default config;
