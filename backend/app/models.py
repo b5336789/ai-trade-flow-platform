@@ -74,3 +74,13 @@ class PaperPosition(SQLModel, table=True):
     symbol: str
     quantity: float
     avg_price: float
+
+
+class StrategyDef(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    name: str
+    description: str = ""
+    spec_json: dict = Field(default_factory=dict, sa_column=Column(JSON))
+    source: str = "manual"  # "ai" | "manual"
+    created_at: datetime = Field(default_factory=_now)
+    updated_at: datetime = Field(default_factory=_now)
