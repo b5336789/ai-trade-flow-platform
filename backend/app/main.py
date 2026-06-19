@@ -7,7 +7,18 @@ from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import ai, backtest, ledger, markets, notifications, orders, risk, schedules, workflows
+from app.api import (
+    ai,
+    backtest,
+    ledger,
+    markets,
+    notifications,
+    orders,
+    risk,
+    schedules,
+    strategies,
+    workflows,
+)
 from app.api.deps import require_api_token
 from app.config import settings
 from app.db import init_db
@@ -44,6 +55,7 @@ app.include_router(schedules.router, dependencies=_auth)
 app.include_router(notifications.router, dependencies=_auth)
 app.include_router(risk.router, dependencies=_auth)
 app.include_router(ledger.router, dependencies=_auth)
+app.include_router(strategies.router, dependencies=_auth)
 
 
 @app.get("/health", tags=["meta"])

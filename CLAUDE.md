@@ -17,3 +17,14 @@
 - **Create Step-by-Step Checkpoints**: For multi-step long tasks, halt at milestones to log what was done, what was verified, and what remains.
 - **Match Existing Codebase Style**: Strictly follow established code conventions (e.g., snake_case or class components) even if you disagree.
 - **Explicitly Fail Loud (Fail Loud)**: If a step fails, skips data, or cannot be fully verified, report the error immediately. Never hide uncertainties.
+
+## Design System
+
+Always read [`DESIGN.md`](./DESIGN.md) before making any visual or UI decision.
+All fonts, colors, spacing, aesthetic direction, and the two-room IA (策略室 / 交易室)
+are defined there. Do not deviate without explicit user approval.
+
+- The electric-cyan accent (`--accent`) is reserved for AI / automation only.
+- Drive price up/down through `--up` / `--down` tokens — never hardcode green-as-gain
+  (台股 inverts the convention via `data-market="tw"`).
+- In QA / review, flag any code that does not match DESIGN.md.

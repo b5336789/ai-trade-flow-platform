@@ -88,6 +88,16 @@ def _run_data_source(node: NodeConfig, inputs: list[Any], ctx: RunContext) -> li
 
 def _run_strategy(node: NodeConfig, inputs: list[Any], ctx: RunContext) -> Signal:
     candles = _first_candles(inputs)
+    strategy_id = node.params.get("strategy_id")
+    if strategy_id is not None:
+        from app.strategies.library import load_spec
+        from app.strategies.spec import SpecStrategy
+
+        if ctx.session is None:
+            raise ValueError("strategy node with strategy_id requires a DB session")
+        spec = load_spec(ctx.session, int(strategy_id))
+        overrides = node.params.get("param_overrides") or {}
+        return SpecStrategy(spec, overrides).generate(candles)
     name = node.params.get("name", "ma_cross")
     kwargs = {k: v for k, v in node.params.items() if k != "name"}
     return build_strategy(name, kwargs).generate(candles)

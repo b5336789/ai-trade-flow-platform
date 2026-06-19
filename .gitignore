@@ -25,6 +25,7 @@ dist/
 .DS_Store
 .idea/
 .vscode/
+.gstack/
 
 # Claude Code (agent worktrees + local session scratch — must never be committed)
 .claude/
