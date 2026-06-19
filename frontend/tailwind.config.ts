@@ -14,8 +14,8 @@ const config: Config = {
         warning: "var(--warning)", error: "var(--error)", live: "var(--live)",
       },
       fontFamily: {
-        display: ["var(--font-display)", "var(--font-ui)", "sans-serif"],
-        ui: ["var(--font-ui)", "sans-serif"],
+        display: ["var(--font-display)", "var(--font-ui)", "var(--font-cjk)", "sans-serif"],
+        ui: ["var(--font-ui)", "var(--font-cjk)", "sans-serif"],
         mono: ["var(--font-mono)", "monospace"],
         code: ["var(--font-code)", "monospace"],
       },

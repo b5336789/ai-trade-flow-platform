@@ -49,7 +49,7 @@ export function DataImportPanel() {
           className="rounded-md bg-surface-2 px-2 py-1 text-sm"
           placeholder="代號 (如 2330 / AAPL)"
         />
-        <button onClick={importCsv} className="rounded-md bg-accent px-3 py-1 text-sm font-medium hover:bg-accent-dim">
+        <button onClick={importCsv} className="rounded-md bg-accent px-3 py-1 text-sm font-medium text-bg hover:brightness-110">
           匯入
         </button>
         <button

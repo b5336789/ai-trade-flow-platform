@@ -153,7 +153,7 @@ export function WorkflowBuilder() {
         />
         <button
           onClick={save}
-          className="rounded-md bg-accent px-3 py-1 text-sm font-medium hover:bg-accent-dim"
+          className="rounded-md bg-accent px-3 py-1 text-sm font-medium text-bg hover:brightness-110"
         >
           Save
         </button>

@@ -10,12 +10,16 @@ export function CandleChart({ candles }: { candles: Candle[] }) {
   useEffect(() => {
     if (!containerRef.current) return;
     const css = getComputedStyle(document.documentElement);
-    const up = css.getPropertyValue("--up").trim() || "#34D399";
-    const down = css.getPropertyValue("--down").trim() || "#F87171";
+    const v = (n: string, f: string) => css.getPropertyValue(n).trim() || f;
+    const up = v("--up", "#34D399");
+    const down = v("--down", "#F87171");
+    const bg = v("--bg", "#0A0B0D");
+    const gridColor = v("--border", "#1f1f1f");
+    const textColor = v("--muted", "#8A9099");
 
     const chart = createChart(containerRef.current, {
-      layout: { background: { type: ColorType.Solid, color: "#0a0a0a" }, textColor: "#d4d4d4" },
-      grid: { vertLines: { color: "#1f1f1f" }, horzLines: { color: "#1f1f1f" } },
+      layout: { background: { type: ColorType.Solid, color: bg }, textColor },
+      grid: { vertLines: { color: gridColor }, horzLines: { color: gridColor } },
       width: containerRef.current.clientWidth,
       height: 320,
       timeScale: { timeVisible: true },

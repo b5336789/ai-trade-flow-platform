@@ -74,7 +74,7 @@ export function MarketPanel() {
         <button
           onClick={askAi}
           disabled={aiLoading}
-          className="rounded-md bg-accent px-3 py-1 text-sm font-medium hover:bg-accent-dim disabled:opacity-50"
+          className="rounded-md bg-accent px-3 py-1 text-sm font-medium text-bg hover:brightness-110 disabled:opacity-50"
         >
           {aiLoading ? "Asking AI…" : "AI Signal"}
         </button>

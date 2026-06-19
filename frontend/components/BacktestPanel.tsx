@@ -149,7 +149,7 @@ export function BacktestPanel() {
         <button
           onClick={run}
           disabled={loading}
-          className="rounded-md bg-accent px-3 py-1 text-sm font-medium hover:bg-accent-dim disabled:opacity-50"
+          className="rounded-md bg-accent px-3 py-1 text-sm font-medium text-bg hover:brightness-110 disabled:opacity-50"
         >
           {loading ? "…" : "Run"}
         </button>
