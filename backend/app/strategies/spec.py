@@ -9,7 +9,12 @@ from __future__ import annotations
 import enum
 from typing import Annotated, Literal, Union
 
+import pandas as pd
 from pydantic import BaseModel, Field, model_validator
+
+from app.schemas import Candle, Signal, SignalAction
+from app.strategies.base import Strategy
+from app.strategies import indicators as ind
 
 MAX_INDICATORS = 16
 MAX_PARAMS = 16
@@ -158,13 +163,6 @@ class StrategySpec(BaseModel):
             if missing_p:
                 raise ValueError(f"{tree_name} references unknown params: {sorted(missing_p)}")
         return self
-
-
-import pandas as pd
-
-from app.schemas import Candle, Signal, SignalAction
-from app.strategies.base import Strategy
-from app.strategies import indicators as ind
 
 
 class SpecStrategy(Strategy):
