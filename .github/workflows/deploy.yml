@@ -82,17 +82,37 @@ jobs:
       - name: Login to ECR
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Write app secrets to Secrets Manager
+      - name: Validate production tokens
+        id: validate_tokens
         env:
           API_TOKEN: ${{ secrets.API_TOKEN }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          NEXT_PUBLIC_API_TOKEN: ${{ secrets.NEXT_PUBLIC_API_TOKEN }}
         run: |
           set -euo pipefail
           if [ -z "$API_TOKEN" ]; then
             printf '%s\n' 'API_TOKEN secret is required for production deploy' >&2
             exit 1
           fi
+          if [ -z "$NEXT_PUBLIC_API_TOKEN" ]; then
+            printf '%s\n' 'NEXT_PUBLIC_API_TOKEN secret is required for production deploy' >&2
+            exit 1
+          fi
+          if [ "$NEXT_PUBLIC_API_TOKEN" != "$API_TOKEN" ]; then
+            printf '%s\n' 'NEXT_PUBLIC_API_TOKEN must match API_TOKEN for production deploy' >&2
+            exit 1
+          fi
 
+          {
+            printf 'api_token=%s\n' "$API_TOKEN"
+            printf 'next_public_api_token=%s\n' "$NEXT_PUBLIC_API_TOKEN"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Write app secrets to Secrets Manager
+        env:
+          API_TOKEN: ${{ steps.validate_tokens.outputs.api_token }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          set -euo pipefail
           aws secretsmanager put-secret-value \
             --secret-id "${{ steps.bootstrap.outputs.api_token_secret_name }}" \
             --secret-string "$API_TOKEN"
@@ -121,19 +141,9 @@ jobs:
       - name: Build and push frontend image
         id: frontend_image
         env:
-          API_TOKEN: ${{ secrets.API_TOKEN }}
-          NEXT_PUBLIC_API_TOKEN: ${{ secrets.NEXT_PUBLIC_API_TOKEN }}
+          NEXT_PUBLIC_API_TOKEN: ${{ steps.validate_tokens.outputs.next_public_api_token }}
         run: |
           set -euo pipefail
-          if [ -z "$NEXT_PUBLIC_API_TOKEN" ]; then
-            printf '%s\n' 'NEXT_PUBLIC_API_TOKEN secret is required for production deploy' >&2
-            exit 1
-          fi
-          if [ "$NEXT_PUBLIC_API_TOKEN" != "$API_TOKEN" ]; then
-            printf '%s\n' 'NEXT_PUBLIC_API_TOKEN must match API_TOKEN for production deploy' >&2
-            exit 1
-          fi
-
           frontend_image="${{ steps.bootstrap.outputs.frontend_repo }}:${IMAGE_TAG}"
           docker build \
             --build-arg NEXT_PUBLIC_API_BASE_URL="" \

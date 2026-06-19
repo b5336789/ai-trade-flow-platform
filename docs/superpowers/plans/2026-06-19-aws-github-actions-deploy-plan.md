@@ -1404,16 +1404,35 @@ jobs:
       - name: Login to ECR
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Write app secrets to Secrets Manager
+      - name: Validate production tokens
+        id: validate_tokens
         env:
           API_TOKEN: ${{ secrets.API_TOKEN }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          NEXT_PUBLIC_API_TOKEN: ${{ secrets.NEXT_PUBLIC_API_TOKEN }}
         run: |
           if [ -z "$API_TOKEN" ]; then
             printf '%s\n' 'API_TOKEN secret is required for production deploy' >&2
             exit 1
           fi
+          if [ -z "$NEXT_PUBLIC_API_TOKEN" ]; then
+            printf '%s\n' 'NEXT_PUBLIC_API_TOKEN secret is required for production deploy' >&2
+            exit 1
+          fi
+          if [ "$NEXT_PUBLIC_API_TOKEN" != "$API_TOKEN" ]; then
+            printf '%s\n' 'NEXT_PUBLIC_API_TOKEN must match API_TOKEN for production deploy' >&2
+            exit 1
+          fi
 
+          {
+            printf 'api_token=%s\n' "$API_TOKEN"
+            printf 'next_public_api_token=%s\n' "$NEXT_PUBLIC_API_TOKEN"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Write app secrets to Secrets Manager
+        env:
+          API_TOKEN: ${{ steps.validate_tokens.outputs.api_token }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
           aws secretsmanager put-secret-value \
             --secret-id "${{ steps.bootstrap.outputs.api_token_secret_name }}" \
             --secret-string "$API_TOKEN"
@@ -1439,18 +1458,8 @@ jobs:
       - name: Build and push frontend image
         id: frontend_image
         env:
-          API_TOKEN: ${{ secrets.API_TOKEN }}
-          NEXT_PUBLIC_API_TOKEN: ${{ secrets.NEXT_PUBLIC_API_TOKEN }}
+          NEXT_PUBLIC_API_TOKEN: ${{ steps.validate_tokens.outputs.next_public_api_token }}
         run: |
-          if [ -z "$NEXT_PUBLIC_API_TOKEN" ]; then
-            printf '%s\n' 'NEXT_PUBLIC_API_TOKEN secret is required for production deploy' >&2
-            exit 1
-          fi
-          if [ "$NEXT_PUBLIC_API_TOKEN" != "$API_TOKEN" ]; then
-            printf '%s\n' 'NEXT_PUBLIC_API_TOKEN must match API_TOKEN for production deploy' >&2
-            exit 1
-          fi
-
           frontend_image="${{ steps.bootstrap.outputs.frontend_repo }}:${IMAGE_TAG}"
           docker build \
             --build-arg NEXT_PUBLIC_API_BASE_URL="" \
@@ -1569,7 +1578,7 @@ Add these repository or environment secrets:
 - `NEXT_PUBLIC_API_TOKEN`
 - `ANTHROPIC_API_KEY`
 
-The deploy workflow writes `API_TOKEN` and `ANTHROPIC_API_KEY` into AWS Secrets Manager with the AWS CLI before the full Terraform apply. When `ANTHROPIC_API_KEY` is empty, it writes the sentinel value `__disabled__`, and the backend normalizes that sentinel back to an empty string so AI features remain disabled. The workflow also validates that `API_TOKEN` and `NEXT_PUBLIC_API_TOKEN` match before building the frontend image. `NEXT_PUBLIC_API_TOKEN` is visible to browser clients, so it is not a private server secret.
+The deploy workflow validates `API_TOKEN` and `NEXT_PUBLIC_API_TOKEN` before writing any secrets, then writes `API_TOKEN` and `ANTHROPIC_API_KEY` into AWS Secrets Manager with the AWS CLI before the full Terraform apply. When `ANTHROPIC_API_KEY` is empty, it writes the sentinel value `__disabled__`, and the backend normalizes that sentinel back to an empty string so AI features remain disabled. `NEXT_PUBLIC_API_TOKEN` is visible to browser clients, so it is not a private server secret.
 
 ## Deploy
 
