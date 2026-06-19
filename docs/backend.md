@@ -22,6 +22,7 @@ SQLModel engine(預設 SQLite)。`init_db()` 建表;`get_session()` 為 FastAPI 
 | 檔案 | 內容 |
 | --- | --- |
 | `fx.py` | `FxConverter(base_currency, rates)`:以**設定驅動的靜態匯率**把金額折算為基準幣;`to_base(amount, ccy)` 同幣別直接回傳、缺率 fail loud(`ValueError`);`from_settings()` 由設定建立;`MARKET_QUOTE_CURRENCY`/`quote_currency_for` 提供 市場→計價幣(crypto→USDT、tw_stock→TWD、us_stock→USD)。Phase-0 最小接縫,M1.1 在同介面換成即時來源 (M0.6) |
+| `calendar.py` | `is_market_open(market, dt)`:純函式、決定性。tw_stock 09:00–13:30 Asia/Taipei、us_stock 09:30–16:00 America/New_York(皆排除週末與內建假日集),crypto 永遠開盤。**dt 契約**:tz-aware 依其時區、naive 視為 UTC,內部轉成市場時區。假日為可匯入/可變的 `TW_STOCK_HOLIDAYS`/`US_STOCK_HOLIDAYS` 集合,`add_holidays(market, dates)` 可擴充。用 `zoneinfo`,無新依賴 (M1.4) |
 
 ## `brokers/` — 券商抽象(核心接縫)
 
@@ -71,8 +72,12 @@ SQLModel engine(預設 SQLite)。`init_db()` 建表;`get_session()` 為 FastAPI 
 `notify`(兩者合一)。`execute_order` 成交後會發出 `success` 通知。`Notification` 資料表保存站內動態。
 
 ## `scheduler/` — 自動執行
-`service.py`:APScheduler `BackgroundScheduler`。`Schedule` 對應一個間隔 job;觸發時跑工作流、
+`service.py`:APScheduler `BackgroundScheduler`。`Schedule` 對應一個 job;觸發時跑工作流、
 寫 `RunLog`、更新排程狀態。啟動時還原已啟用排程。
+M1.4:job 設 `max_instances=1`、`coalesce=True`、`misfire_grace_time=30`;`Schedule.cron` 有值時
+以 `CronTrigger` 取代 interval。`respect_market_hours=True`(預設)時,觸發當下市場收盤則 **SKIP**
+(`last_status="skipped: market closed"`,非錯誤、不寫 RunLog)。排程市場取自工作流第一個 `data_source`
+節點的 `params["market"]`(預設 crypto,與引擎一致),無 data_source(如純 logger)視為永遠開盤。
 
 ## `api/` — HTTP 路由
 `markets.py`、`orders.py`、`ai.py`、`workflows.py`、`backtest.py`、`schedules.py`。

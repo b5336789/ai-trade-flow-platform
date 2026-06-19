@@ -16,6 +16,8 @@ router = APIRouter(prefix="/api/schedules", tags=["schedules"])
 class ScheduleCreate(BaseModel):
     workflow_id: int
     interval_seconds: int = Field(ge=5)  # floor to avoid hammering exchanges
+    cron: str | None = None  # optional cron expression; overrides interval when set (M1.4)
+    respect_market_hours: bool = True  # skip ticks while the workflow's market is closed (M1.4)
     enabled: bool = True
 
 
@@ -26,6 +28,8 @@ def create_schedule(payload: ScheduleCreate, session: Session = Depends(get_sess
     schedule = Schedule(
         workflow_id=payload.workflow_id,
         interval_seconds=payload.interval_seconds,
+        cron=payload.cron,
+        respect_market_hours=payload.respect_market_hours,
         enabled=payload.enabled,
     )
     session.add(schedule)
