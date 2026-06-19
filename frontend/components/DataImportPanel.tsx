@@ -26,16 +26,16 @@ export function DataImportPanel() {
   }
 
   return (
-    <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4">
-      <h2 className="mb-1 text-lg font-semibold">匯入歷史資料(台股 / 美股)</h2>
-      <p className="mb-3 text-xs text-neutral-400">
+    <section className="rounded-lg border border-border bg-surface-1 p-4">
+      <h2 className="font-display mb-1 text-lg font-semibold">匯入歷史資料(台股 / 美股)</h2>
+      <p className="mb-3 text-xs text-muted">
         台股/美股尚未串接真實券商(元大 / Firstrade)。可在此貼上 OHLCV CSV,即可離線回測與紙上交易。
       </p>
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <select
           value={market}
           onChange={(e) => setMarket(e.target.value)}
-          className="rounded bg-neutral-800 px-2 py-1 text-sm"
+          className="rounded-md bg-surface-2 px-2 py-1 text-sm"
         >
           {MARKETS.map((m) => (
             <option key={m.value} value={m.value}>
@@ -46,15 +46,15 @@ export function DataImportPanel() {
         <input
           value={symbol}
           onChange={(e) => setSymbol(e.target.value)}
-          className="rounded bg-neutral-800 px-2 py-1 text-sm"
+          className="rounded-md bg-surface-2 px-2 py-1 text-sm"
           placeholder="代號 (如 2330 / AAPL)"
         />
-        <button onClick={importCsv} className="rounded bg-blue-600 px-3 py-1 text-sm font-medium hover:bg-blue-500">
+        <button onClick={importCsv} className="rounded-md bg-accent px-3 py-1 text-sm font-medium hover:bg-accent-dim">
           匯入
         </button>
         <button
           onClick={() => setCsv(SAMPLE)}
-          className="rounded bg-neutral-800 px-2 py-1 text-xs hover:bg-neutral-700"
+          className="rounded-md bg-surface-2 px-2 py-1 text-xs hover:bg-surface-3"
         >
           填入範例
         </button>
@@ -64,10 +64,10 @@ export function DataImportPanel() {
         onChange={(e) => setCsv(e.target.value)}
         rows={5}
         placeholder={"timestamp,open,high,low,close,volume\n2024-01-01,100,105,99,104,1000"}
-        className="w-full rounded border border-neutral-800 bg-neutral-950 p-2 font-mono text-xs text-neutral-200"
+        className="w-full rounded-lg border border-border bg-bg p-2 font-mono text-xs text-text"
       />
-      {msg && <p className="mt-2 text-sm text-green-400">{msg}</p>}
-      {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
+      {msg && <p className="mt-2 text-sm text-up">{msg}</p>}
+      {error && <p className="mt-2 text-sm text-error">{error}</p>}
     </section>
   );
 }

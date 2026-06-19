@@ -9,6 +9,10 @@ export function CandleChart({ candles }: { candles: Candle[] }) {
 
   useEffect(() => {
     if (!containerRef.current) return;
+    const css = getComputedStyle(document.documentElement);
+    const up = css.getPropertyValue("--up").trim() || "#34D399";
+    const down = css.getPropertyValue("--down").trim() || "#F87171";
+
     const chart = createChart(containerRef.current, {
       layout: { background: { type: ColorType.Solid, color: "#0a0a0a" }, textColor: "#d4d4d4" },
       grid: { vertLines: { color: "#1f1f1f" }, horzLines: { color: "#1f1f1f" } },
@@ -17,11 +21,11 @@ export function CandleChart({ candles }: { candles: Candle[] }) {
       timeScale: { timeVisible: true },
     });
     const series = chart.addCandlestickSeries({
-      upColor: "#22c55e",
-      downColor: "#ef4444",
+      upColor: up,
+      downColor: down,
       borderVisible: false,
-      wickUpColor: "#22c55e",
-      wickDownColor: "#ef4444",
+      wickUpColor: up,
+      wickDownColor: down,
     });
     series.setData(
       candles.map((c) => ({

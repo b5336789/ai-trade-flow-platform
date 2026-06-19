@@ -38,13 +38,13 @@ function Field({
   type?: string;
 }) {
   return (
-    <label className="mb-1 block text-[10px] text-neutral-400">
+    <label className="mb-1 block text-[10px] text-muted">
       {label}
       <input
         type={type}
         value={String(value ?? "")}
         onChange={(e) => onChange(e.target.value)}
-        className="mt-0.5 w-full rounded bg-neutral-800 px-1 py-0.5 text-xs text-neutral-100"
+        className="mt-0.5 w-full rounded-sm bg-surface-2 px-1 py-0.5 text-xs text-text"
       />
     </label>
   );
@@ -58,9 +58,9 @@ export function TradeNode({ id, data }: NodeProps) {
   const hasOutput = d.nodeType !== "logger" && d.nodeType !== "order";
 
   return (
-    <div className="min-w-[170px] rounded-md border border-neutral-700 bg-neutral-900 p-2 shadow">
+    <div className="min-w-[170px] rounded-md border border-border bg-surface-1 p-2 shadow">
       {hasInput && <Handle type="target" position={Position.Left} />}
-      <div className="mb-1 text-xs font-semibold text-indigo-300">{TITLES[d.nodeType]}</div>
+      <div className="mb-1 text-xs font-semibold text-accent">{TITLES[d.nodeType]}</div>
 
       {d.nodeType === "data_source" && (
         <>
@@ -76,12 +76,12 @@ export function TradeNode({ id, data }: NodeProps) {
           const schema = STRATEGY_PARAMS[name] ?? {};
           return (
             <>
-              <label className="mb-1 block text-[10px] text-neutral-400">
+              <label className="mb-1 block text-[10px] text-muted">
                 name
                 <select
                   value={name}
                   onChange={(e) => set("name", e.target.value)}
-                  className="mt-0.5 w-full rounded bg-neutral-800 px-1 py-0.5 text-xs"
+                  className="mt-0.5 w-full rounded-sm bg-surface-2 px-1 py-0.5 text-xs"
                 >
                   {STRATEGY_NAMES.map((s) => (
                     <option key={s} value={s}>
@@ -120,12 +120,12 @@ export function TradeNode({ id, data }: NodeProps) {
 
       {d.nodeType === "combine" && (
         <>
-          <label className="mb-1 block text-[10px] text-neutral-400">
+          <label className="mb-1 block text-[10px] text-muted">
             mode
             <select
               value={String(p.mode ?? "AND")}
               onChange={(e) => set("mode", e.target.value)}
-              className="mt-0.5 w-full rounded bg-neutral-800 px-1 py-0.5 text-xs"
+              className="mt-0.5 w-full rounded-sm bg-surface-2 px-1 py-0.5 text-xs"
             >
               {COMBINE_MODES.map((m) => (
                 <option key={m} value={m}>
@@ -137,19 +137,19 @@ export function TradeNode({ id, data }: NodeProps) {
           {String(p.mode ?? "AND") === "OR" && (
             <Field label="bias (buy/sell)" value={p.bias} onChange={(v) => set("bias", v)} />
           )}
-          <div className="text-[10px] text-neutral-500">merges many Signals into one</div>
+          <div className="text-[10px] text-faint">merges many Signals into one</div>
         </>
       )}
 
       {d.nodeType === "condition" && (
         <>
           <Field label="source" value={p.source} onChange={(v) => set("source", v)} />
-          <label className="mb-1 block text-[10px] text-neutral-400">
+          <label className="mb-1 block text-[10px] text-muted">
             operator
             <select
               value={String(p.operator ?? ">")}
               onChange={(e) => set("operator", e.target.value)}
-              className="mt-0.5 w-full rounded bg-neutral-800 px-1 py-0.5 text-xs"
+              className="mt-0.5 w-full rounded-sm bg-surface-2 px-1 py-0.5 text-xs"
             >
               {CONDITION_OPERATORS.map((o) => (
                 <option key={o} value={o}>
@@ -165,12 +165,12 @@ export function TradeNode({ id, data }: NodeProps) {
       {d.nodeType === "branch" && (
         <>
           <Field label="source" value={p.source} onChange={(v) => set("source", v)} />
-          <label className="mb-1 block text-[10px] text-neutral-400">
+          <label className="mb-1 block text-[10px] text-muted">
             operator
             <select
               value={String(p.operator ?? ">")}
               onChange={(e) => set("operator", e.target.value)}
-              className="mt-0.5 w-full rounded bg-neutral-800 px-1 py-0.5 text-xs"
+              className="mt-0.5 w-full rounded-sm bg-surface-2 px-1 py-0.5 text-xs"
             >
               {CONDITION_OPERATORS.map((o) => (
                 <option key={o} value={o}>
@@ -180,11 +180,11 @@ export function TradeNode({ id, data }: NodeProps) {
             </select>
           </label>
           <Field label="value" type="number" value={p.value} onChange={(v) => set("value", Number(v))} />
-          <div className="text-[10px] text-neutral-500">passes Signal when condition holds, else hold</div>
+          <div className="text-[10px] text-faint">passes Signal when condition holds, else hold</div>
         </>
       )}
 
-      {d.nodeType === "logger" && <div className="text-[10px] text-neutral-500">records run output</div>}
+      {d.nodeType === "logger" && <div className="text-[10px] text-faint">records run output</div>}
 
       {hasOutput && <Handle type="source" position={Position.Right} />}
     </div>
