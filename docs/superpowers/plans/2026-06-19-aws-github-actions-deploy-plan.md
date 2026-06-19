@@ -68,7 +68,7 @@ Expected: the deployment work continues on the current feature branch, not by sw
 **Files:**
 - Modify: `.gitignore`
 
-- [ ] **Step 1: Add Terraform local artifacts to `.gitignore`**
+- [ ] **Step 1: Add Terraform working artifacts to `.gitignore`**
 
 Append this block:
 
@@ -85,7 +85,6 @@ override.tf
 override.tf.json
 *_override.tf
 *_override.tf.json
-.terraform.lock.hcl
 ```
 
 - [ ] **Step 2: Verify ignore rules**
