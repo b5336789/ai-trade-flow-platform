@@ -133,14 +133,14 @@ export function WorkflowBuilder() {
   ];
 
   return (
-    <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4">
+    <section className="rounded-lg border border-border bg-surface-1 p-4">
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <h2 className="mr-2 text-lg font-semibold">Workflow Builder</h2>
+        <h2 className="font-display mr-2 text-lg font-semibold">Workflow Builder</h2>
         {NODE_BUTTONS.map((t) => (
           <button
             key={t}
             onClick={() => addNode(t)}
-            className="rounded bg-neutral-800 px-2 py-1 text-xs hover:bg-neutral-700"
+            className="rounded-md bg-surface-2 px-2 py-1 text-xs hover:bg-surface-3"
           >
             + {t}
           </button>
@@ -148,26 +148,26 @@ export function WorkflowBuilder() {
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="ml-auto rounded bg-neutral-800 px-2 py-1 text-sm"
+          className="ml-auto rounded-md bg-surface-2 px-2 py-1 text-sm"
           placeholder="workflow name"
         />
         <button
           onClick={save}
-          className="rounded bg-blue-600 px-3 py-1 text-sm font-medium hover:bg-blue-500"
+          className="rounded-md bg-accent px-3 py-1 text-sm font-medium text-bg hover:brightness-110"
         >
           Save
         </button>
         <button
           onClick={run}
           disabled={running}
-          className="rounded bg-green-600 px-3 py-1 text-sm font-medium hover:bg-green-500 disabled:opacity-50"
+          className="rounded-md bg-up/15 px-3 py-1 text-sm font-medium text-up hover:bg-up/25 disabled:opacity-50"
         >
           {running ? "Running…" : "Run"}
         </button>
       </div>
-      {savedMsg && <p className="mb-2 text-sm text-green-400">{savedMsg}</p>}
+      {savedMsg && <p className="mb-2 text-sm text-up">{savedMsg}</p>}
 
-      <div className="h-[360px] rounded border border-neutral-800">
+      <div className="h-[360px] rounded-lg border border-border">
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -182,20 +182,20 @@ export function WorkflowBuilder() {
         </ReactFlow>
       </div>
 
-      {error && <p className="mt-3 text-sm text-red-400">Run error: {error}</p>}
+      {error && <p className="mt-3 text-sm text-error">Run error: {error}</p>}
       {result && (
-        <div className="mt-3 rounded border border-neutral-800 bg-neutral-900 p-3 text-xs">
+        <div className="mt-3 rounded-lg border border-border bg-surface-2 p-3 text-xs">
           <div className="mb-1">
             Status:{" "}
-            <span className={result.status === "ok" ? "text-green-400" : "text-red-400"}>
+            <span className={result.status === "ok" ? "text-up" : "text-error"}>
               {result.status}
             </span>
-            {result.error && <span className="text-red-400"> — {result.error}</span>}
+            {result.error && <span className="text-error"> — {result.error}</span>}
           </div>
           <ol className="space-y-0.5">
             {result.steps.map((s) => (
-              <li key={s.node_id} className="text-neutral-300">
-                <span className="text-neutral-500">{s.type}</span> [{s.node_id}]:{" "}
+              <li key={s.node_id} className="text-text">
+                <span className="text-faint">{s.type}</span> [{s.node_id}]:{" "}
                 {JSON.stringify(s.summary)}
               </li>
             ))}

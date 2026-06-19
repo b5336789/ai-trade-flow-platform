@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api, MARKETS, type BacktestResult, type CompareRow, type EquityPoint, type OptimizeRow } from "@/lib/api";
 import { OPTIMIZE_GRID, STRATEGY_NAMES, STRATEGY_PARAMS } from "@/lib/strategies";
+import { setMarket } from "@/lib/useMarket";
 
 function Sparkline({ points }: { points: EquityPoint[] }) {
   if (points.length < 2) return null;
@@ -19,10 +20,10 @@ function Sparkline({ points }: { points: EquityPoint[] }) {
       return `${i === 0 ? "M" : "L"}${x.toFixed(2)},${y.toFixed(2)}`;
     })
     .join(" ");
-  const up = values[values.length - 1] >= values[0];
+  const isUp = values[values.length - 1] >= values[0];
   return (
     <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className="h-16 w-full">
-      <path d={path} fill="none" stroke={up ? "#22c55e" : "#ef4444"} strokeWidth={1} />
+      <path d={path} fill="none" stroke={isUp ? "var(--up)" : "var(--down)"} strokeWidth={1} />
     </svg>
   );
 }
@@ -31,7 +32,7 @@ const pct = (n: number) => `${n >= 0 ? "+" : ""}${n.toFixed(2)}%`;
 
 export function BacktestPanel() {
   const [symbol, setSymbol] = useState("BTC/USDT");
-  const [market, setMarket] = useState("crypto");
+  const [market, setMarketState] = useState("crypto");
   const [strategy, setStrategy] = useState("ma_cross");
   const [params, setParams] = useState<Record<string, number>>({ ...STRATEGY_PARAMS.ma_cross });
   const [result, setResult] = useState<BacktestResult | null>(null);
@@ -39,6 +40,8 @@ export function BacktestPanel() {
   const [optimization, setOptimization] = useState<OptimizeRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => { setMarket(market); }, [market]);
 
   function changeStrategy(name: string) {
     setStrategy(name);
@@ -101,13 +104,13 @@ export function BacktestPanel() {
   }
 
   return (
-    <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4">
-      <h2 className="mb-3 text-lg font-semibold">Backtest</h2>
+    <section className="rounded-lg border border-border bg-surface-1 p-4">
+      <h2 className="font-display mb-3 text-lg font-semibold">Backtest</h2>
       <div className="mb-3 flex flex-wrap items-end gap-2">
         <select
           value={market}
-          onChange={(e) => setMarket(e.target.value)}
-          className="rounded bg-neutral-800 px-2 py-1 text-sm"
+          onChange={(e) => setMarketState(e.target.value)}
+          className="rounded-md bg-surface-2 px-2 py-1 text-sm"
         >
           {MARKETS.map((m) => (
             <option key={m.value} value={m.value}>
@@ -118,13 +121,13 @@ export function BacktestPanel() {
         <input
           value={symbol}
           onChange={(e) => setSymbol(e.target.value.toUpperCase())}
-          className="rounded bg-neutral-800 px-2 py-1 text-sm"
+          className="rounded-md bg-surface-2 px-2 py-1 text-sm"
           placeholder="BTC/USDT"
         />
         <select
           value={strategy}
           onChange={(e) => changeStrategy(e.target.value)}
-          className="rounded bg-neutral-800 px-2 py-1 text-sm"
+          className="rounded-md bg-surface-2 px-2 py-1 text-sm"
         >
           {STRATEGY_NAMES.map((s) => (
             <option key={s} value={s}>
@@ -133,40 +136,40 @@ export function BacktestPanel() {
           ))}
         </select>
         {Object.keys(params).map((key) => (
-          <label key={key} className="text-xs text-neutral-400">
+          <label key={key} className="text-xs text-muted">
             {key}
             <input
               type="number"
               value={params[key]}
               onChange={(e) => setParams((p) => ({ ...p, [key]: Number(e.target.value) }))}
-              className="ml-1 w-16 rounded bg-neutral-800 px-1 py-1 text-sm text-neutral-100"
+              className="ml-1 w-16 rounded-md bg-surface-2 px-1 py-1 text-sm text-text"
             />
           </label>
         ))}
         <button
           onClick={run}
           disabled={loading}
-          className="rounded bg-indigo-600 px-3 py-1 text-sm font-medium hover:bg-indigo-500 disabled:opacity-50"
+          className="rounded-md bg-accent px-3 py-1 text-sm font-medium text-bg hover:brightness-110 disabled:opacity-50"
         >
           {loading ? "…" : "Run"}
         </button>
         <button
           onClick={compare}
           disabled={loading}
-          className="rounded bg-purple-600 px-3 py-1 text-sm font-medium hover:bg-purple-500 disabled:opacity-50"
+          className="rounded-md bg-surface-2 text-text border border-border-strong px-3 py-1 text-sm font-medium hover:bg-surface-3 disabled:opacity-50"
         >
           Compare all
         </button>
         <button
           onClick={optimize}
           disabled={loading}
-          className="rounded bg-amber-600 px-3 py-1 text-sm font-medium hover:bg-amber-500 disabled:opacity-50"
+          className="rounded-md bg-surface-2 text-text border border-border-strong px-3 py-1 text-sm font-medium hover:bg-surface-3 disabled:opacity-50"
         >
           Optimize
         </button>
       </div>
 
-      {error && <p className="text-sm text-red-400">Backtest error: {error}</p>}
+      {error && <p className="text-sm text-error">Backtest error: {error}</p>}
 
       {result && (
         <div className="space-y-3">
@@ -182,7 +185,7 @@ export function BacktestPanel() {
 
       {optimization && (
         <table className="w-full text-left text-xs">
-          <thead className="text-neutral-500">
+          <thead className="text-faint">
             <tr>
               <th className="py-1">Params</th>
               <th>OOS Ret</th>
@@ -196,7 +199,7 @@ export function BacktestPanel() {
           </thead>
           <tbody>
             {optimization.slice(0, 10).map((r, i) => (
-              <tr key={i} className="border-t border-neutral-800">
+              <tr key={i} className="border-t border-border">
                 <td className="py-1 font-mono">
                   {i === 0 && !r.error ? "🏆 " : ""}
                   {Object.entries(r.params)
@@ -204,31 +207,31 @@ export function BacktestPanel() {
                     .join(", ")}
                 </td>
                 {r.error ? (
-                  <td colSpan={7} className="text-red-400">
+                  <td colSpan={7} className="text-error">
                     {r.error}
                   </td>
                 ) : (
                   <>
                     {/* M0.4: headline is the out-of-sample return; IS→OOS gap exposes overfitting. */}
-                    <td className={(r.oos_return_pct ?? r.total_return_pct) >= 0 ? "text-green-400" : "text-red-400"}>
+                    <td className={`num ${(r.oos_return_pct ?? r.total_return_pct) >= 0 ? "text-up" : "text-down"}`}>
                       {pct(r.oos_return_pct ?? r.total_return_pct)}
                     </td>
-                    <td className={(r.is_oos_gap_pct ?? 0) > 0 ? "text-amber-400" : "text-neutral-400"}>
+                    <td className={`num ${(r.is_oos_gap_pct ?? 0) > 0 ? "text-warning" : "text-muted"}`}>
                       {r.is_oos_gap_pct == null ? "—" : pct(r.is_oos_gap_pct)}
                     </td>
-                    <td className={(r.oos_sharpe ?? 0) >= 0 ? "text-green-400" : "text-red-400"}>
+                    <td className={`num ${(r.oos_sharpe ?? 0) >= 0 ? "text-up" : "text-down"}`}>
                       {r.oos_sharpe == null ? "—" : r.oos_sharpe.toFixed(2)}
                     </td>
-                    <td className="text-red-400">{pct(-r.max_drawdown_pct)}</td>
-                    <td>{r.num_trades}</td>
-                    <td>{r.win_rate.toFixed(0)}%</td>
+                    <td className="num text-down">{pct(-r.max_drawdown_pct)}</td>
+                    <td className="num">{r.num_trades}</td>
+                    <td className="num">{r.win_rate.toFixed(0)}%</td>
                     <td>
                       <button
                         onClick={() => {
                           setParams({ ...(r.params as Record<string, number>) });
                           setOptimization(null);
                         }}
-                        className="text-indigo-400 hover:underline"
+                        className="text-accent hover:underline"
                       >
                         use
                       </button>
@@ -243,7 +246,7 @@ export function BacktestPanel() {
 
       {comparison && (
         <table className="w-full text-left text-xs">
-          <thead className="text-neutral-500">
+          <thead className="text-faint">
             <tr>
               <th className="py-1">Strategy</th>
               <th>Return</th>
@@ -254,23 +257,23 @@ export function BacktestPanel() {
           </thead>
           <tbody>
             {comparison.map((r, i) => (
-              <tr key={r.strategy} className="border-t border-neutral-800">
+              <tr key={r.strategy} className="border-t border-border">
                 <td className="py-1">
                   {i === 0 && !r.error ? "🏆 " : ""}
                   {r.strategy}
                 </td>
                 {r.error ? (
-                  <td colSpan={4} className="text-red-400">
+                  <td colSpan={4} className="text-error">
                     {r.error}
                   </td>
                 ) : (
                   <>
-                    <td className={r.total_return_pct >= 0 ? "text-green-400" : "text-red-400"}>
+                    <td className={`num ${r.total_return_pct >= 0 ? "text-up" : "text-down"}`}>
                       {pct(r.total_return_pct)}
                     </td>
-                    <td className="text-red-400">{pct(-r.max_drawdown_pct)}</td>
-                    <td>{r.num_trades}</td>
-                    <td>{r.win_rate.toFixed(0)}%</td>
+                    <td className="num text-down">{pct(-r.max_drawdown_pct)}</td>
+                    <td className="num">{r.num_trades}</td>
+                    <td className="num">{r.win_rate.toFixed(0)}%</td>
                   </>
                 )}
               </tr>
@@ -283,11 +286,11 @@ export function BacktestPanel() {
 }
 
 function Metric({ label, value, good }: { label: string; value: string; good?: boolean }) {
-  const color = good === undefined ? "text-neutral-100" : good ? "text-green-400" : "text-red-400";
+  const color = good === undefined ? "text-text" : good ? "text-up" : "text-down";
   return (
-    <div className="rounded bg-neutral-800/60 p-2">
-      <div className="text-xs text-neutral-500">{label}</div>
-      <div className={`font-semibold ${color}`}>{value}</div>
+    <div className="rounded-md bg-surface-2 p-2">
+      <div className="text-xs text-faint">{label}</div>
+      <div className={`num font-semibold ${color}`}>{value}</div>
     </div>
   );
 }

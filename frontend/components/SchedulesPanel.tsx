@@ -45,16 +45,16 @@ export function SchedulesPanel() {
   const wfName = (id: number) => workflows.data?.find((w) => w.id === id)?.name ?? `#${id}`;
 
   return (
-    <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4">
-      <h2 className="mb-3 text-lg font-semibold">Schedules (auto-run)</h2>
+    <section className="rounded-lg border border-border bg-surface-1 p-4">
+      <h2 className="font-display mb-3 text-lg font-semibold">Schedules (auto-run)</h2>
 
       <div className="mb-3 flex flex-wrap items-end gap-2">
-        <label className="text-xs text-neutral-400">
+        <label className="text-xs text-muted">
           workflow
           <select
             value={workflowId}
             onChange={(e) => setWorkflowId(e.target.value === "" ? "" : Number(e.target.value))}
-            className="ml-1 rounded bg-neutral-800 px-2 py-1 text-sm"
+            className="ml-1 rounded-md bg-surface-2 px-2 py-1 text-sm"
           >
             <option value="">— select —</option>
             {workflows.data?.map((w) => (
@@ -64,29 +64,29 @@ export function SchedulesPanel() {
             ))}
           </select>
         </label>
-        <label className="text-xs text-neutral-400">
+        <label className="text-xs text-muted">
           every (s)
           <input
             type="number"
             min={5}
             value={interval}
             onChange={(e) => setInterval(Number(e.target.value))}
-            className="ml-1 w-20 rounded bg-neutral-800 px-1 py-1 text-sm"
+            className="ml-1 w-20 rounded-md bg-surface-2 px-1 py-1 text-sm"
           />
         </label>
         <button
           onClick={schedule}
-          className="rounded bg-green-600 px-3 py-1 text-sm font-medium hover:bg-green-500"
+          className="rounded-md bg-accent px-3 py-1 text-sm font-medium text-bg hover:brightness-110"
         >
           Schedule
         </button>
       </div>
 
-      {error && <p className="mb-2 text-sm text-red-400">{error}</p>}
+      {error && <p className="mb-2 text-sm text-error">{error}</p>}
 
       {schedules.data && schedules.data.length > 0 ? (
         <table className="w-full text-left text-xs">
-          <thead className="text-neutral-500">
+          <thead className="text-faint">
             <tr>
               <th className="py-1">Workflow</th>
               <th>Interval</th>
@@ -98,25 +98,27 @@ export function SchedulesPanel() {
           </thead>
           <tbody>
             {schedules.data.map((s) => (
-              <tr key={s.id} className="border-t border-neutral-800">
+              <tr key={s.id} className="border-t border-border">
                 <td className="py-1">{wfName(s.workflow_id)}</td>
-                <td>{s.interval_seconds}s</td>
+                <td className="num">{s.interval_seconds}s</td>
                 <td>
                   <button
                     onClick={() => toggle(s.id)}
-                    className={`rounded px-2 py-0.5 ${s.enabled ? "bg-green-700" : "bg-neutral-700"}`}
+                    className={`rounded-sm px-2 py-0.5 text-xs font-medium ${
+                      s.enabled ? "bg-up/15 text-up" : "bg-surface-3 text-muted"
+                    }`}
                   >
                     {s.enabled ? "running" : "paused"}
                   </button>
                 </td>
-                <td className="text-neutral-400">
+                <td className="text-muted">
                   {s.last_run_at ? new Date(s.last_run_at).toLocaleTimeString() : "—"}
                 </td>
-                <td className={s.last_status?.startsWith("error") ? "text-red-400" : "text-neutral-300"}>
+                <td className={s.last_status?.startsWith("error") ? "text-error" : "text-text"}>
                   {s.last_status ?? "—"}
                 </td>
                 <td>
-                  <button onClick={() => remove(s.id)} className="text-red-400 hover:underline">
+                  <button onClick={() => remove(s.id)} className="text-error hover:underline">
                     delete
                   </button>
                 </td>
@@ -125,7 +127,7 @@ export function SchedulesPanel() {
           </tbody>
         </table>
       ) : (
-        <p className="text-xs text-neutral-500">
+        <p className="text-xs text-faint">
           No schedules yet. Save a workflow in the builder, then schedule it here.
         </p>
       )}
