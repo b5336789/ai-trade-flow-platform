@@ -58,8 +58,7 @@ resource "aws_iam_openid_connect_provider" "github" {
   url            = local.oidc_provider_url
   client_id_list = ["sts.amazonaws.com"]
   thumbprint_list = [
-    "6938fd4d98bab03faadb97b34396831e3780aea1",
-    "1c58a3a8518e8759bf075b76b750d4f2df264fcd",
+    "22ff89586561fc2d52f77491e9f1eff1b80be33e",
   ]
 }
 
