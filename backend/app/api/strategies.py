@@ -9,6 +9,7 @@ from app.ai.strategy_agent import design_strategy
 from app.backtest.engine import BacktestResult, run_backtest
 from app.brokers.registry import get_data_broker
 from app.db import get_session
+from app.models import StrategyDef
 from app.schemas import MarketKind
 from app.strategies import library
 from app.strategies.spec import SpecStrategy, StrategySpec
@@ -46,7 +47,7 @@ class StrategyListItem(BaseModel):
     num_params: int
 
 
-def _to_out(row) -> StrategyOut:
+def _to_out(row: "StrategyDef") -> StrategyOut:
     spec = StrategySpec.model_validate(row.spec_json)
     return StrategyOut(id=row.id, name=row.name, description=row.description,
                        source=row.source, spec=spec, rendered_python=render_python(spec))

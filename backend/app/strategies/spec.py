@@ -78,7 +78,7 @@ class ParamDef(BaseModel):
 class IndicatorDef(BaseModel):
     id: str
     kind: IndicatorKind
-    args: dict[str, Union[float, LiteralRef, ParamRef]] = Field(default_factory=dict)
+    args: dict[str, Union[float, ParamRef]] = Field(default_factory=dict)
 
 
 class Comparison(BaseModel):
@@ -184,11 +184,7 @@ class SpecStrategy(Strategy):
             self.params[key] = int(value) if d.type == "int" else float(value)
 
     def _arg(self, value) -> float:
-        if isinstance(value, ParamRef):
-            return self.params[value.ref]
-        if isinstance(value, LiteralRef):
-            return float(value.value)
-        return float(value)
+        return self.params[value.ref] if isinstance(value, ParamRef) else float(value)
 
     def _series(self, df: pd.DataFrame) -> dict[str, pd.Series]:
         out: dict[str, pd.Series] = {}

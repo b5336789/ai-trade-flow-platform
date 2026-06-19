@@ -12,7 +12,7 @@ from app.strategies.spec import StrategySpec
 client = TestClient(app)
 
 _SPEC = {
-    "indicators": [{"id": "r", "kind": "rsi", "args": {"window": {"type": "literal", "value": 14}}}],
+    "indicators": [{"id": "r", "kind": "rsi", "args": {"window": 14}}],
     "entry": {"kind": "cmp", "left": {"type": "indicator", "ref": "r"},
               "op": "le", "right": {"type": "literal", "value": 30}},
     "exit": {"kind": "cmp", "left": {"type": "indicator", "ref": "r"},
