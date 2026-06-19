@@ -1,16 +1,16 @@
 data "aws_caller_identity" "current" {}
 
 locals {
-  name_prefix                = "${var.project_name}-prod"
-  state_bucket_name          = "${var.project_name}-tfstate-${data.aws_caller_identity.current.account_id}-${var.aws_region}"
-  lock_table_name            = "${var.project_name}-tf-locks"
-  github_repository          = "${var.github_owner}/${var.github_repo}"
-  github_branch_ref          = "refs/heads/${var.github_branch}"
-  github_environment         = "production"
-  github_subject_legacy      = "repo:${local.github_repository}:*"
-  github_subject_immutable   = "repo:${var.github_owner}@*/${var.github_repo}@*:*"
-  oidc_provider_url          = "https://token.actions.githubusercontent.com"
-  oidc_provider_host         = "token.actions.githubusercontent.com"
+  name_prefix              = "${var.project_name}-prod"
+  state_bucket_name        = "${var.project_name}-tfstate-${data.aws_caller_identity.current.account_id}-${var.aws_region}"
+  lock_table_name          = "${var.project_name}-tf-locks"
+  github_repository        = "${var.github_owner}/${var.github_repo}"
+  github_branch_ref        = "refs/heads/${var.github_branch}"
+  github_environment       = "production"
+  github_subject_legacy    = "repo:${local.github_repository}:*"
+  github_subject_immutable = "repo:${var.github_owner}@*/${var.github_repo}@*:*"
+  oidc_provider_url        = "https://token.actions.githubusercontent.com"
+  oidc_provider_host       = "token.actions.githubusercontent.com"
 }
 
 resource "aws_s3_bucket" "terraform_state" {
