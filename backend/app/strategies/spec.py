@@ -158,3 +158,102 @@ class StrategySpec(BaseModel):
             if missing_p:
                 raise ValueError(f"{tree_name} references unknown params: {sorted(missing_p)}")
         return self
+
+
+import pandas as pd
+
+from app.schemas import Candle, Signal, SignalAction
+from app.strategies.base import Strategy
+from app.strategies import indicators as ind
+
+
+class SpecStrategy(Strategy):
+    """Interprets a StrategySpec into a Signal. Never executes generated code."""
+
+    def __init__(self, spec: StrategySpec, overrides: dict | None = None) -> None:
+        self.spec = spec
+        self.name = "spec"
+        self.params: dict[str, float] = {p.name: p.default for p in spec.params}
+        defs = {p.name: p for p in spec.params}
+        for key, value in (overrides or {}).items():
+            if key not in defs:
+                raise ValueError(f"unknown param override '{key}'")
+            d = defs[key]
+            if d.min is not None and value < d.min - 1:
+                raise ValueError(f"param '{key}'={value} below min {d.min}")
+            if d.max is not None and value > d.max + 1:
+                raise ValueError(f"param '{key}'={value} above max {d.max}")
+            self.params[key] = int(value) if d.type == "int" else float(value)
+
+    def _arg(self, value) -> float:
+        return self.params[value.ref] if isinstance(value, ParamRef) else float(value)
+
+    def _series(self, df: pd.DataFrame) -> dict[str, pd.Series]:
+        out: dict[str, pd.Series] = {}
+        close = df["close"]
+        for i in self.spec.indicators:
+            a = {k: self._arg(v) for k, v in i.args.items()}
+            if i.kind == IndicatorKind.rsi:
+                out[i.id] = ind.rsi(close, int(a.get("window", 14)))
+            elif i.kind == IndicatorKind.sma:
+                out[i.id] = ind.sma(close, int(a.get("window", 20)))
+            elif i.kind == IndicatorKind.ema:
+                out[i.id] = ind.ema(close, int(a.get("window", 20)))
+            elif i.kind == IndicatorKind.macd:
+                out[i.id] = ind.macd(close)[0]
+            elif i.kind == IndicatorKind.bollinger_hi:
+                out[i.id] = ind.bollinger(close, int(a.get("window", 20)))[0]
+            elif i.kind == IndicatorKind.bollinger_lo:
+                out[i.id] = ind.bollinger(close, int(a.get("window", 20)))[2]
+            elif i.kind == IndicatorKind.close:
+                out[i.id] = close
+            elif i.kind == IndicatorKind.volume:
+                out[i.id] = df["volume"]
+        return out
+
+    def _val(self, operand: Operand, series: dict[str, pd.Series], df: pd.DataFrame, back: int) -> float:
+        if isinstance(operand, IndicatorRef):
+            return float(series[operand.ref].iloc[-1 - back])
+        if isinstance(operand, ParamRef):
+            return self.params[operand.ref]
+        return float(operand.value)
+
+    def _eval(self, node: ConditionTree, series: dict[str, pd.Series], df: pd.DataFrame) -> bool:
+        if isinstance(node, Combinator):
+            if node.op == BoolOp.not_:
+                return not self._eval(node.children[0], series, df)
+            results = [self._eval(c, series, df) for c in node.children]
+            return all(results) if node.op == BoolOp.and_ else any(results)
+        left = self._val(node.left, series, df, 0)
+        right = self._val(node.right, series, df, 0)
+        if node.op == CmpOp.lt:
+            return left < right
+        if node.op == CmpOp.le:
+            return left <= right
+        if node.op == CmpOp.gt:
+            return left > right
+        if node.op == CmpOp.ge:
+            return left >= right
+        if node.op == CmpOp.between:
+            upper = self._val(node.right2, series, df, 0) if node.right2 else right
+            return min(right, upper) <= left <= max(right, upper)
+        # cross: compare previous vs current bar
+        prev_left = self._val(node.left, series, df, 1)
+        prev_right = self._val(node.right, series, df, 1)
+        if node.op == CmpOp.cross_above:
+            return prev_left <= prev_right and left > right
+        return prev_left >= prev_right and left < right  # cross_below
+
+    def generate(self, candles: list[Candle]) -> Signal:
+        df = ind.candles_to_df(candles)
+        if len(df) < 3:
+            raise ValueError(f"spec strategy needs at least 3 candles, got {len(df)}")
+        series = self._series(df)
+        for sid, s in series.items():
+            if s.iloc[-2:].isna().any():
+                raise ValueError(f"indicator '{sid}' has insufficient data for its window")
+        if self._eval(self.spec.entry, series, df):
+            return Signal(action=SignalAction.buy, confidence=1.0, reason="entry condition met", source=self.name)
+        if self._eval(self.spec.exit, series, df):
+            return Signal(action=SignalAction.sell, confidence=1.0, reason="exit condition met", source=self.name)
+        return Signal(action=SignalAction.hold, confidence=0.0, reason="no condition met", source=self.name)

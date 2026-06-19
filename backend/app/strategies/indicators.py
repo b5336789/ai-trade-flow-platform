@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import pandas as pd
 from ta.momentum import RSIIndicator
-from ta.trend import MACD, SMAIndicator
+from ta.trend import MACD, EMAIndicator, SMAIndicator
 from ta.volatility import BollingerBands
 
 from app.schemas import Candle
@@ -38,6 +38,10 @@ def macd(
     """Returns (macd_line, signal_line, histogram)."""
     indicator = MACD(close, window_slow=window_slow, window_fast=window_fast, window_sign=window_sign)
     return indicator.macd(), indicator.macd_signal(), indicator.macd_diff()
+
+
+def ema(close: pd.Series, window: int) -> pd.Series:
+    return EMAIndicator(close, window=window).ema_indicator()
 
 
 def bollinger(
