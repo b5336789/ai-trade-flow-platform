@@ -38,6 +38,15 @@
 | M0.6 | 投組級風控 + Kill switch | 新增 `marketdata/fx.py`(`FxConverter`,靜態匯率換 TWD、缺率 fail-loud)、`trading/runtime_state.py` + `models.RuntimeFlag`(kill switch/halted/day-start equity/當日單數)、`trading/risk.py` `PortfolioGuard`(四閘以 TWD 計,**任一觸發擋進場、永遠放行出場**,單日虧損觸發設 halted)、`api/risk.py`(status/kill-switch/resume,掛 auth)、`execute_order` 接線。**Wave 2 subagent**,PR #16。 | 128 測試(新增 `test_risk_portfolio.py` 11:每閘拒 buy + halt/kill 放行 sell + FxConverter) |
 | M0.8 | Phase 0 完成定義 | 新增 `docs/go-live-checklist.md`(DB 遷移/存取/金鑰/成本/風控+kill switch 實測/OOS/範圍/小額起步);`tests/conftest.py` 改為 session 起始 drop+create,讓測試 DB 決定性(消除 schema 漂移與當日單數累積)。**Phase 0(M0.1–M0.8)全數完成。** | 128 測試(連跑多次穩定) |
 
+## v2 Phase 1 / 2(並行 Wave 4)
+
+| # | 里程碑 | 完成內容 | 驗證 |
+| --- | --- | --- | --- |
+| M1.4 | 開盤行事曆 gating + cron | 新增 `marketdata/calendar.py` `is_market_open`(台股 09:00–13:30 Asia/Taipei、美股 09:30–16:00 ET、皆排除週末/內建假日,crypto 永遠開;dt naive 視為 UTC);`Schedule.respect_market_hours`/`cron`;scheduler 收盤跳過(`skipped: market closed`、非 error、不寫 RunLog)+ cron/interval + `max_instances=1`/`coalesce`/`misfire_grace_time`。**Wave 4 subagent**,PR #18。 | 142 測試(calendar 10 + scheduler 4;含 03:00 台北跳過驗收) |
+| M2.1 | 邏輯/組合節點 | `NodeType` 加 `condition`/`combine`/`branch`;`_first_signal`→`_only_signal`(多 Signal **fail loud**,終結靜默丟棄);`combine` AND/OR/weighted 合併;前端三節點。**Wave 4 subagent**,PR #19。 | 138 測試(新增 10:各 combine 模式 + 多 Signal 進 order 報錯 + condition) |
+| M1.3 | FIFO 損益帳本 | 新增 `trading/ledger.py`(`FifoLedger` FIFO 沖銷、逐筆已實現損益、`CostModel` 計費用/證交稅)、`models.Lot`/`RealizedPnL`、`api/ledger.py`(報表 + 報稅 CSV,掛 auth);接線 `execute_order`(冪等 skip 後、僅實際成交);賣超已記錄 lots 時消耗現有並發 warning(**不擋出場**)。**Wave 4 subagent**,PR #20。 | 135 測試(新增 7:毛額 650 恆等式 + 含費/證交稅 + 部分沖銷 + oversell + 整合 + 冪等不重複) |
+| (整合) | Wave 4 合併驗證 | 三條並行分支(M1.3/M1.4/M2.1)合併後完整套件綠、連跑穩定;`task-backlog`/`development-log` 集中勾選。 | **159 測試**(連跑多次穩定) |
+
 ## 設計原則落實(對照 `CLAUDE.md`)
 - **Simplicity First**:先做 crypto+紙上一條完整切片,再水平擴充。
 - **Surgical Changes**:重構策略 registry 時只動相關處。
