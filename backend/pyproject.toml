@@ -9,6 +9,7 @@ dependencies = [
     "pydantic>=2.6",
     "pydantic-settings>=2.2",
     "sqlmodel>=0.0.16",
+    "psycopg[binary]>=3.2",
     "ccxt>=4.2",
     "pandas>=2.2",
     "numpy>=1.26",

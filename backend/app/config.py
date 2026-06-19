@@ -24,6 +24,14 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
     ai_model: str = "claude-opus-4-8"
 
+    @field_validator("anthropic_api_key", mode="before")
+    @classmethod
+    def _normalize_anthropic_api_key(cls, value: object) -> object:
+        """Treat the deploy sentinel as "unset" so AI stays disabled cleanly."""
+        if value == "__disabled__":
+            return ""
+        return value
+
     # Crypto (Binance via ccxt)
     binance_api_key: str = ""
     binance_api_secret: str = ""
