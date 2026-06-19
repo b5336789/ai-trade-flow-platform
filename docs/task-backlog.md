@@ -28,8 +28,8 @@
 | --- | --- | --- | --- |
 | **v1 骨架** | Checkpoint 1–15 | ✅ 全數完成 | crypto + paper 端到端可運行,70 測試 |
 | **v2 Phase 0** | M0.1–M0.8(接真錢前最低門檻) | ✅ **全數完成**(M0.1–M0.8,128 測試綠) | live 前須逐項完成 `go-live-checklist.md` |
-| **v2 Phase 1** | M1.1–M1.5(跨市場一致性 + broker) | ⬜ 未開始 | |
-| **v2 Phase 2** | M2.1–M2.3(招牌功能) | ⬜ 未開始 | M2.2 策略室為最高風險 |
+| **v2 Phase 1** | M1.1–M1.5(跨市場一致性 + broker) | 🟡 進行中(M1.3、M1.4 ✅;剩 M1.1、M1.2、M1.5) | |
+| **v2 Phase 2** | M2.1–M2.3(招牌功能) | 🟡 進行中(M2.1 ✅;剩 M2.2、M2.3) | M2.2 策略室為最高風險 |
 | **Backlog** | 非目標 / 未來 | ⬜ 不在本期 | 美股 live(IBKR/Alpaca)等 |
 
 > **基準幣別 = TWD**(已確認)。**Phase 0 程式已全部完成;切 live 前務必逐項完成 [`go-live-checklist.md`](./go-live-checklist.md)。**
@@ -52,10 +52,10 @@
 | M0.8 go-live checklist | M0.6 ✅(M0.4/M0.5/M0.7 已完成) | ✅ done | `docs/go-live-checklist.md`、`tests/conftest.py` |
 | **M1.1 FX** | M0.6 ✅(升級其 FX seam) | 🟢 **unblocked** | `marketdata/fx`、`portfolio`、`risk` |
 | M1.2 Broker 故事 | Broker ABC(已在) | 🟢 unblocked(建議 Phase 0 後) | `brokers/*`、`registry`、`notifications`、`vendor` |
-| M1.3 FIFO 帳本 | M0.1(成本)✅ | 🟢 unblocked(建議 Phase 0 後) | `trading/ledger`(新)、`models`、`paper`、`api` |
-| M1.4 行事曆 gating | —(獨立) | 🟢 unblocked(建議 Phase 0 後) | `marketdata/calendar`(新)、`scheduler`、`models` |
+| M1.3 FIFO 帳本 | M0.1(成本)✅ | ✅ done | `trading/ledger`(新)、`models`、`execution`、`api` |
+| M1.4 行事曆 gating | —(獨立) | ✅ done | `marketdata/calendar`(新)、`scheduler`、`models` |
 | M1.5 工作流回測 + AI 重播 | workflow/ai(已在)、M0.4(共用回測)較佳 | 🟡 大致 unblocked | `workflow/engine`、`ai/signal_agent`、`backtest`、`models` |
-| M2.1 邏輯/組合節點 | workflow(已在) | 🟢 unblocked | `workflow/nodes`、`schema`、前端 |
+| M2.1 邏輯/組合節點 | workflow(已在) | ✅ done | `workflow/nodes`、`schema`、前端 |
 | M2.2 策略室 + 沙箱 | Strategy ABC(已在) | 🟢 unblocked(**最高風險,需安全審查**) | `strategy_lab/*`(新)、`models`、`api`、前端 |
 | M2.3 市場消息 | `signal_agent`(已在) | 🟢 unblocked | `marketdata/news`(新)、`signal_agent`、`config` |
 
@@ -63,8 +63,8 @@
 - **Wave 1 ✅ 完成:** M0.4、M0.5、M0.7 — 三條並行 subagent,PR #13/#14/#12 已 merge。
 - **Wave 2 ✅ 完成:** M0.6(subagent,PR #16)+ wrap-up(CAGR/conftest)。
 - **Wave 3 ✅ 完成:** M0.8 go-live checklist + 測試 DB 決定性 → **Phase 0 完成(128 測試綠)**。
-- **下一步:Phase 1**(M1.1 FX 已 unblocked;M1.4/M2.1/M2.3 彼此獨立可並行;M2.2 需安全審查)。
-- **Phase 1/2:** M1.4 / M2.1 / M2.3 等彼此獨立、可在 Phase 0 後再並行;M1.1 等 M0.6;M2.2 需單獨安全審查 checkpoint。
+- **Wave 4 ✅ 完成:** M1.3、M1.4、M2.1 — 三條並行 subagent,PR #20/#18/#19 已 merge(**159 測試綠**)。
+- **下一步:** M1.1 FX(unblocked)、M1.5 工作流回測+AI 重播、M1.2 broker 故事(元大 SPARK / signal-only)、M2.3 市場消息;**M2.2 策略室+硬沙箱**為最高風險,需單獨安全審查 checkpoint。
 
 > **並行守則:** 各分支自 `main` 切出、只動自己的修改區;**`docs/task-backlog.md` 與 `docs/development-log.md` 由主控集中更新**(避免跨分支文件衝突);每條完成前跑完整 `pytest` 保持綠燈;PR 逐一 review + merge,後 merge 者必要時 rebase。
 
@@ -203,24 +203,24 @@
 | 1.2.6 | [ ] | SPARK contract tests(mock) | 🟡 | mock SPARK 元件:登入失敗、部分成交、斷線重連、回報延遲;CI 不依賴真實元件 | `tests/test_stock_brokers.py` |
 | 1.2.7 | [ ] | SPARK 設定文件 | 🟢 | 憑證、UAT 固定 IP、Windows 認證、PROD 切換、手動 smoke test | `docs/yuanta-spark-setup.md`(新) |
 
-## M1.3 — FIFO 損益帳本 ⛔ 已切割
+## M1.3 — FIFO 損益帳本 ✅ 已完成
 
 | ID | ✓ | 任務 | Effort | 內容 | 大致位置 |
 | --- | --- | --- | --- | --- | --- |
-| 1.3.1 | [ ] | Lot / RealizedPnL 模型 | 🟢 | 新增資料表 | `models.py` |
-| 1.3.2 | [ ] | FIFO ledger | 🟡 | 每 (market, symbol) FIFO lots;買開 lot、賣沖銷最舊 lot 計逐筆已實現損益(含成本/稅,沿用 M0.1) | `trading/ledger.py`(新) |
-| 1.3.3 | [ ] | 接線進成交 | 🟡 | paper broker 成交時更新 ledger | `brokers/paper.py` |
-| 1.3.4 | [ ] | 報表 + CSV 匯出 | 🟢 | 依期間/標的報表端點,CSV 供報稅 | `api/` |
-| 1.3.5 | [ ] | 測試 | 🟢 | 買100@10、買100@12、賣150@15 → 已實現 650(再扣成本) | `tests/test_ledger.py`(新) |
+| 1.3.1 | [x] | Lot / RealizedPnL 模型 | 🟢 | 新增資料表 | `models.py` |
+| 1.3.2 | [x] | FIFO ledger | 🟡 | 每 (market, symbol) FIFO lots;買開 lot、賣沖銷最舊 lot 計逐筆已實現損益(含成本/稅,沿用 M0.1) | `trading/ledger.py`(新) |
+| 1.3.3 | [x] | 接線進成交 | 🟡 | paper broker 成交時更新 ledger | `brokers/paper.py` |
+| 1.3.4 | [x] | 報表 + CSV 匯出 | 🟢 | 依期間/標的報表端點,CSV 供報稅 | `api/` |
+| 1.3.5 | [x] | 測試 | 🟢 | 買100@10、買100@12、賣150@15 → 已實現 650(再扣成本) | `tests/test_ledger.py`(新) |
 
-## M1.4 — 開盤行事曆 gating + cron 排程 ⛔ 已切割
+## M1.4 — 開盤行事曆 gating + cron 排程 ✅ 已完成
 
 | ID | ✓ | 任務 | Effort | 內容 | 大致位置 |
 | --- | --- | --- | --- | --- | --- |
-| 1.4.1 | [ ] | calendar | 🟡 | `is_market_open(market, dt)`:台股(09:00–13:30 台北、工作日、可匯入假日)、美股(常規盤、時區假日)、crypto 永遠開 | `marketdata/calendar.py`(新) |
-| 1.4.2 | [ ] | Schedule gating | 🟢 | `respect_market_hours` 旗標 + 選配 cron;收盤跳過記 `skipped: market closed`(非 error) | `models.py`、`scheduler/service.py` |
-| 1.4.3 | [ ] | APScheduler 設定 | 🟢 | `max_instances=1`、`coalesce=True`、`misfire_grace_time` | `scheduler/service.py` |
-| 1.4.4 | [ ] | 測試 | 🟢 | 凍結時間,台股 03:00 觸發→跳過且狀態正確 | `tests/test_scheduler.py` |
+| 1.4.1 | [x] | calendar | 🟡 | `is_market_open(market, dt)`:台股(09:00–13:30 台北、工作日、可匯入假日)、美股(常規盤、時區假日)、crypto 永遠開 | `marketdata/calendar.py`(新) |
+| 1.4.2 | [x] | Schedule gating | 🟢 | `respect_market_hours` 旗標 + 選配 cron;收盤跳過記 `skipped: market closed`(非 error) | `models.py`、`scheduler/service.py` |
+| 1.4.3 | [x] | APScheduler 設定 | 🟢 | `max_instances=1`、`coalesce=True`、`misfire_grace_time` | `scheduler/service.py` |
+| 1.4.4 | [x] | 測試 | 🟢 | 凍結時間,台股 03:00 觸發→跳過且狀態正確 | `tests/test_scheduler.py` |
 
 ## M1.5 — 工作流回測 + AI 訊號可重播 ⛔ 已切割
 
@@ -236,14 +236,14 @@
 
 # Part D — v2 Phase 2:招牌功能(地基穩固後安全地做)⬜
 
-## M2.1 — 邏輯 / 組合節點 ⛔ 已切割
+## M2.1 — 邏輯 / 組合節點 ✅ 已完成
 
 | ID | ✓ | 任務 | Effort | 內容 | 大致位置 |
 | --- | --- | --- | --- | --- | --- |
-| 2.1.1 | [ ] | 新 NodeType schema | 🟢 | `condition`(門檻判斷)、`combine`(AND/OR/加權投票→單一 Signal)、`branch`(依條件路由) | `workflow/schema.py` |
-| 2.1.2 | [ ] | 引擎支援多 Signal | 🟡 | `combine` 接多 Signal;**移除 `_first_signal` 靜默丟棄**(單輸入才直通) | `workflow/nodes.py`、`workflow/engine.py` |
-| 2.1.3 | [ ] | 前端節點 | 🟢 | 新節點型別 UI | `frontend/components/workflow/` |
-| 2.1.4 | [ ] | 測試 | 🟢 | buy+sell 進 `combine(AND)`→hold;`combine(OR)` 依規格;衝突不再被靜默丟棄 | `tests/test_workflow.py` |
+| 2.1.1 | [x] | 新 NodeType schema | 🟢 | `condition`(門檻判斷)、`combine`(AND/OR/加權投票→單一 Signal)、`branch`(依條件路由) | `workflow/schema.py` |
+| 2.1.2 | [x] | 引擎支援多 Signal | 🟡 | `combine` 接多 Signal;**移除 `_first_signal` 靜默丟棄**(單輸入才直通) | `workflow/nodes.py`、`workflow/engine.py` |
+| 2.1.3 | [x] | 前端節點 | 🟢 | 新節點型別 UI | `frontend/components/workflow/` |
+| 2.1.4 | [x] | 測試 | 🟢 | buy+sell 進 `combine(AND)`→hold;`combine(OR)` 依規格;衝突不再被靜默丟棄 | `tests/test_workflow.py` |
 
 ## M2.2 — 策略室 + 硬沙箱 + 上線前回測 gate ⛔ 已切割(**最高風險,合併前需安全審查**)
 
