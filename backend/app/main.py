@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import ai, backtest, markets, notifications, orders, schedules, workflows
+from app.api import ai, backtest, markets, notifications, orders, schedules, strategies, workflows
 from app.db import init_db
 from app.schemas import MarketKind
 from app.scheduler.service import shutdown_scheduler, start_scheduler
@@ -37,6 +37,7 @@ app.include_router(workflows.router)
 app.include_router(backtest.router)
 app.include_router(schedules.router)
 app.include_router(notifications.router)
+app.include_router(strategies.router)
 
 
 @app.get("/health", tags=["meta"])

@@ -11,6 +11,15 @@ from app.strategies.spec import (
     StrategySpec,
 )
 
+
+def _arg_val(v) -> str:
+    """Render an indicator arg value (float, LiteralRef, or ParamRef) to a string."""
+    if isinstance(v, ParamRef):
+        return v.ref
+    if isinstance(v, LiteralRef):
+        return repr(v.value)
+    return repr(v)
+
 _OPS = {"lt": "<", "le": "<=", "gt": ">", "ge": ">="}
 
 
@@ -40,7 +49,7 @@ def render_python(spec: StrategySpec) -> str:
     args = ", ".join(f"{p.name}={int(p.default) if p.type == 'int' else p.default}" for p in spec.params)
     lines = [f"def generate_signal(df, {args}):" if args else "def generate_signal(df):"]
     for ind in spec.indicators:
-        a = ", ".join(f"{k}={v.ref if isinstance(v, ParamRef) else v}" for k, v in ind.args.items())
+        a = ", ".join(f"{k}={_arg_val(v)}" for k, v in ind.args.items())
         lines.append(f"    {ind.id} = {ind.kind.value}(df, {a})")
     lines.append(f"    if {_cond(spec.entry)}:")
     lines.append('        return "buy"')
