@@ -1,0 +1,1766 @@
+# AWS GitHub Actions Deployment Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Build a production-only AWS deployment path using GitHub Actions OIDC, Terraform, ECR, ECS Fargate, ALB, and RDS PostgreSQL.
+
+**Architecture:** Use a one-time Terraform bootstrap stack for remote state and the GitHub OIDC deploy role, then a production Terraform stack for application infrastructure. GitHub Actions runs CI, builds immutable backend/frontend images, pushes to ECR, applies Terraform, updates ECS services, and prints the ALB DNS name. The first release uses ALB HTTP only and keeps trading in paper mode.
+
+**Tech Stack:** GitHub Actions, Terraform, AWS OIDC/IAM, ECR, ECS Fargate, ALB, RDS PostgreSQL, CloudWatch Logs, FastAPI, SQLModel, psycopg, Next.js standalone Docker output.
+
+---
+
+## File Map
+
+Create:
+
+- `.github/workflows/ci.yml` - backend and frontend verification on PR/push.
+- `.github/workflows/deploy.yml` - production deploy via AWS OIDC.
+- `infra/terraform/bootstrap/versions.tf` - Terraform providers for bootstrap.
+- `infra/terraform/bootstrap/variables.tf` - bootstrap inputs.
+- `infra/terraform/bootstrap/main.tf` - S3 state bucket, DynamoDB lock table, GitHub OIDC provider, deploy role.
+- `infra/terraform/bootstrap/outputs.tf` - values needed by GitHub Actions and prod backend config.
+- `infra/terraform/bootstrap/terraform.tfvars.example` - non-secret bootstrap example values.
+- `infra/terraform/prod/versions.tf` - Terraform providers and remote backend.
+- `infra/terraform/prod/variables.tf` - production inputs.
+- `infra/terraform/prod/main.tf` - production AWS resources.
+- `infra/terraform/prod/outputs.tf` - ALB DNS, ECR URLs, ECS names.
+- `infra/terraform/prod/terraform.tfvars.example` - non-secret production example values.
+- `docs/deployment/aws.md` - operator instructions.
+
+Modify:
+
+- `.gitignore` - ignore local Terraform state and plan artifacts.
+- `backend/pyproject.toml` - add PostgreSQL driver.
+- `frontend/Dockerfile` - production multi-stage Docker image.
+- `frontend/next.config.mjs` - enable Next.js standalone output.
+- `.env.example` - document AWS deployment-oriented variables.
+
+Do not modify trading behavior, UI features, broker logic, or unrelated docs.
+
+## Task 1: Guard The Workspace
+
+**Files:**
+- Inspect only: repository root
+
+- [ ] **Step 1: Check for concurrent changes**
+
+Run:
+
+```bash
+git status --short --branch
+```
+
+Expected: either a clean tree or only files from the task being executed. If unrelated files are modified, do not stage them.
+
+- [ ] **Step 2: Confirm the current branch**
+
+Run:
+
+```bash
+git branch --show-current
+```
+
+Expected: the deployment work continues on the current feature branch, not by switching branches.
+
+## Task 2: Add Terraform Ignore Rules
+
+**Files:**
+- Modify: `.gitignore`
+
+- [ ] **Step 1: Add Terraform local artifacts to `.gitignore`**
+
+Append this block:
+
+```gitignore
+
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraform.lock.hcl
+```
+
+- [ ] **Step 2: Verify ignore rules**
+
+Run:
+
+```bash
+git diff -- .gitignore
+```
+
+Expected: only the Terraform ignore block is shown.
+
+- [ ] **Step 3: Commit**
+
+Run:
+
+```bash
+git add .gitignore
+git commit -m "chore: ignore terraform local artifacts"
+```
+
+Expected: one commit containing only `.gitignore`.
+
+## Task 3: Make The Frontend Docker Image Production-Ready
+
+**Files:**
+- Modify: `frontend/Dockerfile`
+- Modify: `frontend/next.config.mjs`
+
+- [ ] **Step 1: Enable standalone output**
+
+Replace `frontend/next.config.mjs` with:
+
+```js
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  reactStrictMode: true,
+  output: "standalone",
+};
+
+export default nextConfig;
+```
+
+- [ ] **Step 2: Replace the frontend Dockerfile**
+
+Replace `frontend/Dockerfile` with:
+
+```dockerfile
+FROM node:20-slim AS deps
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm ci
+
+FROM node:20-slim AS builder
+
+WORKDIR /app
+
+ARG NEXT_PUBLIC_API_BASE_URL=""
+ARG NEXT_PUBLIC_API_TOKEN=""
+ENV NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL}
+ENV NEXT_PUBLIC_API_TOKEN=${NEXT_PUBLIC_API_TOKEN}
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+RUN npm run build
+
+FROM node:20-slim AS runner
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV HOSTNAME=0.0.0.0
+ENV PORT=3000
+
+RUN addgroup --system --gid 1001 nodejs \
+    && adduser --system --uid 1001 nextjs
+
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+USER nextjs
+
+EXPOSE 3000
+
+CMD ["node", "server.js"]
+```
+
+- [ ] **Step 3: Run the frontend build locally**
+
+Run:
+
+```bash
+cd frontend
+npm run build
+```
+
+Expected: `next build` completes successfully.
+
+- [ ] **Step 4: Build the frontend Docker image**
+
+Run:
+
+```bash
+docker build \
+  --build-arg NEXT_PUBLIC_API_BASE_URL="" \
+  --build-arg NEXT_PUBLIC_API_TOKEN="local-build-token" \
+  -t ai-trade-flow-frontend:test \
+  frontend
+```
+
+Expected: Docker build completes and creates `ai-trade-flow-frontend:test`.
+
+- [ ] **Step 5: Commit**
+
+Run:
+
+```bash
+git add frontend/Dockerfile frontend/next.config.mjs
+git commit -m "build: make frontend docker image production ready"
+```
+
+Expected: one commit containing only the frontend Docker changes.
+
+## Task 4: Add PostgreSQL Driver Support
+
+**Files:**
+- Modify: `backend/pyproject.toml`
+
+- [ ] **Step 1: Add psycopg dependency**
+
+In `[project].dependencies`, add:
+
+```toml
+    "psycopg[binary]>=3.2",
+```
+
+Place it near the existing database-related dependencies:
+
+```toml
+    "sqlmodel>=0.0.16",
+    "psycopg[binary]>=3.2",
+    "ccxt>=4.2",
+```
+
+- [ ] **Step 2: Install backend dependencies**
+
+Run:
+
+```bash
+cd backend
+pip install -e ".[dev]"
+```
+
+Expected: install completes and includes `psycopg`.
+
+- [ ] **Step 3: Run backend tests**
+
+Run:
+
+```bash
+cd backend
+pytest
+```
+
+Expected: all tests pass.
+
+- [ ] **Step 4: Build backend Docker image**
+
+Run:
+
+```bash
+docker build -t ai-trade-flow-backend:test backend
+```
+
+Expected: Docker build completes and includes the PostgreSQL driver.
+
+- [ ] **Step 5: Commit**
+
+Run:
+
+```bash
+git add backend/pyproject.toml
+git commit -m "build: add postgres driver for aws deployment"
+```
+
+Expected: one commit containing only `backend/pyproject.toml`.
+
+## Task 5: Add GitHub Actions CI
+
+**Files:**
+- Create: `.github/workflows/ci.yml`
+
+- [ ] **Step 1: Create CI workflow**
+
+Create `.github/workflows/ci.yml`:
+
+```yaml
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - "claude/**"
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
+
+      - name: Run tests
+        run: pytest
+
+  frontend:
+    name: Frontend Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        env:
+          NEXT_PUBLIC_API_BASE_URL: ""
+          NEXT_PUBLIC_API_TOKEN: "ci-token"
+        run: npm run build
+```
+
+- [ ] **Step 2: Validate workflow YAML syntax**
+
+Run:
+
+```bash
+ruby -e "require 'yaml'; YAML.load_file('.github/workflows/ci.yml'); puts 'ok'"
+```
+
+Expected:
+
+```text
+ok
+```
+
+- [ ] **Step 3: Run local verification matching CI**
+
+Run:
+
+```bash
+cd backend && pytest
+```
+
+Expected: all backend tests pass.
+
+Run:
+
+```bash
+cd frontend && npm run build
+```
+
+Expected: frontend build passes.
+
+- [ ] **Step 4: Commit**
+
+Run:
+
+```bash
+git add .github/workflows/ci.yml
+git commit -m "ci: add backend and frontend checks"
+```
+
+Expected: one commit containing only CI workflow.
+
+## Task 6: Add Terraform Bootstrap Stack
+
+**Files:**
+- Create: `infra/terraform/bootstrap/versions.tf`
+- Create: `infra/terraform/bootstrap/variables.tf`
+- Create: `infra/terraform/bootstrap/main.tf`
+- Create: `infra/terraform/bootstrap/outputs.tf`
+- Create: `infra/terraform/bootstrap/terraform.tfvars.example`
+
+- [ ] **Step 1: Create bootstrap provider file**
+
+Create `infra/terraform/bootstrap/versions.tf`:
+
+```hcl
+terraform {
+  required_version = ">= 1.6.0"
+
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}
+
+provider "aws" {
+  region = var.aws_region
+}
+```
+
+- [ ] **Step 2: Create bootstrap variables**
+
+Create `infra/terraform/bootstrap/variables.tf`:
+
+```hcl
+variable "aws_region" {
+  type        = string
+  description = "AWS region for bootstrap resources."
+  default     = "ap-southeast-2"
+}
+
+variable "project_name" {
+  type        = string
+  description = "Short project name used in resource names."
+  default     = "ai-trade-flow"
+}
+
+variable "github_owner" {
+  type        = string
+  description = "GitHub repository owner."
+  default     = "b5336789"
+}
+
+variable "github_repo" {
+  type        = string
+  description = "GitHub repository name."
+  default     = "ai-trade-flow-platform"
+}
+
+variable "github_branch" {
+  type        = string
+  description = "Branch allowed to assume the deploy role."
+  default     = "main"
+}
+```
+
+- [ ] **Step 3: Create bootstrap resources**
+
+Create `infra/terraform/bootstrap/main.tf`:
+
+```hcl
+data "aws_caller_identity" "current" {}
+
+locals {
+  name_prefix        = "${var.project_name}-prod"
+  state_bucket_name  = "${var.project_name}-tfstate-${data.aws_caller_identity.current.account_id}-${var.aws_region}"
+  lock_table_name    = "${var.project_name}-tf-locks"
+  github_repo_string = "repo:${var.github_owner}/${var.github_repo}:ref:refs/heads/${var.github_branch}"
+}
+
+resource "aws_s3_bucket" "terraform_state" {
+  bucket = local.state_bucket_name
+}
+
+resource "aws_s3_bucket_versioning" "terraform_state" {
+  bucket = aws_s3_bucket.terraform_state.id
+
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "terraform_state" {
+  bucket = aws_s3_bucket.terraform_state.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+  }
+}
+
+resource "aws_s3_bucket_public_access_block" "terraform_state" {
+  bucket                  = aws_s3_bucket.terraform_state.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_dynamodb_table" "terraform_locks" {
+  name         = local.lock_table_name
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "LockID"
+
+  attribute {
+    name = "LockID"
+    type = "S"
+  }
+}
+
+resource "aws_iam_openid_connect_provider" "github" {
+  url             = "https://token.actions.githubusercontent.com"
+  client_id_list  = ["sts.amazonaws.com"]
+  thumbprint_list = ["6938fd4d98bab03faadb97b34396831e3780aea1"]
+}
+
+data "aws_iam_policy_document" "github_assume_role" {
+  statement {
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+
+    principals {
+      type        = "Federated"
+      identifiers = [aws_iam_openid_connect_provider.github.arn]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "token.actions.githubusercontent.com:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+
+    condition {
+      test     = "StringLike"
+      variable = "token.actions.githubusercontent.com:sub"
+      values = [
+        local.github_repo_string,
+        "repo:${var.github_owner}/${var.github_repo}:environment:production"
+      ]
+    }
+  }
+}
+
+resource "aws_iam_role" "github_deploy" {
+  name               = "${local.name_prefix}-github-deploy"
+  assume_role_policy = data.aws_iam_policy_document.github_assume_role.json
+}
+
+resource "aws_iam_role_policy_attachment" "github_deploy_admin" {
+  role       = aws_iam_role.github_deploy.name
+  policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
+}
+```
+
+- [ ] **Step 4: Create bootstrap outputs**
+
+Create `infra/terraform/bootstrap/outputs.tf`:
+
+```hcl
+output "terraform_state_bucket" {
+  value = aws_s3_bucket.terraform_state.bucket
+}
+
+output "terraform_lock_table" {
+  value = aws_dynamodb_table.terraform_locks.name
+}
+
+output "github_deploy_role_arn" {
+  value = aws_iam_role.github_deploy.arn
+}
+```
+
+- [ ] **Step 5: Create bootstrap example tfvars**
+
+Create `infra/terraform/bootstrap/terraform.tfvars.example`:
+
+```hcl
+aws_region    = "ap-southeast-2"
+project_name  = "ai-trade-flow"
+github_owner  = "b5336789"
+github_repo   = "ai-trade-flow-platform"
+github_branch = "main"
+```
+
+- [ ] **Step 6: Format and validate bootstrap Terraform**
+
+Run:
+
+```bash
+cd infra/terraform/bootstrap
+terraform fmt
+terraform init
+terraform validate
+```
+
+Expected: validation succeeds.
+
+- [ ] **Step 7: Commit**
+
+Run:
+
+```bash
+git add infra/terraform/bootstrap
+git commit -m "infra: add terraform bootstrap stack"
+```
+
+Expected: one commit containing only bootstrap Terraform.
+
+## Task 7: Add Production Terraform Stack
+
+**Files:**
+- Create: `infra/terraform/prod/versions.tf`
+- Create: `infra/terraform/prod/variables.tf`
+- Create: `infra/terraform/prod/main.tf`
+- Create: `infra/terraform/prod/outputs.tf`
+- Create: `infra/terraform/prod/terraform.tfvars.example`
+
+- [ ] **Step 1: Create production provider and backend**
+
+Create `infra/terraform/prod/versions.tf`:
+
+```hcl
+terraform {
+  required_version = ">= 1.6.0"
+
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.6"
+    }
+  }
+
+  backend "s3" {
+    key     = "prod/terraform.tfstate"
+    encrypt = true
+  }
+}
+
+provider "aws" {
+  region = var.aws_region
+}
+```
+
+The S3 backend uses partial configuration. GitHub Actions and local operators must pass `bucket`, `region`, and `dynamodb_table` during `terraform init` from the bootstrap outputs.
+
+- [ ] **Step 2: Create production variables**
+
+Create `infra/terraform/prod/variables.tf`:
+
+```hcl
+variable "aws_region" {
+  type        = string
+  description = "AWS region."
+  default     = "ap-southeast-2"
+}
+
+variable "project_name" {
+  type        = string
+  description = "Short project name."
+  default     = "ai-trade-flow"
+}
+
+variable "environment" {
+  type        = string
+  description = "Deployment environment."
+  default     = "prod"
+}
+
+variable "backend_image" {
+  type        = string
+  description = "Full backend image URI including tag."
+}
+
+variable "frontend_image" {
+  type        = string
+  description = "Full frontend image URI including tag."
+}
+
+variable "api_token" {
+  type        = string
+  description = "Bearer token required by backend /api routes."
+  sensitive   = true
+}
+
+variable "anthropic_api_key" {
+  type        = string
+  description = "Anthropic API key. Empty string disables AI calls that require it."
+  sensitive   = true
+  default     = ""
+}
+
+variable "database_name" {
+  type        = string
+  description = "RDS database name."
+  default     = "tradeflow"
+}
+
+variable "database_username" {
+  type        = string
+  description = "RDS master username."
+  default     = "tradeflow"
+}
+```
+
+- [ ] **Step 3: Create production resources**
+
+Create `infra/terraform/prod/main.tf` with focused sections for locals, networking, security groups, ECR, RDS, ALB, ECS, and IAM. Use these exact names so the deploy workflow can query outputs:
+
+```hcl
+data "aws_availability_zones" "available" {
+  state = "available"
+}
+
+data "aws_caller_identity" "current" {}
+
+locals {
+  name_prefix = "${var.project_name}-${var.environment}"
+  azs         = slice(data.aws_availability_zones.available.names, 0, 2)
+
+  common_tags = {
+    Project     = var.project_name
+    Environment = var.environment
+    ManagedBy   = "terraform"
+  }
+}
+
+resource "aws_ecr_repository" "backend" {
+  name                 = "${local.name_prefix}-backend"
+  image_tag_mutability = "IMMUTABLE"
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
+  tags = local.common_tags
+}
+
+resource "aws_ecr_repository" "frontend" {
+  name                 = "${local.name_prefix}-frontend"
+  image_tag_mutability = "IMMUTABLE"
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
+  tags = local.common_tags
+}
+
+resource "aws_vpc" "main" {
+  cidr_block           = "10.40.0.0/16"
+  enable_dns_hostnames = true
+  enable_dns_support   = true
+
+  tags = merge(local.common_tags, { Name = "${local.name_prefix}-vpc" })
+}
+
+resource "aws_internet_gateway" "main" {
+  vpc_id = aws_vpc.main.id
+
+  tags = merge(local.common_tags, { Name = "${local.name_prefix}-igw" })
+}
+
+resource "aws_subnet" "public" {
+  count                   = 2
+  vpc_id                  = aws_vpc.main.id
+  cidr_block              = cidrsubnet(aws_vpc.main.cidr_block, 8, count.index)
+  availability_zone       = local.azs[count.index]
+  map_public_ip_on_launch = true
+
+  tags = merge(local.common_tags, { Name = "${local.name_prefix}-public-${count.index + 1}" })
+}
+
+resource "aws_subnet" "private" {
+  count             = 2
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = cidrsubnet(aws_vpc.main.cidr_block, 8, count.index + 10)
+  availability_zone = local.azs[count.index]
+
+  tags = merge(local.common_tags, { Name = "${local.name_prefix}-private-${count.index + 1}" })
+}
+
+resource "aws_eip" "nat" {
+  domain = "vpc"
+
+  tags = merge(local.common_tags, { Name = "${local.name_prefix}-nat-eip" })
+}
+
+resource "aws_nat_gateway" "main" {
+  allocation_id = aws_eip.nat.id
+  subnet_id     = aws_subnet.public[0].id
+
+  tags = merge(local.common_tags, { Name = "${local.name_prefix}-nat" })
+
+  depends_on = [aws_internet_gateway.main]
+}
+
+resource "aws_route_table" "public" {
+  vpc_id = aws_vpc.main.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.main.id
+  }
+
+  tags = merge(local.common_tags, { Name = "${local.name_prefix}-public-rt" })
+}
+
+resource "aws_route_table_association" "public" {
+  count          = 2
+  subnet_id      = aws_subnet.public[count.index].id
+  route_table_id = aws_route_table.public.id
+}
+
+resource "aws_route_table" "private" {
+  vpc_id = aws_vpc.main.id
+
+  route {
+    cidr_block     = "0.0.0.0/0"
+    nat_gateway_id = aws_nat_gateway.main.id
+  }
+
+  tags = merge(local.common_tags, { Name = "${local.name_prefix}-private-rt" })
+}
+
+resource "aws_route_table_association" "private" {
+  count          = 2
+  subnet_id      = aws_subnet.private[count.index].id
+  route_table_id = aws_route_table.private.id
+}
+
+resource "aws_security_group" "alb" {
+  name        = "${local.name_prefix}-alb"
+  description = "Allow public HTTP to ALB"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = local.common_tags
+}
+
+resource "aws_security_group" "frontend" {
+  name        = "${local.name_prefix}-frontend"
+  description = "Allow ALB to frontend"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
+    from_port       = 3000
+    to_port         = 3000
+    protocol        = "tcp"
+    security_groups = [aws_security_group.alb.id]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = local.common_tags
+}
+
+resource "aws_security_group" "backend" {
+  name        = "${local.name_prefix}-backend"
+  description = "Allow ALB to backend"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
+    from_port       = 8000
+    to_port         = 8000
+    protocol        = "tcp"
+    security_groups = [aws_security_group.alb.id]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = local.common_tags
+}
+
+resource "aws_security_group" "db" {
+  name        = "${local.name_prefix}-db"
+  description = "Allow backend to PostgreSQL"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
+    from_port       = 5432
+    to_port         = 5432
+    protocol        = "tcp"
+    security_groups = [aws_security_group.backend.id]
+  }
+
+  tags = local.common_tags
+}
+```
+
+Continue in the same `main.tf` with RDS, ALB, ECS, and IAM:
+
+```hcl
+resource "random_password" "db" {
+  length  = 32
+  special = false
+}
+
+resource "aws_db_subnet_group" "main" {
+  name       = "${local.name_prefix}-db"
+  subnet_ids = aws_subnet.private[*].id
+
+  tags = local.common_tags
+}
+
+resource "aws_db_instance" "main" {
+  identifier             = "${local.name_prefix}-postgres"
+  engine                 = "postgres"
+  engine_version         = "16"
+  instance_class         = "db.t4g.micro"
+  allocated_storage      = 20
+  db_name                = var.database_name
+  username               = var.database_username
+  password               = random_password.db.result
+  db_subnet_group_name   = aws_db_subnet_group.main.name
+  vpc_security_group_ids = [aws_security_group.db.id]
+  publicly_accessible    = false
+  skip_final_snapshot    = true
+  deletion_protection    = false
+
+  tags = local.common_tags
+}
+
+resource "aws_secretsmanager_secret" "database_url" {
+  name = "${local.name_prefix}/database-url"
+
+  tags = local.common_tags
+}
+
+resource "aws_secretsmanager_secret_version" "database_url" {
+  secret_id = aws_secretsmanager_secret.database_url.id
+  secret_string = "postgresql+psycopg://${var.database_username}:${random_password.db.result}@${aws_db_instance.main.address}:5432/${var.database_name}"
+}
+
+resource "aws_lb" "app" {
+  name               = "${local.name_prefix}-alb"
+  internal           = false
+  load_balancer_type = "application"
+  security_groups    = [aws_security_group.alb.id]
+  subnets            = aws_subnet.public[*].id
+
+  tags = local.common_tags
+}
+
+resource "aws_lb_target_group" "frontend" {
+  name        = "${local.name_prefix}-frontend"
+  port        = 3000
+  protocol    = "HTTP"
+  target_type = "ip"
+  vpc_id      = aws_vpc.main.id
+
+  health_check {
+    path                = "/"
+    matcher             = "200-399"
+    healthy_threshold   = 2
+    unhealthy_threshold = 3
+  }
+
+  tags = local.common_tags
+}
+
+resource "aws_lb_target_group" "backend" {
+  name        = "${local.name_prefix}-backend"
+  port        = 8000
+  protocol    = "HTTP"
+  target_type = "ip"
+  vpc_id      = aws_vpc.main.id
+
+  health_check {
+    path                = "/health"
+    matcher             = "200"
+    healthy_threshold   = 2
+    unhealthy_threshold = 3
+  }
+
+  tags = local.common_tags
+}
+
+resource "aws_lb_listener" "http" {
+  load_balancer_arn = aws_lb.app.arn
+  port              = 80
+  protocol          = "HTTP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.frontend.arn
+  }
+}
+
+resource "aws_lb_listener_rule" "api" {
+  listener_arn = aws_lb_listener.http.arn
+  priority     = 10
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.backend.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/api/*", "/health"]
+    }
+  }
+}
+
+resource "aws_ecs_cluster" "main" {
+  name = "${local.name_prefix}-cluster"
+
+  tags = local.common_tags
+}
+
+resource "aws_cloudwatch_log_group" "backend" {
+  name              = "/ecs/${local.name_prefix}/backend"
+  retention_in_days = 14
+
+  tags = local.common_tags
+}
+
+resource "aws_cloudwatch_log_group" "frontend" {
+  name              = "/ecs/${local.name_prefix}/frontend"
+  retention_in_days = 14
+
+  tags = local.common_tags
+}
+
+data "aws_iam_policy_document" "ecs_tasks_assume" {
+  statement {
+    actions = ["sts:AssumeRole"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["ecs-tasks.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "ecs_task_execution" {
+  name               = "${local.name_prefix}-ecs-execution"
+  assume_role_policy = data.aws_iam_policy_document.ecs_tasks_assume.json
+}
+
+resource "aws_iam_role_policy_attachment" "ecs_task_execution" {
+  role       = aws_iam_role.ecs_task_execution.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+}
+
+resource "aws_iam_role_policy" "ecs_read_secrets" {
+  name = "${local.name_prefix}-read-secrets"
+  role = aws_iam_role.ecs_task_execution.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue"
+        ]
+        Resource = [
+          aws_secretsmanager_secret.database_url.arn
+        ]
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role" "ecs_task" {
+  name               = "${local.name_prefix}-ecs-task"
+  assume_role_policy = data.aws_iam_policy_document.ecs_tasks_assume.json
+}
+
+resource "aws_ecs_task_definition" "backend" {
+  family                   = "${local.name_prefix}-backend"
+  requires_compatibilities = ["FARGATE"]
+  network_mode             = "awsvpc"
+  cpu                      = 512
+  memory                   = 1024
+  execution_role_arn       = aws_iam_role.ecs_task_execution.arn
+  task_role_arn            = aws_iam_role.ecs_task.arn
+
+  container_definitions = jsonencode([
+    {
+      name      = "backend"
+      image     = var.backend_image
+      essential = true
+      portMappings = [{ containerPort = 8000, hostPort = 8000, protocol = "tcp" }]
+      environment = [
+        { name = "TRADING_MODE", value = "paper" },
+        { name = "API_TOKEN", value = var.api_token },
+        { name = "API_CORS_ORIGINS", value = "http://${aws_lb.app.dns_name}" },
+        { name = "ANTHROPIC_API_KEY", value = var.anthropic_api_key }
+      ]
+      secrets = [
+        { name = "DATABASE_URL", valueFrom = aws_secretsmanager_secret.database_url.arn }
+      ]
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          awslogs-group         = aws_cloudwatch_log_group.backend.name
+          awslogs-region        = var.aws_region
+          awslogs-stream-prefix = "ecs"
+        }
+      }
+    }
+  ])
+}
+
+resource "aws_ecs_task_definition" "frontend" {
+  family                   = "${local.name_prefix}-frontend"
+  requires_compatibilities = ["FARGATE"]
+  network_mode             = "awsvpc"
+  cpu                      = 256
+  memory                   = 512
+  execution_role_arn       = aws_iam_role.ecs_task_execution.arn
+  task_role_arn            = aws_iam_role.ecs_task.arn
+
+  container_definitions = jsonencode([
+    {
+      name      = "frontend"
+      image     = var.frontend_image
+      essential = true
+      portMappings = [{ containerPort = 3000, hostPort = 3000, protocol = "tcp" }]
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          awslogs-group         = aws_cloudwatch_log_group.frontend.name
+          awslogs-region        = var.aws_region
+          awslogs-stream-prefix = "ecs"
+        }
+      }
+    }
+  ])
+}
+
+resource "aws_ecs_service" "backend" {
+  name            = "${local.name_prefix}-backend"
+  cluster         = aws_ecs_cluster.main.id
+  task_definition = aws_ecs_task_definition.backend.arn
+  desired_count   = 1
+  launch_type     = "FARGATE"
+
+  network_configuration {
+    subnets          = aws_subnet.private[*].id
+    security_groups  = [aws_security_group.backend.id]
+    assign_public_ip = false
+  }
+
+  load_balancer {
+    target_group_arn = aws_lb_target_group.backend.arn
+    container_name   = "backend"
+    container_port   = 8000
+  }
+
+  depends_on = [aws_lb_listener.http]
+
+  tags = local.common_tags
+}
+
+resource "aws_ecs_service" "frontend" {
+  name            = "${local.name_prefix}-frontend"
+  cluster         = aws_ecs_cluster.main.id
+  task_definition = aws_ecs_task_definition.frontend.arn
+  desired_count   = 1
+  launch_type     = "FARGATE"
+
+  network_configuration {
+    subnets          = aws_subnet.private[*].id
+    security_groups  = [aws_security_group.frontend.id]
+    assign_public_ip = false
+  }
+
+  load_balancer {
+    target_group_arn = aws_lb_target_group.frontend.arn
+    container_name   = "frontend"
+    container_port   = 3000
+  }
+
+  depends_on = [aws_lb_listener.http]
+
+  tags = local.common_tags
+}
+```
+
+- [ ] **Step 4: Create production outputs**
+
+Create `infra/terraform/prod/outputs.tf`:
+
+```hcl
+output "alb_dns_name" {
+  value = aws_lb.app.dns_name
+}
+
+output "backend_ecr_repository_url" {
+  value = aws_ecr_repository.backend.repository_url
+}
+
+output "frontend_ecr_repository_url" {
+  value = aws_ecr_repository.frontend.repository_url
+}
+
+output "ecs_cluster_name" {
+  value = aws_ecs_cluster.main.name
+}
+
+output "backend_service_name" {
+  value = aws_ecs_service.backend.name
+}
+
+output "frontend_service_name" {
+  value = aws_ecs_service.frontend.name
+}
+```
+
+- [ ] **Step 5: Create production example tfvars**
+
+Create `infra/terraform/prod/terraform.tfvars.example`:
+
+```hcl
+aws_region        = "ap-southeast-2"
+project_name      = "ai-trade-flow"
+environment       = "prod"
+backend_image     = "111122223333.dkr.ecr.ap-southeast-2.amazonaws.com/ai-trade-flow-prod-backend:bootstrap"
+frontend_image    = "111122223333.dkr.ecr.ap-southeast-2.amazonaws.com/ai-trade-flow-prod-frontend:bootstrap"
+database_name     = "tradeflow"
+database_username = "tradeflow"
+```
+
+- [ ] **Step 6: Format and validate production Terraform**
+
+Run:
+
+```bash
+cd infra/terraform/prod
+terraform fmt
+terraform init -backend=false
+terraform validate
+```
+
+Expected: validation succeeds without contacting the remote backend.
+
+- [ ] **Step 7: Commit**
+
+Run:
+
+```bash
+git add infra/terraform/prod
+git commit -m "infra: add production ecs terraform stack"
+```
+
+Expected: one commit containing only production Terraform.
+
+## Task 8: Add Production Deploy Workflow
+
+**Files:**
+- Create: `.github/workflows/deploy.yml`
+
+- [ ] **Step 1: Create deploy workflow**
+
+Create `.github/workflows/deploy.yml`:
+
+```yaml
+name: Deploy Production
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ap-southeast-2
+  TF_VAR_aws_region: ap-southeast-2
+  TF_VAR_project_name: ai-trade-flow
+  TF_VAR_environment: prod
+
+jobs:
+  deploy:
+    name: Deploy Production
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.8.5
+          terraform_wrapper: false
+
+      - name: Terraform init
+        working-directory: infra/terraform/prod
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
+            -backend-config="region=${{ env.AWS_REGION }}" \
+            -backend-config="dynamodb_table=${{ secrets.TF_LOCK_TABLE }}"
+
+      - name: Bootstrap ECR repositories
+        working-directory: infra/terraform/prod
+        env:
+          TF_VAR_api_token: ${{ secrets.API_TOKEN }}
+          TF_VAR_anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          TF_VAR_backend_image: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/ai-trade-flow-prod-backend:${{ github.sha }}
+          TF_VAR_frontend_image: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/ai-trade-flow-prod-frontend:${{ github.sha }}
+        run: terraform apply -auto-approve -target=aws_ecr_repository.backend -target=aws_ecr_repository.frontend
+
+      - name: Login to ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push backend image
+        run: |
+          BACKEND_IMAGE="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/ai-trade-flow-prod-backend:${{ github.sha }}"
+          docker build -t "$BACKEND_IMAGE" backend
+          docker push "$BACKEND_IMAGE"
+
+      - name: Build and push frontend image
+        run: |
+          FRONTEND_IMAGE="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/ai-trade-flow-prod-frontend:${{ github.sha }}"
+          docker build \
+            --build-arg NEXT_PUBLIC_API_BASE_URL="" \
+            --build-arg NEXT_PUBLIC_API_TOKEN="${{ secrets.NEXT_PUBLIC_API_TOKEN }}" \
+            -t "$FRONTEND_IMAGE" \
+            frontend
+          docker push "$FRONTEND_IMAGE"
+
+      - name: Terraform apply
+        working-directory: infra/terraform/prod
+        env:
+          TF_VAR_api_token: ${{ secrets.API_TOKEN }}
+          TF_VAR_anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          TF_VAR_backend_image: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/ai-trade-flow-prod-backend:${{ github.sha }}
+          TF_VAR_frontend_image: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/ai-trade-flow-prod-frontend:${{ github.sha }}
+        run: terraform apply -auto-approve
+
+      - name: Print outputs
+        working-directory: infra/terraform/prod
+        run: |
+          echo "ALB DNS: http://$(terraform output -raw alb_dns_name)"
+          echo "Backend health: http://$(terraform output -raw alb_dns_name)/health"
+```
+
+- [ ] **Step 2: Validate workflow YAML syntax**
+
+Run:
+
+```bash
+ruby -e "require 'yaml'; YAML.load_file('.github/workflows/deploy.yml'); puts 'ok'"
+```
+
+Expected:
+
+```text
+ok
+```
+
+- [ ] **Step 3: Commit**
+
+Run:
+
+```bash
+git add .github/workflows/deploy.yml
+git commit -m "ci: add production deploy workflow"
+```
+
+Expected: one commit containing only deploy workflow.
+
+## Task 9: Document Deployment Setup
+
+**Files:**
+- Modify: `.env.example`
+- Create: `docs/deployment/aws.md`
+
+- [ ] **Step 1: Add AWS notes to `.env.example`**
+
+Append this block:
+
+```dotenv
+
+# --- AWS deployment notes ---
+# Production deploy uses GitHub Actions secrets for these values, not this local file:
+# AWS_ACCOUNT_ID
+# AWS_DEPLOY_ROLE_ARN
+# TF_STATE_BUCKET
+# TF_LOCK_TABLE
+# API_TOKEN
+# NEXT_PUBLIC_API_TOKEN
+# ANTHROPIC_API_KEY
+#
+# First AWS release targets ap-southeast-2 and uses the ALB HTTP DNS name.
+# bwtseng.com / Route 53 / ACM HTTPS are planned as a follow-up after DNS is stable.
+```
+
+- [ ] **Step 2: Create AWS deployment guide**
+
+Create `docs/deployment/aws.md`:
+
+```markdown
+# AWS Deployment
+
+This project deploys production to AWS `ap-southeast-2` with GitHub Actions, Terraform, ECR, ECS Fargate, ALB, and RDS PostgreSQL.
+
+## First-Time Bootstrap
+
+Run the bootstrap stack once from a trusted local shell or AWS CloudShell with administrator credentials:
+
+```bash
+cd infra/terraform/bootstrap
+cp terraform.tfvars.example terraform.tfvars
+terraform init
+terraform apply
+```
+
+Record these outputs:
+
+```bash
+terraform output -raw terraform_state_bucket
+terraform output -raw terraform_lock_table
+terraform output -raw github_deploy_role_arn
+```
+
+The production Terraform backend uses partial S3 backend configuration. GitHub Actions supplies the state bucket and DynamoDB lock table from secrets that come from bootstrap outputs.
+
+## GitHub Configuration
+
+Create a GitHub Environment named `production`.
+
+Add these repository or environment secrets:
+
+- `AWS_ACCOUNT_ID`
+- `AWS_DEPLOY_ROLE_ARN`
+- `TF_STATE_BUCKET`
+- `TF_LOCK_TABLE`
+- `API_TOKEN`
+- `NEXT_PUBLIC_API_TOKEN`
+- `ANTHROPIC_API_KEY`
+
+`API_TOKEN` and `NEXT_PUBLIC_API_TOKEN` must match. `NEXT_PUBLIC_API_TOKEN` is visible to browser clients, so it is not a private server secret.
+
+## Deploy
+
+Push to `main` or run the `Deploy Production` workflow manually.
+
+The workflow prints:
+
+- frontend URL: `http://<alb-dns-name>`
+- backend health URL: `http://<alb-dns-name>/health`
+
+## Verification
+
+After deployment:
+
+```bash
+curl "http://<alb-dns-name>/health"
+```
+
+Expected:
+
+```json
+{"status":"ok"}
+```
+
+Open `http://<alb-dns-name>` in a browser and confirm the UI loads.
+
+## Current Limits
+
+- The first release uses HTTP on the ALB default DNS name.
+- `bwtseng.com`, Route 53 records, ACM certificates, and HTTPS are not part of this release.
+- The deployment stays in `TRADING_MODE=paper`.
+- RDS starts as a fresh PostgreSQL database. The app creates missing tables on startup with SQLModel.
+- Add Alembic before preserving long-lived production data through schema changes.
+```
+
+- [ ] **Step 3: Commit**
+
+Run:
+
+```bash
+git add .env.example docs/deployment/aws.md
+git commit -m "docs: add aws deployment guide"
+```
+
+Expected: one commit containing only deployment docs and env notes.
+
+## Task 10: Run Full Local Verification
+
+**Files:**
+- Inspect all deployment-related changes
+
+- [ ] **Step 1: Check workspace scope**
+
+Run:
+
+```bash
+git status --short
+```
+
+Expected: clean tree.
+
+- [ ] **Step 2: Run backend tests**
+
+Run:
+
+```bash
+cd backend
+pytest
+```
+
+Expected: all tests pass.
+
+- [ ] **Step 3: Run frontend build**
+
+Run:
+
+```bash
+cd frontend
+npm run build
+```
+
+Expected: build passes.
+
+- [ ] **Step 4: Build backend image**
+
+Run:
+
+```bash
+docker build -t ai-trade-flow-backend:test backend
+```
+
+Expected: image build succeeds.
+
+- [ ] **Step 5: Build frontend image**
+
+Run:
+
+```bash
+docker build \
+  --build-arg NEXT_PUBLIC_API_BASE_URL="" \
+  --build-arg NEXT_PUBLIC_API_TOKEN="local-build-token" \
+  -t ai-trade-flow-frontend:test \
+  frontend
+```
+
+Expected: image build succeeds.
+
+- [ ] **Step 6: Validate Terraform bootstrap**
+
+Run:
+
+```bash
+cd infra/terraform/bootstrap
+terraform fmt -check
+terraform init
+terraform validate
+```
+
+Expected: validation succeeds.
+
+- [ ] **Step 7: Validate Terraform production without backend**
+
+Run:
+
+```bash
+cd infra/terraform/prod
+terraform fmt -check
+terraform init -backend=false
+terraform validate
+```
+
+Expected: validation succeeds.
+
+- [ ] **Step 8: Validate GitHub workflow YAML**
+
+Run:
+
+```bash
+ruby -e "require 'yaml'; YAML.load_file('.github/workflows/ci.yml'); YAML.load_file('.github/workflows/deploy.yml'); puts 'ok'"
+```
+
+Expected:
+
+```text
+ok
+```
+
+## Task 11: Manual AWS Bootstrap And First Deploy
+
+**Files:**
+- Inspect only: `infra/terraform/bootstrap/*`
+- Configure in GitHub UI: production environment secrets
+
+- [ ] **Step 1: Apply bootstrap stack**
+
+Run from a trusted shell with AWS administrator credentials:
+
+```bash
+cd infra/terraform/bootstrap
+cp terraform.tfvars.example terraform.tfvars
+terraform init
+terraform apply
+```
+
+Expected: Terraform creates the state bucket, lock table, GitHub OIDC provider, and GitHub deploy role.
+
+- [ ] **Step 2: Capture bootstrap outputs**
+
+Run:
+
+```bash
+terraform output -raw terraform_state_bucket
+terraform output -raw terraform_lock_table
+terraform output -raw github_deploy_role_arn
+```
+
+Expected: output values are available for GitHub secrets and production backend initialization.
+
+- [ ] **Step 3: Configure GitHub secrets**
+
+In GitHub repository settings, create environment `production` and add:
+
+```text
+AWS_ACCOUNT_ID=<actual account id>
+AWS_DEPLOY_ROLE_ARN=<github_deploy_role_arn output>
+TF_STATE_BUCKET=<terraform_state_bucket output>
+TF_LOCK_TABLE=<terraform_lock_table output>
+API_TOKEN=<strong random token>
+NEXT_PUBLIC_API_TOKEN=<same strong random token>
+ANTHROPIC_API_KEY=<anthropic key or empty string>
+```
+
+`API_TOKEN` and `NEXT_PUBLIC_API_TOKEN` must have the same value for the first release.
+
+- [ ] **Step 4: Run deploy workflow**
+
+Run `Deploy Production` from GitHub Actions manually.
+
+Expected:
+
+- Terraform apply succeeds.
+- Backend and frontend images are pushed to ECR.
+- ECS services become stable.
+- The workflow prints an ALB DNS name.
+
+- [ ] **Step 5: Verify deployed health endpoint**
+
+Run:
+
+```bash
+curl "http://<alb-dns-name>/health"
+```
+
+Expected:
+
+```json
+{"status":"ok"}
+```
+
+- [ ] **Step 6: Verify frontend**
+
+Open:
+
+```text
+http://<alb-dns-name>
+```
+
+Expected: the Next.js UI loads and API-backed panels can call `/api/*` through the same ALB origin.
+
+## Task 12: Post-Deployment Review
+
+**Files:**
+- Inspect deployment outputs and AWS console
+
+- [ ] **Step 1: Confirm paper trading mode**
+
+In AWS ECS task definition for backend, verify:
+
+```text
+TRADING_MODE=paper
+```
+
+Expected: production deploy cannot place live orders.
+
+- [ ] **Step 2: Confirm RDS is private**
+
+In AWS RDS console, verify:
+
+```text
+Publicly accessible: No
+```
+
+Expected: RDS is private and only backend security group can connect.
+
+- [ ] **Step 3: Confirm ALB path routing**
+
+Run:
+
+```bash
+curl -i "http://<alb-dns-name>/health"
+curl -i "http://<alb-dns-name>/"
+```
+
+Expected: `/health` returns backend JSON and `/` returns frontend HTML.
+
+- [ ] **Step 4: Record follow-up work**
+
+Create issues or backlog entries for:
+
+```text
+Add Route 53 + ACM HTTPS for bwtseng.com.
+Replace AdministratorAccess on the GitHub deploy role with a scoped deploy policy.
+Add Alembic before long-lived production data depends on schema migrations.
+Add staging environment after production deploy is stable.
+```
+
+Expected: deployment limitations are tracked outside the first release.
+
+## Self-Review Notes
+
+- Spec coverage: CI, ECR, ECS Fargate, ALB, RDS PostgreSQL, GitHub OIDC, paper mode, ALB DNS output, and no-domain first release are covered.
+- Bootstrap gap handled: remote state and OIDC role are created by a separate bootstrap stack before GitHub Actions deployment.
+- Frontend environment issue handled: `NEXT_PUBLIC_API_BASE_URL=""` is supplied at Docker build time so browser calls use same-origin `/api/*` through the ALB.
+- Migration limitation preserved: first RDS database is fresh and uses current SQLModel table creation; Alembic is a tracked follow-up.
+- Concurrency handled: every task starts or ends with scoped status checks and commits only relevant files.
