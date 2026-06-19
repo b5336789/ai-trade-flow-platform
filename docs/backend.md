@@ -59,6 +59,7 @@ SQLModel engine(預設 SQLite)。`init_db()` 建表;`get_session()` 為 FastAPI 
 | `portfolio.py` | `build_portfolio(broker)`:部位帶入即時價、未實現損益、權益總值;取價失敗退回成本價並標記 |
 | `execution.py` | `execute_order(...)`:手動與工作流共用的唯一下單路徑(冪等檢查→價→風控→撮合→存檔→通知)。可帶 `client_order_id`(M0.5):若該鍵已有 `OrderRecord` 則**跳過下單**並回傳既有結果(`info.idempotent_skip=True`);手動下單預設 `None`,行為不變 |
 | `paper_store.py` | `PaperStore`:把紙上帳戶現金/部位持久化到 DB,讓 `PaperBroker` 重啟後仍保留狀態 |
+| `ledger.py` | FIFO 已實現損益帳本(M1.3)。`FifoLedger.record_buy(...)` 開一個 `Lot`(數量、價、買進手續費計入成本基礎);`record_sell(...)` 依時間最舊先出消耗 `Lot`,每筆消耗產生一筆 `RealizedPnL`:`gross_pnl = (賣價−買價)×數量`、`realized_net = gross − 分攤買進手續費 − 分攤賣出手續費 − 證交稅`(費用/稅一律取自 M0.1 `CostModel`,crypto 稅=0、tw_stock 賣出課證交稅)。`record_fill(...)` 是接到 `execute_order` 的接縫:買進開 `Lot`、賣出 FIFO 消耗;賣出量超過已記錄 `Lot` 時消耗現有部分並對缺口發 `warning` 通知(永不擋出場)。`execute_order` 只在**實際成交且非冪等跳過**時才記帳,故不會重複計算 |
 
 ## `workflow/` — 節點圖引擎
 見 [workflow.md](./workflow.md)。`schema.py`(圖/節點/結果模型)、`nodes.py`(節點執行器)、
@@ -80,7 +81,9 @@ M1.4:job 設 `max_instances=1`、`coalesce=True`、`misfire_grace_time=30`;`Sche
 節點的 `params["market"]`(預設 crypto,與引擎一致),無 data_source(如純 logger)視為永遠開盤。
 
 ## `api/` — HTTP 路由
-`markets.py`、`orders.py`、`ai.py`、`workflows.py`、`backtest.py`、`schedules.py`。
+`markets.py`、`orders.py`、`ai.py`、`workflows.py`、`backtest.py`、`schedules.py`、`ledger.py`
+(`GET /api/ledger/realized` 已實現損益報表,可依 `market`/`symbol`/`start`/`end` 篩選並回傳合計;
+`GET /api/ledger/realized.csv` 匯出 CSV 供報稅)。
 見 [api-reference.md](./api-reference.md)。
 
 ## `main.py` — 入口
