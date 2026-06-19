@@ -27,3 +27,13 @@ output "frontend_service_name" {
   description = "Frontend ECS service name."
   value       = aws_ecs_service.frontend.name
 }
+
+output "api_token_secret_name" {
+  description = "Secrets Manager secret name for the backend API token."
+  value       = aws_secretsmanager_secret.api_token.name
+}
+
+output "anthropic_api_key_secret_name" {
+  description = "Secrets Manager secret name for the Anthropic API key."
+  value       = aws_secretsmanager_secret.anthropic_api_key.name
+}

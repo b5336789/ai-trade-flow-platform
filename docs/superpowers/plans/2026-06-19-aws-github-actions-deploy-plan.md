@@ -688,17 +688,10 @@ variable "frontend_image" {
   description = "Full frontend image URI including tag."
 }
 
-variable "api_token" {
+variable "app_secrets_revision" {
   type        = string
-  description = "Bearer token required by backend /api routes."
-  sensitive   = true
-}
-
-variable "anthropic_api_key" {
-  type        = string
-  description = "Anthropic API key. Empty string disables AI calls that require it."
-  sensitive   = true
-  default     = ""
+  description = "Non-secret marker that changes when app-level Secrets Manager values are updated outside Terraform."
+  default     = "initial"
 }
 
 variable "database_name" {
@@ -972,16 +965,18 @@ resource "aws_secretsmanager_secret_version" "database_url" {
   secret_string = "postgresql+psycopg://${var.database_username}:${random_password.db.result}@${aws_db_instance.main.address}:5432/${var.database_name}"
 }
 
-resource "aws_secretsmanager_secret" "anthropic_api_key" {
-  name                    = "${local.name_prefix}/anthropic-api-key"
+resource "aws_secretsmanager_secret" "api_token" {
+  name                    = "${local.name_prefix}/api-token"
   recovery_window_in_days = 0
 
   tags = local.common_tags
 }
 
-resource "aws_secretsmanager_secret_version" "anthropic_api_key" {
-  secret_id     = aws_secretsmanager_secret.anthropic_api_key.id
-  secret_string = var.anthropic_api_key
+resource "aws_secretsmanager_secret" "anthropic_api_key" {
+  name                    = "${local.name_prefix}/anthropic-api-key"
+  recovery_window_in_days = 0
+
+  tags = local.common_tags
 }
 
 resource "aws_lb" "app" {
@@ -1110,6 +1105,7 @@ resource "aws_iam_role_policy" "ecs_read_secrets" {
         ]
         Resource = [
           aws_secretsmanager_secret.database_url.arn,
+          aws_secretsmanager_secret.api_token.arn,
           aws_secretsmanager_secret.anthropic_api_key.arn
         ]
       }
@@ -1139,13 +1135,13 @@ resource "aws_ecs_task_definition" "backend" {
       portMappings = [{ containerPort = 8000, hostPort = 8000, protocol = "tcp" }]
       environment = [
         { name = "TRADING_MODE", value = "paper" },
-        { name = "API_TOKEN", value = var.api_token },
         { name = "API_CORS_ORIGINS", value = "http://${aws_lb.app.dns_name}" },
         { name = "DATABASE_URL_SECRET_VERSION", value = aws_secretsmanager_secret_version.database_url.version_id },
-        { name = "ANTHROPIC_API_KEY_SECRET_VERSION", value = aws_secretsmanager_secret_version.anthropic_api_key.version_id }
+        { name = "APP_SECRETS_REVISION", value = var.app_secrets_revision }
       ]
       secrets = [
         { name = "DATABASE_URL", valueFrom = aws_secretsmanager_secret.database_url.arn },
+        { name = "API_TOKEN", valueFrom = aws_secretsmanager_secret.api_token.arn },
         { name = "ANTHROPIC_API_KEY", valueFrom = aws_secretsmanager_secret.anthropic_api_key.arn }
       ]
       logConfiguration = {
@@ -1264,6 +1260,14 @@ output "backend_service_name" {
 output "frontend_service_name" {
   value = aws_ecs_service.frontend.name
 }
+
+output "api_token_secret_name" {
+  value = aws_secretsmanager_secret.api_token.name
+}
+
+output "anthropic_api_key_secret_name" {
+  value = aws_secretsmanager_secret.anthropic_api_key.name
+}
 ```
 
 - [ ] **Step 5: Create production example tfvars**
@@ -1271,9 +1275,14 @@ output "frontend_service_name" {
 Create `infra/terraform/prod/terraform.tfvars.example`:
 
 ```hcl
+# App secret values are written to Secrets Manager outside Terraform.
+# Use app_secrets_revision to force a new backend task definition after those
+# secret values change.
+
 aws_region        = "ap-southeast-2"
 project_name      = "ai-trade-flow"
 environment       = "prod"
+app_secrets_revision = "initial"
 backend_image     = "111122223333.dkr.ecr.ap-southeast-2.amazonaws.com/ai-trade-flow-prod-backend:bootstrap"
 frontend_image    = "111122223333.dkr.ecr.ap-southeast-2.amazonaws.com/ai-trade-flow-prod-frontend:bootstrap"
 database_name     = "tradeflow"
@@ -1365,14 +1374,18 @@ jobs:
             -backend-config="region=${{ env.AWS_REGION }}" \
             -backend-config="dynamodb_table=${{ secrets.TF_LOCK_TABLE }}"
 
-      - name: Bootstrap ECR repositories
+      - name: Bootstrap ECR repositories and app secret containers
         working-directory: infra/terraform/prod
         env:
-          TF_VAR_api_token: ${{ secrets.API_TOKEN }}
-          TF_VAR_anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          TF_VAR_app_secrets_revision: bootstrap
           TF_VAR_backend_image: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/ai-trade-flow-prod-backend:${{ github.sha }}
           TF_VAR_frontend_image: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/ai-trade-flow-prod-frontend:${{ github.sha }}
-        run: terraform apply -auto-approve -target=aws_ecr_repository.backend -target=aws_ecr_repository.frontend
+        run: |
+          terraform apply -auto-approve \
+            -target=aws_ecr_repository.backend \
+            -target=aws_ecr_repository.frontend \
+            -target=aws_secretsmanager_secret.api_token \
+            -target=aws_secretsmanager_secret.anthropic_api_key
 
       - name: Login to ECR
         uses: aws-actions/amazon-ecr-login@v2
@@ -1393,11 +1406,20 @@ jobs:
             frontend
           docker push "$FRONTEND_IMAGE"
 
+      - name: Write app secrets to Secrets Manager
+        working-directory: infra/terraform/prod
+        run: |
+          aws secretsmanager put-secret-value \
+            --secret-id "$(terraform output -raw api_token_secret_name)" \
+            --secret-string "${{ secrets.API_TOKEN }}"
+          aws secretsmanager put-secret-value \
+            --secret-id "$(terraform output -raw anthropic_api_key_secret_name)" \
+            --secret-string "${{ secrets.ANTHROPIC_API_KEY }}"
+
       - name: Terraform apply
         working-directory: infra/terraform/prod
         env:
-          TF_VAR_api_token: ${{ secrets.API_TOKEN }}
-          TF_VAR_anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          TF_VAR_app_secrets_revision: ${{ github.sha }}
           TF_VAR_backend_image: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/ai-trade-flow-prod-backend:${{ github.sha }}
           TF_VAR_frontend_image: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/ai-trade-flow-prod-frontend:${{ github.sha }}
         run: terraform apply -auto-approve
@@ -1504,7 +1526,7 @@ Add these repository or environment secrets:
 - `NEXT_PUBLIC_API_TOKEN`
 - `ANTHROPIC_API_KEY`
 
-`API_TOKEN` and `NEXT_PUBLIC_API_TOKEN` must match. `NEXT_PUBLIC_API_TOKEN` is visible to browser clients, so it is not a private server secret.
+The deploy workflow writes `API_TOKEN` and `ANTHROPIC_API_KEY` into AWS Secrets Manager with the AWS CLI before the full Terraform apply. `API_TOKEN` and `NEXT_PUBLIC_API_TOKEN` must match. `NEXT_PUBLIC_API_TOKEN` is visible to browser clients, so it is not a private server secret.
 
 ## Deploy
 
@@ -1697,7 +1719,7 @@ NEXT_PUBLIC_API_TOKEN=<same strong random token>
 ANTHROPIC_API_KEY=<anthropic key or empty string>
 ```
 
-`API_TOKEN` and `NEXT_PUBLIC_API_TOKEN` must have the same value for the first release.
+The deploy workflow writes `API_TOKEN` and `ANTHROPIC_API_KEY` into the production Secrets Manager secret containers and uses `TF_VAR_app_secrets_revision=${{ github.sha }}` to force a new backend task definition. `API_TOKEN` and `NEXT_PUBLIC_API_TOKEN` must have the same value for the first release.
 
 - [ ] **Step 4: Run deploy workflow**
 

@@ -26,17 +26,10 @@ variable "frontend_image" {
   description = "Full frontend image URI including tag."
 }
 
-variable "api_token" {
+variable "app_secrets_revision" {
   type        = string
-  description = "Bearer token required by backend /api routes."
-  sensitive   = true
-}
-
-variable "anthropic_api_key" {
-  type        = string
-  description = "Anthropic API key. Empty string disables AI calls that require it."
-  sensitive   = true
-  default     = ""
+  description = "Non-secret marker that changes when app-level Secrets Manager values are updated outside Terraform."
+  default     = "initial"
 }
 
 variable "database_name" {

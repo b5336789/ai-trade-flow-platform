@@ -248,16 +248,18 @@ resource "aws_secretsmanager_secret_version" "database_url" {
   secret_string = "postgresql+psycopg://${var.database_username}:${random_password.db.result}@${aws_db_instance.main.address}:5432/${var.database_name}"
 }
 
-resource "aws_secretsmanager_secret" "anthropic_api_key" {
-  name                    = "${local.name_prefix}/anthropic-api-key"
+resource "aws_secretsmanager_secret" "api_token" {
+  name                    = "${local.name_prefix}/api-token"
   recovery_window_in_days = 0
 
   tags = local.common_tags
 }
 
-resource "aws_secretsmanager_secret_version" "anthropic_api_key" {
-  secret_id     = aws_secretsmanager_secret.anthropic_api_key.id
-  secret_string = var.anthropic_api_key
+resource "aws_secretsmanager_secret" "anthropic_api_key" {
+  name                    = "${local.name_prefix}/anthropic-api-key"
+  recovery_window_in_days = 0
+
+  tags = local.common_tags
 }
 
 resource "aws_lb" "app" {
@@ -386,6 +388,7 @@ resource "aws_iam_role_policy" "ecs_read_secrets" {
         ]
         Resource = [
           aws_secretsmanager_secret.database_url.arn,
+          aws_secretsmanager_secret.api_token.arn,
           aws_secretsmanager_secret.anthropic_api_key.arn,
         ]
       },
@@ -421,13 +424,13 @@ resource "aws_ecs_task_definition" "backend" {
       ]
       environment = [
         { name = "TRADING_MODE", value = "paper" },
-        { name = "API_TOKEN", value = var.api_token },
         { name = "API_CORS_ORIGINS", value = "http://${aws_lb.app.dns_name}" },
         { name = "DATABASE_URL_SECRET_VERSION", value = aws_secretsmanager_secret_version.database_url.version_id },
-        { name = "ANTHROPIC_API_KEY_SECRET_VERSION", value = aws_secretsmanager_secret_version.anthropic_api_key.version_id },
+        { name = "APP_SECRETS_REVISION", value = var.app_secrets_revision },
       ]
       secrets = [
         { name = "DATABASE_URL", valueFrom = aws_secretsmanager_secret.database_url.arn },
+        { name = "API_TOKEN", valueFrom = aws_secretsmanager_secret.api_token.arn },
         { name = "ANTHROPIC_API_KEY", valueFrom = aws_secretsmanager_secret.anthropic_api_key.arn },
       ]
       logConfiguration = {
