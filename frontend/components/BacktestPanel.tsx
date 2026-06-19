@@ -156,14 +156,14 @@ export function BacktestPanel() {
         <button
           onClick={compare}
           disabled={loading}
-          className="rounded-md bg-purple-600 px-3 py-1 text-sm font-medium hover:bg-purple-500 disabled:opacity-50"
+          className="rounded-md bg-surface-2 text-text border border-border-strong px-3 py-1 text-sm font-medium hover:bg-surface-3 disabled:opacity-50"
         >
           Compare all
         </button>
         <button
           onClick={optimize}
           disabled={loading}
-          className="rounded-md bg-amber-600 px-3 py-1 text-sm font-medium hover:bg-amber-500 disabled:opacity-50"
+          className="rounded-md bg-surface-2 text-text border border-border-strong px-3 py-1 text-sm font-medium hover:bg-surface-3 disabled:opacity-50"
         >
           Optimize
         </button>
