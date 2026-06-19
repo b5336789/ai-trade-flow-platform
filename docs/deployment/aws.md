@@ -2,12 +2,13 @@
 
 ## 1. Overview
 
-This project ships an AWS production path on branch `deploy/aws-github-actions`:
+This project ships an AWS production path on `main`:
 
 - `infra/terraform/bootstrap` bootstraps remote Terraform state (S3), lock table (DynamoDB), and GitHub OIDC deploy role.
 - `infra/terraform/prod` deploys ECS Fargate frontend/backend, ALB, RDS PostgreSQL, ECR repos, logging, and Secrets Manager secret containers.
 - GitHub Actions deploy workflow is `/.github/workflows/deploy.yml`.
 - Region is fixed to `ap-east-2` (Asia Pacific, Taipei). Enable this opt-in Region in the AWS account before running bootstrap or deploy.
+- Use Terraform `1.15.6` or newer. Older Terraform versions may reject `ap-east-2` during S3 backend initialization.
 - First release exposes the app on ALB HTTP DNS only. The domain `bwtseng.com` is registered, but Route 53 DNS records and ACM HTTPS are a follow-up.
 
 Image tags are immutable and include GitHub metadata:
@@ -16,7 +17,7 @@ Image tags are immutable and include GitHub metadata:
 
 ## 2. First-time bootstrap commands
 
-Run these once from a machine with AWS credentials and Terraform installed:
+Run these once from a machine with AWS credentials and Terraform `1.15.6` or newer installed:
 
 ```bash
 cd infra/terraform/bootstrap
