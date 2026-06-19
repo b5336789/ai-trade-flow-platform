@@ -53,6 +53,31 @@ jobs:
             -backend-config="region=${{ env.AWS_REGION }}" \
             -backend-config="dynamodb_table=${{ secrets.TF_LOCK_TABLE }}"
 
+      - name: Validate production tokens
+        id: validate_tokens
+        env:
+          API_TOKEN: ${{ secrets.API_TOKEN }}
+          NEXT_PUBLIC_API_TOKEN: ${{ secrets.NEXT_PUBLIC_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "$API_TOKEN" ]; then
+            printf '%s\n' 'API_TOKEN secret is required for production deploy' >&2
+            exit 1
+          fi
+          if [ -z "$NEXT_PUBLIC_API_TOKEN" ]; then
+            printf '%s\n' 'NEXT_PUBLIC_API_TOKEN secret is required for production deploy' >&2
+            exit 1
+          fi
+          if [ "$NEXT_PUBLIC_API_TOKEN" != "$API_TOKEN" ]; then
+            printf '%s\n' 'NEXT_PUBLIC_API_TOKEN must match API_TOKEN for production deploy' >&2
+            exit 1
+          fi
+
+          {
+            printf 'api_token=%s\n' "$API_TOKEN"
+            printf 'next_public_api_token=%s\n' "$NEXT_PUBLIC_API_TOKEN"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Bootstrap ECR repositories and app secret containers
         working-directory: infra/terraform/prod
         env:
@@ -81,31 +106,6 @@ jobs:
 
       - name: Login to ECR
         uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Validate production tokens
-        id: validate_tokens
-        env:
-          API_TOKEN: ${{ secrets.API_TOKEN }}
-          NEXT_PUBLIC_API_TOKEN: ${{ secrets.NEXT_PUBLIC_API_TOKEN }}
-        run: |
-          set -euo pipefail
-          if [ -z "$API_TOKEN" ]; then
-            printf '%s\n' 'API_TOKEN secret is required for production deploy' >&2
-            exit 1
-          fi
-          if [ -z "$NEXT_PUBLIC_API_TOKEN" ]; then
-            printf '%s\n' 'NEXT_PUBLIC_API_TOKEN secret is required for production deploy' >&2
-            exit 1
-          fi
-          if [ "$NEXT_PUBLIC_API_TOKEN" != "$API_TOKEN" ]; then
-            printf '%s\n' 'NEXT_PUBLIC_API_TOKEN must match API_TOKEN for production deploy' >&2
-            exit 1
-          fi
-
-          {
-            printf 'api_token=%s\n' "$API_TOKEN"
-            printf 'next_public_api_token=%s\n' "$NEXT_PUBLIC_API_TOKEN"
-          } >> "$GITHUB_OUTPUT"
 
       - name: Write app secrets to Secrets Manager
         env:
