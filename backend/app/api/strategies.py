@@ -24,6 +24,12 @@ class DesignRequest(BaseModel):
     model: str | None = None
 
 
+class DesignResponse(BaseModel):
+    spec: StrategySpec
+    rendered_python: str
+    explanation: str
+
+
 class SaveRequest(BaseModel):
     name: str
     description: str = ""
@@ -53,14 +59,14 @@ def _to_out(row: "StrategyDef") -> StrategyOut:
                        source=row.source, spec=spec, rendered_python=render_python(spec))
 
 
-@router.post("/design")
-def design(req: DesignRequest) -> dict:
+@router.post("/design", response_model=DesignResponse)
+def design(req: DesignRequest) -> DesignResponse:
     try:
         out = design_strategy(req.message, prior_spec=req.prior_spec, model=req.model)
     except RuntimeError as exc:  # missing key / parse failure
         raise HTTPException(status_code=422, detail=str(exc))
-    return {"spec": out["spec"], "rendered_python": out["rendered_python"],
-            "explanation": out["explanation"]}
+    return DesignResponse(spec=out["spec"], rendered_python=out["rendered_python"],
+                          explanation=out["explanation"])
 
 
 @router.get("", response_model=list[StrategyListItem])

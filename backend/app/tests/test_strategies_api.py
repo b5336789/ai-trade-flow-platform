@@ -42,3 +42,4 @@ def test_design_maps_agent_output(monkeypatch):
     assert r.status_code == 200
     assert r.json()["explanation"] == "ok"
     assert "rendered_python" in r.json()
+    assert r.json()["spec"]["indicators"][0]["kind"] == "rsi"
