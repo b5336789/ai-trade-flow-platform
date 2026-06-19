@@ -1,7 +1,9 @@
-// Typed client for the backend API. Base URL from env (defaults to local backend).
-
-const BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
-// M0.7: bearer token for the backend API. Empty in local dev (backend leaves auth open).
+// Typed client for the backend API. Base URL uses same-origin in production builds
+// unless NEXT_PUBLIC_API_BASE_URL is explicitly set.
+const DEFAULT_BASE = process.env.NODE_ENV === "production" ? "" : "http://localhost:8000";
+const BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? DEFAULT_BASE;
+// M0.7: bearer token is intentionally exposed to the browser via NEXT_PUBLIC_*
+// and is not a private server-side secret.
 const API_TOKEN = process.env.NEXT_PUBLIC_API_TOKEN ?? "";
 
 export interface Candle {
