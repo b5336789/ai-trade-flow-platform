@@ -12,18 +12,18 @@ const frontendRoot = join(here, "..");
 const repoDocs = join(frontendRoot, "..", "docs");
 const outDir = join(frontendRoot, "content", "docs");
 
-// Keep in sync with lib/docs-manifest.ts
-const FILES = [
-  "architecture.md",
-  "backend.md",
-  "api-reference.md",
-  "strategies.md",
-  "backtesting.md",
-  "workflow.md",
-  "configuration.md",
-  "testing.md",
-  "go-live-checklist.md",
-];
+// Single source of truth: derive the file list from lib/docs-manifest.ts so the
+// manifest and the synced/committed files can never drift apart.
+function filesFromManifest() {
+  const manifest = readFileSync(join(frontendRoot, "lib", "docs-manifest.ts"), "utf8");
+  const files = [...manifest.matchAll(/\bfile:\s*"([^"]+)"/g)].map((m) => m[1]);
+  if (files.length === 0) {
+    throw new Error("[sync-docs] no file: entries found in docs-manifest.ts");
+  }
+  return files;
+}
+
+const FILES = filesFromManifest();
 
 if (!existsSync(repoDocs)) {
   console.log("[sync-docs] ../docs not present — using committed content/docs as-is.");
