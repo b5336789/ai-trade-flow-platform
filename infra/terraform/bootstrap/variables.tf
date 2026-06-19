@@ -1,7 +1,7 @@
 variable "aws_region" {
   type        = string
   description = "AWS region for bootstrap resources."
-  default     = "ap-southeast-2"
+  default     = "ap-east-2"
 }
 
 variable "project_name" {

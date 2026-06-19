@@ -2,11 +2,11 @@
 # Use app_secrets_revision to force a new backend task definition after those
 # secret values change.
 
-aws_region        = "ap-southeast-2"
+aws_region        = "ap-east-2"
 project_name      = "ai-trade-flow"
 environment       = "prod"
 app_secrets_revision = "initial"
-backend_image     = "111122223333.dkr.ecr.ap-southeast-2.amazonaws.com/ai-trade-flow-prod-backend:bootstrap"
-frontend_image    = "111122223333.dkr.ecr.ap-southeast-2.amazonaws.com/ai-trade-flow-prod-frontend:bootstrap"
+backend_image     = "111122223333.dkr.ecr.ap-east-2.amazonaws.com/ai-trade-flow-prod-backend:bootstrap"
+frontend_image    = "111122223333.dkr.ecr.ap-east-2.amazonaws.com/ai-trade-flow-prod-frontend:bootstrap"
 database_name     = "tradeflow"
 database_username = "tradeflow"

@@ -430,7 +430,7 @@ Create `infra/terraform/bootstrap/variables.tf`:
 variable "aws_region" {
   type        = string
   description = "AWS region for bootstrap resources."
-  default     = "ap-southeast-2"
+  default     = "ap-east-2"
 }
 
 variable "project_name" {
@@ -583,7 +583,7 @@ output "github_deploy_role_arn" {
 Create `infra/terraform/bootstrap/terraform.tfvars.example`:
 
 ```hcl
-aws_region    = "ap-southeast-2"
+aws_region    = "ap-east-2"
 project_name  = "ai-trade-flow"
 github_owner  = "b5336789"
 github_repo   = "ai-trade-flow-platform"
@@ -663,7 +663,7 @@ Create `infra/terraform/prod/variables.tf`:
 variable "aws_region" {
   type        = string
   description = "AWS region."
-  default     = "ap-southeast-2"
+  default     = "ap-east-2"
 }
 
 variable "project_name" {
@@ -1279,12 +1279,12 @@ Create `infra/terraform/prod/terraform.tfvars.example`:
 # Use app_secrets_revision to force a new backend task definition after those
 # secret values change.
 
-aws_region        = "ap-southeast-2"
+aws_region        = "ap-east-2"
 project_name      = "ai-trade-flow"
 environment       = "prod"
 app_secrets_revision = "initial"
-backend_image     = "111122223333.dkr.ecr.ap-southeast-2.amazonaws.com/ai-trade-flow-prod-backend:bootstrap"
-frontend_image    = "111122223333.dkr.ecr.ap-southeast-2.amazonaws.com/ai-trade-flow-prod-frontend:bootstrap"
+backend_image     = "111122223333.dkr.ecr.ap-east-2.amazonaws.com/ai-trade-flow-prod-backend:bootstrap"
+frontend_image    = "111122223333.dkr.ecr.ap-east-2.amazonaws.com/ai-trade-flow-prod-frontend:bootstrap"
 database_name     = "tradeflow"
 database_username = "tradeflow"
 ```
@@ -1340,10 +1340,10 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  AWS_REGION: ap-southeast-2
+  AWS_REGION: ap-east-2
   IMAGE_TAG: ${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
   APP_SECRETS_REVISION: ${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
-  TF_VAR_aws_region: ap-southeast-2
+  TF_VAR_aws_region: ap-east-2
   TF_VAR_project_name: ai-trade-flow
   TF_VAR_environment: prod
 
@@ -1531,7 +1531,7 @@ Append this block:
 # NEXT_PUBLIC_API_TOKEN
 # ANTHROPIC_API_KEY
 #
-# First AWS release targets ap-southeast-2 and uses the ALB HTTP DNS name.
+# First AWS release targets ap-east-2 and uses the ALB HTTP DNS name.
 # bwtseng.com / Route 53 / ACM HTTPS are planned as a follow-up after DNS is stable.
 ```
 
@@ -1542,7 +1542,7 @@ Create `docs/deployment/aws.md`:
 ```markdown
 # AWS Deployment
 
-This project deploys production to AWS `ap-southeast-2` with GitHub Actions, Terraform, ECR, ECS Fargate, ALB, and RDS PostgreSQL.
+This project deploys production to AWS `ap-east-2` with GitHub Actions, Terraform, ECR, ECS Fargate, ALB, and RDS PostgreSQL.
 
 ## First-Time Bootstrap
 

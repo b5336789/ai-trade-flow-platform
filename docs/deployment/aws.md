@@ -7,8 +7,8 @@ This project ships an AWS production path on branch `deploy/aws-github-actions`:
 - `infra/terraform/bootstrap` bootstraps remote Terraform state (S3), lock table (DynamoDB), and GitHub OIDC deploy role.
 - `infra/terraform/prod` deploys ECS Fargate frontend/backend, ALB, RDS PostgreSQL, ECR repos, logging, and Secrets Manager secret containers.
 - GitHub Actions deploy workflow is `/.github/workflows/deploy.yml`.
-- Region is fixed to `ap-southeast-2`.
-- First release exposes the app on ALB HTTP DNS only (no custom domain, Route 53, or ACM HTTPS yet).
+- Region is fixed to `ap-east-2` (Asia Pacific, Taipei). Enable this opt-in Region in the AWS account before running bootstrap or deploy.
+- First release exposes the app on ALB HTTP DNS only. The domain `bwtseng.com` is registered, but Route 53 DNS records and ACM HTTPS are a follow-up.
 
 Image tags are immutable and include GitHub metadata:
 
@@ -92,7 +92,7 @@ in a browser.
 ## 7. Current limits / follow-ups
 
 - Deployment exposes HTTP only through ALB DNS (`http://...`).
-- `bwtseng.com`, Route 53 DNS records, and ACM HTTPS are pending follow-up.
+- `bwtseng.com` is registered; Route 53 DNS records and ACM HTTPS are pending follow-up.
 - `TRADING_MODE` is pinned to `paper` in `prod` task definition.
 - Database schema is currently initialized via SQLModel `create_all` at startup; Alembic-based migrations are not yet wired.
 - RDS `prevent_destroy` is enabled, so Terraform plans that destroy DB must be handled carefully.

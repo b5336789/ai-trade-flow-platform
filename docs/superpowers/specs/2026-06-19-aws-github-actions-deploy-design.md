@@ -6,7 +6,7 @@ Date: 2026-06-19
 
 Set up production-only deployment for this repository on AWS using Terraform, GitHub Actions OIDC, ECR, ECS Fargate, an Application Load Balancer, and RDS PostgreSQL.
 
-The first deployment target is `ap-southeast-2`. The project already has the domain `bwtseng.com`, but the initial release will use the ALB default DNS name so deployment is not blocked by domain propagation, Route 53 records, or ACM validation.
+The first deployment target is `ap-east-2`. The project already has the domain `bwtseng.com`, but the initial release will use the ALB default DNS name so deployment is not blocked by domain propagation, Route 53 records, or ACM validation.
 
 ## Goals
 
@@ -30,7 +30,7 @@ The first deployment target is `ap-southeast-2`. The project already has the dom
 
 ## AWS Architecture
 
-Terraform will create a production stack in `ap-southeast-2`:
+Terraform will create a production stack in `ap-east-2`:
 
 - VPC with two public subnets and two private subnets across availability zones.
 - Internet gateway and NAT access for private ECS tasks that need outbound package/API access.
@@ -148,7 +148,7 @@ Secrets:
 GitHub repository or environment configuration should include:
 
 - `AWS_ACCOUNT_ID`
-- `AWS_REGION=ap-southeast-2`
+- `AWS_REGION=ap-east-2`
 - `API_TOKEN`
 - `NEXT_PUBLIC_API_TOKEN`
 - `ANTHROPIC_API_KEY`, if AI features are enabled
@@ -179,7 +179,7 @@ Follow-up work:
 The first deployment is complete when:
 
 - CI passes backend tests and frontend build.
-- Terraform apply completes in `ap-southeast-2`.
+- Terraform apply completes in `ap-east-2`.
 - ECR contains backend and frontend images tagged with the deployed commit SHA.
 - ECS services are stable.
 - ALB DNS opens the frontend.
