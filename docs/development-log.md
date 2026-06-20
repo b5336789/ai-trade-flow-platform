@@ -55,6 +55,17 @@
 | 2026-06-19 | AWS bootstrap + first deploy | 使用 AWS SSO profile `AdministratorAccess-334317074103` 在 `ap-east-2` bootstrap Terraform state bucket、DynamoDB lock table、GitHub OIDC deploy role;設定 GitHub `production` environment secrets(`AWS_DEPLOY_ROLE_ARN`,`TF_STATE_BUCKET`,`TF_LOCK_TABLE`,`AWS_ACCOUNT_ID`,`API_TOKEN`,`NEXT_PUBLIC_API_TOKEN`);首次 production deploy 成功建立 ALB/ECS/RDS/VPC/ECR/Secrets。 | 修正 Terraform `1.8.5` 不認得 `ap-east-2` 的 S3 backend 問題:PR #25 升級 workflow 到 Terraform `1.15.6` 並合併。Deploy run `27822493926` 成功;ALB 曾為 `ai-trade-flow-prod-alb-1029134024.ap-east-2.elb.amazonaws.com`;`/health` 回 `200 OK {"status":"ok"}`;backend/frontend ECS 皆 running 1/1。 |
 | 2026-06-19 | 停止 AWS 付費資源 | 依成本控制要求關閉 production runtime:先將 backend/frontend ECS services scale 到 0,再 destroy Terraform prod stack;臨時解除 RDS `prevent_destroy` 並刪除 RDS;刪除 ALB、NAT Gateway/EIP、ECS services/cluster、VPC/subnets/security groups、CloudWatch log groups、Secrets Manager app secrets;ECR repos 因含 image 改用 AWS CLI `delete-repository --force` 刪除,再從 Terraform state 移除殘留。 | 驗證:RDS `NOT_FOUND`;ALB `NOT_FOUND`;NAT 無 active/deleting;ECR `NOT_FOUND`;ECS cluster `INACTIVE`;VPC tag 查詢無結果;Secrets Manager 無 `ai-trade-flow-prod/*`;prod Terraform state 為空。保留 bootstrap 資源(S3 state bucket、DynamoDB lock table、GitHub OIDC role/provider)以便日後重啟部署。GitHub `Deploy Production` workflow 已手動 disable,避免 push `main` 自動重建付費資源。 |
 
+## v2 前端完成(策略室 UI + 文件中心)
+
+> 後端 spec-based 策略室(`api/strategies.py`、`strategies/spec.py`、`ai/strategy_agent.py`)已存在且 190 測試綠;
+> 本波補齊前端缺口,使「策略室 / 交易室功能都齊備、技術文件上網頁」。分支 `feature/strategy-room-and-docs-web`。
+
+| # | 主題 | 完成內容 | 驗證 |
+| --- | --- | --- | --- |
+| FE.1 | 策略室前端 | 將原本的 placeholder `strategy-lab` 改為 DESIGN.md 規格的完整策略室:AI 設計對話(左,cyan)+ 生成策略面板(rendered Python + 可調參數表)+ 策略庫卡片(載入 / 回測 / 刪除)。新增 `lib/api.ts` 策略庫型別與方法、`components/strategy/{DesignChat,GeneratedStrategy,StrategyLibrary,StrategyLab}`。 | tsc 乾淨、`next build` 通過;dogfood 確認設計面板、策略庫列表、單支回測端到端可用(無 console error);修正 `win_rate` 顯示(後端已是百分比,勿再 ×100)。 |
+| FE.2 | 文件中心上網頁 | 新增 `/docs`:系統功能詳細說明(策略室 / 交易室 / 跨領域能力,AI 標記)+ 9 篇技術文件(架構 / 功能 / 營運)以 markdown 渲染。`content/docs/` 提交入庫並由 `scripts/sync-docs.mjs`(predev/prebuild)自 repo `docs/` 同步,因 Docker frontend build context 只含 `frontend/`。`react-markdown`+`remark-gfm`,on-brand components map。 | `next build` 把 `/docs` 與 9 篇 `/docs/[slug]` 預渲染為靜態 HTML(SSG,適配 standalone);dogfood hub + 內文 on-brand 渲染。 |
+| FE.3 | 策略室 → 交易室 接通 | 交易室回測面板的策略下拉新增「策略庫」optgroup,可直接回測策略室設計的已存策略(走 `/api/strategies/{id}/backtest`,預設參數);Optimize 維持內建策略限定。 | dogfood:選策略庫策略 → Run → 權益曲線 + 指標正確顯示。 |
+
 ## 設計原則落實(對照 `CLAUDE.md`)
 - **Simplicity First**:先做 crypto+紙上一條完整切片,再水平擴充。
 - **Surgical Changes**:重構策略 registry 時只動相關處。

@@ -1,9 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { api, MARKETS, type BacktestResult, type CompareRow, type EquityPoint, type OptimizeRow } from "@/lib/api";
+import {
+  api,
+  MARKETS,
+  type BacktestResult,
+  type CompareRow,
+  type EquityPoint,
+  type OptimizeRow,
+  type StrategyListItem,
+} from "@/lib/api";
 import { OPTIMIZE_GRID, STRATEGY_NAMES, STRATEGY_PARAMS } from "@/lib/strategies";
 import { setMarket } from "@/lib/useMarket";
+
+const SAVED_PREFIX = "saved:";
 
 function Sparkline({ points }: { points: EquityPoint[] }) {
   if (points.length < 2) return null;
@@ -40,12 +50,22 @@ export function BacktestPanel() {
   const [optimization, setOptimization] = useState<OptimizeRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [saved, setSaved] = useState<StrategyListItem[]>([]);
 
   useEffect(() => { setMarket(market); }, [market]);
 
+  // Saved library strategies designed in 策略室 are selectable here too, closing
+  // the 策略室 → 交易室 loop. Library fetch is best-effort (auth/empty tolerated).
+  useEffect(() => {
+    api.listSavedStrategies().then(setSaved).catch(() => setSaved([]));
+  }, []);
+
+  const isSaved = strategy.startsWith(SAVED_PREFIX);
+  const savedId = isSaved ? Number(strategy.slice(SAVED_PREFIX.length)) : null;
+
   function changeStrategy(name: string) {
     setStrategy(name);
-    setParams({ ...STRATEGY_PARAMS[name] });
+    setParams(name.startsWith(SAVED_PREFIX) ? {} : { ...STRATEGY_PARAMS[name] });
   }
 
   function resetOutputs() {
@@ -83,7 +103,11 @@ export function BacktestPanel() {
     setLoading(true);
     resetOutputs();
     try {
-      setResult(await api.backtest({ symbol, market, strategy, params, timeframe: "1h", limit: 500 }));
+      const res =
+        isSaved && savedId != null
+          ? await api.backtestSavedStrategy(savedId, { symbol, market, timeframe: "1h", limit: 500 })
+          : await api.backtest({ symbol, market, strategy, params, timeframe: "1h", limit: 500 });
+      setResult(res);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -129,12 +153,26 @@ export function BacktestPanel() {
           onChange={(e) => changeStrategy(e.target.value)}
           className="rounded-md bg-surface-2 px-2 py-1 text-sm"
         >
-          {STRATEGY_NAMES.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
+          <optgroup label="內建策略">
+            {STRATEGY_NAMES.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </optgroup>
+          {saved.length > 0 && (
+            <optgroup label="策略庫 (策略室)">
+              {saved.map((s) => (
+                <option key={s.id} value={`${SAVED_PREFIX}${s.id}`}>
+                  {s.name}
+                </option>
+              ))}
+            </optgroup>
+          )}
         </select>
+        {isSaved && (
+          <span className="rounded-sm bg-accent-dim px-2 py-1 text-xs text-accent">策略庫 · 預設參數</span>
+        )}
         {Object.keys(params).map((key) => (
           <label key={key} className="text-xs text-muted">
             {key}
@@ -162,7 +200,8 @@ export function BacktestPanel() {
         </button>
         <button
           onClick={optimize}
-          disabled={loading}
+          disabled={loading || isSaved}
+          title={isSaved ? "最佳化僅支援內建策略" : undefined}
           className="rounded-md bg-surface-2 text-text border border-border-strong px-3 py-1 text-sm font-medium hover:bg-surface-3 disabled:opacity-50"
         >
           Optimize

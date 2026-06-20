@@ -29,8 +29,11 @@
 | **v1 骨架** | Checkpoint 1–15 | ✅ 全數完成 | crypto + paper 端到端可運行,70 測試 |
 | **v2 Phase 0** | M0.1–M0.8(接真錢前最低門檻) | ✅ **全數完成**(M0.1–M0.8,128 測試綠) | live 前須逐項完成 `go-live-checklist.md` |
 | **v2 Phase 1** | M1.1–M1.5(跨市場一致性 + broker) | 🟡 進行中(M1.3、M1.4 ✅;剩 M1.1、M1.2、M1.5) | |
-| **v2 Phase 2** | M2.1–M2.3(招牌功能) | 🟡 進行中(M2.1 ✅;剩 M2.2、M2.3) | M2.2 策略室為最高風險 |
+| **v2 Phase 2** | M2.1–M2.3(招牌功能) | 🟡 進行中(M2.1 ✅;策略室以 **spec-based** 安全路線實作完成,前端齊備;剩 M2.3 選配) | 見下方註 |
+| **前端完成** | 策略室 UI + 文件中心 + 策略室→交易室 接通 | ✅ 完成 | 分支 `feature/strategy-room-and-docs-web`;見 `development-log.md` FE.1–FE.3 |
 | **Backlog** | 非目標 / 未來 | ⬜ 不在本期 | 美股 live(IBKR/Alpaca)等 |
+
+> **M2.2 註:** 招牌「策略室」採**宣告式 spec**(`strategies/spec.py`:白名單指標 + 條件樹,**永不執行任意程式碼**)而非 PRD 原案的「NL→任意 Python + 硬沙箱」。此路線從根本消除沙箱逃逸面,更適合 production,且已含前端(`/strategy-lab`)、AI 設計(`ai/strategy_agent.py`)、策略庫 CRUD 與回測。原 M2.2 的硬沙箱子任務因此不再需要;若日後要支援任意程式碼策略再評估。
 
 > **基準幣別 = TWD**(已確認)。**Phase 0 程式已全部完成;切 live 前務必逐項完成 [`go-live-checklist.md`](./go-live-checklist.md)。**
 
