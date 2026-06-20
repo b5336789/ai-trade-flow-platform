@@ -14,6 +14,13 @@
   --font-ui: var(--font-geist-sans); --font-mono: var(--font-geist-mono);
 }
 [data-market="tw"] { --up: #F05252; --down: #31C48D; }
+[data-surface="docs"] {
+  color-scheme: light;
+  --bg: #FBFBFA; --surface-1: #FFFFFF; --surface-2: #F4F5F6; --surface-3: #ECEEF0;
+  --border: rgba(15,18,22,0.10); --border-strong: rgba(15,18,22,0.18);
+  --text: #1A1D21; --muted: #5B616B; --faint: #8A9099;
+  --accent: #0E8FA8; --accent-dim: rgba(14,143,168,0.12);
+}
 
 body { @apply bg-bg text-text font-ui; }
 

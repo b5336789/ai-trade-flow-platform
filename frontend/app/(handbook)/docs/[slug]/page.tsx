@@ -21,8 +21,8 @@ export default function DocPage({ params }: { params: { slug: string } }) {
   const source = readDocContent(params.slug);
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[220px_1fr]">
-      <aside className="lg:sticky lg:top-4 lg:self-start">
+    <div className="grid grid-cols-1 gap-8 lg:grid-cols-[200px_1fr]">
+      <aside className="lg:sticky lg:top-20 lg:self-start">
         <Link href="/docs" className="text-[12px] text-muted hover:text-accent">
           ← 文件中心
         </Link>
@@ -43,7 +43,7 @@ export default function DocPage({ params }: { params: { slug: string } }) {
         </nav>
       </aside>
 
-      <article className="min-w-0 rounded-lg border border-border bg-surface-1 px-5 py-4 lg:px-8 lg:py-6">
+      <article className="min-w-0 max-w-[760px]">
         <Markdown source={source} />
       </article>
     </div>

@@ -7,16 +7,16 @@ export const metadata = {
   description: "系統功能詳細說明與技術文件",
 };
 
-const CATEGORIES: DocEntry["category"][] = ["架構", "功能", "營運"];
+const CATEGORIES: DocEntry["category"][] = ["概覽", "架構", "功能", "營運", "開發歷程"];
 
 export default function DocsHubPage() {
   return (
     <div className="space-y-8">
       <header>
-        <h1 className="font-display text-xl font-bold">文件中心 · Documentation</h1>
-        <p className="mt-1 max-w-3xl text-[13px] text-muted">
+        <h1 className="font-display text-2xl font-bold">文件中心 · Documentation</h1>
+        <p className="mt-2 max-w-3xl text-[14px] leading-7 text-muted">
           AI Trade Flow 是一個給專業個人投資者的自動交易平台 — 在策略室用 AI 設計策略,於交易室回測與自動執行,
-          背後是計入成本、杜絕前視偏差與過擬合的金融正確性地基。以下為系統功能詳細說明與完整技術文件。
+          背後是計入成本、杜絕前視偏差與過擬合的金融正確性地基。以下為系統功能詳細說明、完整技術文件與開發歷程。
         </p>
         <div className="mt-3 flex flex-wrap gap-2 text-[13px]">
           <Link

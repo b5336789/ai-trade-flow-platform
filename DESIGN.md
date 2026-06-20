@@ -248,3 +248,4 @@ stock imagery. Accent is cyan and earns its place; it is not decoration.
 | 2026-06-19 | Left tree-menu sidebar replaces top-bar room switcher | Two rooms + sub-items + saved strategies need persistent, hierarchical nav; a tree shows location and scales as the library grows. |
 | 2026-06-19 | RWD: pinned tree → icon rail → off-canvas drawer | One layout can't serve desktop terminals and phones; sidebar drives the mode at xl/md breakpoints, tables scroll-x rather than reflow. |
 | 2026-06-19 | Workflow builder: palette + canvas + inspector, color-per-category nodes | Maps to React Flow; category colors (data/strategy/logic/order/output) make graphs scannable; cyan reserved for strategy/AI keeps the AI-accent rule intact. |
+| 2026-06-20 | `/docs` 改為獨立亮色閱讀 Portal（`[data-surface="docs"]` scope） | 文件中心與交易終端機分流:長文閱讀需亮底/寬 measure;僅作用於 docs scope,主 App 維持深色終端機風。使用者核准的範圍內偏離。 |
