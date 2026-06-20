@@ -19,7 +19,7 @@ function resolveHref(href: string): { href: string; external: boolean } {
 
 export function Markdown({ source }: { source: string }) {
   return (
-    <div className="max-w-none text-[14px] leading-relaxed text-text">
+    <div className="max-w-none text-[15px] leading-7 text-text">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
