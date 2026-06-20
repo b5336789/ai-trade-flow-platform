@@ -332,7 +332,7 @@ export function BacktestPanel() {
           )}
 
           {tab === "walkforward" && (
-            <p className="text-sm text-muted">Walk-forward 將在下一步加入。</p>
+            <p className="text-sm text-muted">點上方「Walk-forward」按鈕執行樣本外驗證，結果會顯示於下方。</p>
           )}
         </div>
       )}
@@ -446,7 +446,9 @@ export function BacktestPanel() {
             <span className={walkforward.aggregate_oos_return_pct >= 0 ? "text-up" : "text-down"}>
               Agg OOS return {pct(walkforward.aggregate_oos_return_pct)}
             </span>
-            <span className="text-muted">Agg OOS {walkforward.metric} {walkforward.aggregate_oos_metric.toFixed(2)}</span>
+            <span className={walkforward.aggregate_oos_metric >= 0 ? "text-up" : "text-down"}>
+              Agg OOS {walkforward.metric} {walkforward.aggregate_oos_metric.toFixed(2)}
+            </span>
           </div>
           <table className="w-full text-left text-xs">
             <thead className="text-faint">
