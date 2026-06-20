@@ -12,5 +12,4 @@ export const NAV: NavItem[] = [
   { label: "排程", href: "/schedules" },
   { label: "通知", href: "/notifications" },
   { label: "匯入", href: "/data-import" },
-  { label: "文件", href: "/docs" },
 ];
