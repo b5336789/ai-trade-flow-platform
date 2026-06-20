@@ -20,9 +20,16 @@ class Settings(BaseSettings):
     # Trading
     trading_mode: TradingMode = TradingMode.paper
 
+    # AI provider selection: "anthropic" (Claude, native SDK) or "lmstudio" (local, OpenAI-compatible)
+    ai_provider: str = "anthropic"
+
     # Anthropic / Claude
     anthropic_api_key: str = ""
     ai_model: str = "claude-opus-4-8"
+
+    # Local LLM (LM Studio, OpenAI-compatible). api_key is required-non-empty by the OpenAI SDK but unused by LM Studio.
+    ai_base_url: str = "http://localhost:1234/v1"
+    ai_local_api_key: str = "lm-studio"
 
     @field_validator("anthropic_api_key", mode="before")
     @classmethod
