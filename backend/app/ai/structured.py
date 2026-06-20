@@ -27,8 +27,12 @@ def _get_lmstudio_client():
         import instructor
         from openai import OpenAI
 
+        # JSON_SCHEMA mode: LM Studio rejects Instructor's default TOOLS mode
+        # (it sends tool_choice as an object) and instead enforces output via
+        # response_format=json_schema — grammar-constrained, ideal for nested specs.
         _lmstudio_client = instructor.from_openai(
-            OpenAI(base_url=settings.ai_base_url, api_key=settings.ai_local_api_key)
+            OpenAI(base_url=settings.ai_base_url, api_key=settings.ai_local_api_key),
+            mode=instructor.Mode.JSON_SCHEMA,
         )
     return _lmstudio_client
 
