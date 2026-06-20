@@ -114,6 +114,7 @@ export function BacktestPanel() {
   }
 
   async function runWalkForward() {
+    if (isSaved) return;
     setLoading(true);
     resetOutputs();
     try {
