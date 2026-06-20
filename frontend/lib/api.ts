@@ -127,6 +127,18 @@ export interface EquityPoint {
   equity: number;
 }
 
+export interface Trade {
+  entry_time: string;
+  exit_time: string;
+  entry_price: number;
+  exit_price: number;
+  quantity: number;
+  pnl: number; // net of costs
+  gross_pnl: number;
+  cost: number;
+  return_pct: number;
+}
+
 export interface BacktestResult {
   starting_cash: number;
   final_equity: number;
@@ -136,6 +148,18 @@ export interface BacktestResult {
   wins: number;
   win_rate: number;
   max_drawdown_pct: number;
+  cagr: number;
+  annualized_volatility: number;
+  sharpe: number;
+  sortino: number;
+  calmar: number;
+  profit_factor: number | null;
+  avg_win: number;
+  avg_loss: number;
+  exposure_pct: number;
+  max_consecutive_losses: number;
+  turnover: number;
+  trades: Trade[];
   equity_curve: EquityPoint[];
 }
 
@@ -199,6 +223,46 @@ export interface OptimizeRequest {
   split?: boolean;
   oos_fraction?: number;
   rank_metric?: string;
+}
+
+export interface WalkForwardRequest {
+  symbol: string;
+  market?: string;
+  timeframe?: string;
+  limit?: number;
+  strategy: string;
+  param_grid: Record<string, number[]>;
+  n_folds?: number;
+  metric?: string; // "sharpe" | "sortino" | "calmar" | "return_over_maxdd"
+  anchored?: boolean;
+  max_combinations?: number;
+}
+
+export interface FoldResult {
+  fold: number;
+  best_params: Record<string, number>;
+  train_start: number;
+  train_end: number;
+  test_start: number;
+  test_end: number;
+  train_size: number;
+  test_size: number;
+  is_metric: number;
+  oos_metric: number;
+  is_return_pct: number;
+  oos_return_pct: number;
+  oos_max_drawdown_pct: number;
+  error: string | null;
+}
+
+export interface WalkForwardReport {
+  strategy: string;
+  metric: string;
+  n_folds: number;
+  anchored: boolean;
+  folds: FoldResult[];
+  aggregate_oos_metric: number;
+  aggregate_oos_return_pct: number;
 }
 
 // Strategy Lab (策略室) — declarative StrategySpec mirrors backend app/strategies/spec.py.
@@ -301,6 +365,11 @@ export const api = {
     request<CompareRow[]>("/api/backtest/compare", { method: "POST", body: JSON.stringify(req) }),
   optimize: (req: OptimizeRequest) =>
     request<OptimizeRow[]>("/api/backtest/optimize", { method: "POST", body: JSON.stringify(req) }),
+  walkForward: (req: WalkForwardRequest) =>
+    request<WalkForwardReport>("/api/backtest/walk-forward", {
+      method: "POST",
+      body: JSON.stringify(req),
+    }),
   createWorkflow: (name: string, graph: WorkflowGraph) =>
     request<Workflow>("/api/workflows", { method: "POST", body: JSON.stringify({ name, graph }) }),
   listWorkflows: () => request<Workflow[]>("/api/workflows"),
