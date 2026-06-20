@@ -8,8 +8,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
-from app.ai.claude_client import get_claude_client
-from app.config import settings
+from app.ai.structured import structured_completion
 from app.strategies.spec import StrategySpec
 from app.strategies.spec_render import render_python
 
@@ -28,25 +27,19 @@ class StrategyDesignResponse(BaseModel):
 
 def design_strategy(message: str, prior_spec: StrategySpec | None = None,
                     model: str | None = None) -> dict:
-    model = model or settings.ai_model
-    client = get_claude_client()
     content = message
     if prior_spec is not None:
         content = (
             f"Current strategy spec (JSON):\n{prior_spec.model_dump_json()}\n\n"
             f"Requested change: {message}"
         )
-    response = client.messages.parse(
+    out = structured_completion(
+        system=_SYSTEM_PROMPT,
+        content=content,
+        output_model=StrategyDesignResponse,
         model=model,
         max_tokens=2048,
-        thinking={"type": "adaptive"},
-        system=_SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": content}],
-        output_format=StrategyDesignResponse,
     )
-    out = response.parsed_output
-    if out is None:
-        raise RuntimeError("AI strategy could not be parsed from the model response")
     return {
         "spec": out.spec,
         "rendered_python": render_python(out.spec),

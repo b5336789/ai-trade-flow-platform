@@ -1,8 +1,6 @@
 # backend/app/tests/test_strategy_agent.py
-"""AI strategy agent with a mocked Claude client (no key/network)."""
+"""AI strategy agent with a mocked structured-completion boundary (no key/network)."""
 from __future__ import annotations
-
-from types import SimpleNamespace
 
 import pytest
 
@@ -21,24 +19,17 @@ _SPEC_DICT = {
 }
 
 
-class FakeMessages:
-    def __init__(self, parsed):
-        self._parsed = parsed
-        self.last_kwargs = None
-
-    def parse(self, **kwargs):
-        self.last_kwargs = kwargs
-        return SimpleNamespace(parsed_output=self._parsed)
-
-
-class FakeClient:
-    def __init__(self, parsed):
-        self.messages = FakeMessages(parsed)
+def _patch(monkeypatch, parsed, captured=None):
+    def fake(**kwargs):
+        if captured is not None:
+            captured.update(kwargs)
+        return parsed
+    monkeypatch.setattr(strategy_agent, "structured_completion", fake)
 
 
 def test_design_returns_spec_python_and_explanation(monkeypatch):
     parsed = StrategyDesignResponse(spec=StrategySpec.model_validate(_SPEC_DICT), explanation="RSI reversion")
-    monkeypatch.setattr(strategy_agent, "get_claude_client", lambda: FakeClient(parsed))
+    _patch(monkeypatch, parsed)
     out = design_strategy("make an RSI strategy")
     assert isinstance(out["spec"], StrategySpec)
     assert out["explanation"] == "RSI reversion"
@@ -47,15 +38,9 @@ def test_design_returns_spec_python_and_explanation(monkeypatch):
 
 def test_prior_spec_is_sent_to_model(monkeypatch):
     parsed = StrategyDesignResponse(spec=StrategySpec.model_validate(_SPEC_DICT), explanation="updated")
-    fake = FakeClient(parsed)
-    monkeypatch.setattr(strategy_agent, "get_claude_client", lambda: fake)
+    captured = {}
+    _patch(monkeypatch, parsed, captured)
     prior = StrategySpec.model_validate(_SPEC_DICT)
     design_strategy("change threshold to 28", prior_spec=prior)
-    content = fake.messages.last_kwargs["messages"][0]["content"]
-    assert "change threshold" in content
-
-
-def test_unparseable_output_fails_loud(monkeypatch):
-    monkeypatch.setattr(strategy_agent, "get_claude_client", lambda: FakeClient(None))
-    with pytest.raises(RuntimeError):
-        design_strategy("anything")
+    assert "change threshold" in captured["content"]
+    assert captured["output_model"] is StrategyDesignResponse
