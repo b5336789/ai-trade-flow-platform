@@ -44,3 +44,18 @@ def test_prior_spec_is_sent_to_model(monkeypatch):
     design_strategy("change threshold to 28", prior_spec=prior)
     assert "change threshold" in captured["content"]
     assert captured["output_model"] is StrategyDesignResponse
+
+
+def test_uses_large_token_budget(monkeypatch):
+    """The nested StrategySpec + verbose local models need headroom to avoid truncation."""
+    parsed = StrategyDesignResponse(spec=StrategySpec.model_validate(_SPEC_DICT), explanation="x")
+    captured = {}
+    _patch(monkeypatch, parsed, captured)
+    design_strategy("make a strategy")
+    assert captured["max_tokens"] >= 4096
+
+
+def test_system_prompt_pins_discriminators():
+    """Weak local models drop the union 'type' tag; the prompt must demand it explicitly."""
+    assert '"type"' in strategy_agent._SYSTEM_PROMPT
+    assert "indicator" in strategy_agent._SYSTEM_PROMPT and "literal" in strategy_agent._SYSTEM_PROMPT

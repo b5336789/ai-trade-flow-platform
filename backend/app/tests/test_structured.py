@@ -60,9 +60,11 @@ def test_lmstudio_branch_uses_instructor(monkeypatch):
     )
     monkeypatch.setattr(structured, "_get_lmstudio_client", lambda: fake_client)
 
-    out = structured_completion(system="S", content="C", output_model=Out)
+    out = structured_completion(system="S", content="C", output_model=Out, max_retries=3)
     assert out == Out(value="local")
     assert captured["response_model"] is Out
+    # weak local models intermittently violate the schema; retries let Instructor reprompt
+    assert captured["max_retries"] == 3
     # system prompt is delivered as the first message for the OpenAI-style API
     assert captured["messages"][0] == {"role": "system", "content": "S"}
     assert captured["messages"][1] == {"role": "user", "content": "C"}

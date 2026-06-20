@@ -5,7 +5,9 @@ from app.config import Settings
 
 
 def test_provider_defaults():
-    s = Settings()
+    # _env_file=None: test the code defaults, not whatever a local .env (e.g. a dev
+    # machine running against LM Studio) happens to set.
+    s = Settings(_env_file=None)
     assert s.ai_provider == "anthropic"
     assert s.ai_base_url == "http://localhost:1234/v1"
     assert s.ai_local_api_key == "lm-studio"

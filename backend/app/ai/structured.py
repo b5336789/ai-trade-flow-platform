@@ -44,6 +44,7 @@ def structured_completion(
     output_model: type[T],
     model: str | None = None,
     max_tokens: int = 2048,
+    max_retries: int = 2,
 ) -> T:
     model = model or settings.ai_model
     provider = settings.ai_provider
@@ -68,6 +69,7 @@ def structured_completion(
         return client.chat.completions.create(
             model=model,
             max_tokens=max_tokens,
+            max_retries=max_retries,
             messages=[
                 {"role": "system", "content": system},
                 {"role": "user", "content": content},
