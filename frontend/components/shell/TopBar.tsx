@@ -12,9 +12,9 @@ export function TopBar({ open, onMenu }: { open: boolean; onMenu: () => void }) 
       >
         ☰
       </button>
-      <span className="font-display text-sm font-bold md:hidden">
+      <Link href="/" aria-label="首頁" className="font-display text-sm font-bold md:hidden">
         AI Trade Flow<span className="text-accent">.</span>
-      </span>
+      </Link>
       <Link
         href="/docs"
         className="ml-auto rounded-md border border-border bg-surface-2 px-3 py-1.5 text-[13px] text-muted hover:border-accent hover:text-text"
