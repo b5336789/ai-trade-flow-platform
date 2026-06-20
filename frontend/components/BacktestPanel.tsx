@@ -6,37 +6,17 @@ import {
   MARKETS,
   type BacktestResult,
   type CompareRow,
-  type EquityPoint,
   type OptimizeRow,
   type StrategyListItem,
+  type WalkForwardReport,
 } from "@/lib/api";
 import { OPTIMIZE_GRID, STRATEGY_NAMES, STRATEGY_PARAMS } from "@/lib/strategies";
+import { EquityChart } from "@/components/EquityChart";
 import { setMarket } from "@/lib/useMarket";
 
 const SAVED_PREFIX = "saved:";
-
-function Sparkline({ points }: { points: EquityPoint[] }) {
-  if (points.length < 2) return null;
-  const values = points.map((p) => p.equity);
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const range = max - min || 1;
-  const w = 100;
-  const h = 30;
-  const path = values
-    .map((v, i) => {
-      const x = (i / (values.length - 1)) * w;
-      const y = h - ((v - min) / range) * h;
-      return `${i === 0 ? "M" : "L"}${x.toFixed(2)},${y.toFixed(2)}`;
-    })
-    .join(" ");
-  const isUp = values[values.length - 1] >= values[0];
-  return (
-    <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className="h-16 w-full">
-      <path d={path} fill="none" stroke={isUp ? "var(--up)" : "var(--down)"} strokeWidth={1} />
-    </svg>
-  );
-}
+const TIMEFRAMES = ["1m", "5m", "15m", "1h", "4h", "1d"];
+const LIMITS = [200, 500, 1000];
 
 const pct = (n: number) => `${n >= 0 ? "+" : ""}${n.toFixed(2)}%`;
 
@@ -51,6 +31,10 @@ export function BacktestPanel() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState<StrategyListItem[]>([]);
+  const [timeframe, setTimeframe] = useState("1h");
+  const [limit, setLimit] = useState(500);
+  const [tab, setTab] = useState<"overview" | "trades" | "walkforward">("overview");
+  const [walkforward, setWalkforward] = useState<WalkForwardReport | null>(null);
 
   useEffect(() => { setMarket(market); }, [market]);
 
@@ -72,6 +56,7 @@ export function BacktestPanel() {
     setResult(null);
     setComparison(null);
     setOptimization(null);
+    setWalkforward(null);
     setError(null);
   }
 
@@ -86,8 +71,8 @@ export function BacktestPanel() {
           market,
           strategy,
           param_grid: OPTIMIZE_GRID[strategy],
-          timeframe: "1h",
-          limit: 500,
+          timeframe,
+          limit,
           split: true,
           rank_metric: "oos_sharpe",
         }),
@@ -105,9 +90,10 @@ export function BacktestPanel() {
     try {
       const res =
         isSaved && savedId != null
-          ? await api.backtestSavedStrategy(savedId, { symbol, market, timeframe: "1h", limit: 500 })
-          : await api.backtest({ symbol, market, strategy, params, timeframe: "1h", limit: 500 });
+          ? await api.backtestSavedStrategy(savedId, { symbol, market, timeframe, limit })
+          : await api.backtest({ symbol, market, strategy, params, timeframe, limit });
       setResult(res);
+      setTab("overview");
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -119,7 +105,31 @@ export function BacktestPanel() {
     setLoading(true);
     resetOutputs();
     try {
-      setComparison(await api.compareStrategies({ symbol, market, timeframe: "1h", limit: 500 }));
+      setComparison(await api.compareStrategies({ symbol, market, timeframe, limit }));
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function runWalkForward() {
+    if (isSaved) return;
+    setLoading(true);
+    resetOutputs();
+    try {
+      setWalkforward(
+        await api.walkForward({
+          symbol,
+          market,
+          strategy,
+          param_grid: OPTIMIZE_GRID[strategy],
+          timeframe,
+          limit,
+          n_folds: 4,
+          metric: "sharpe",
+        }),
+      );
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -148,6 +158,28 @@ export function BacktestPanel() {
           className="rounded-md bg-surface-2 px-2 py-1 text-sm"
           placeholder="BTC/USDT"
         />
+        <select
+          value={timeframe}
+          onChange={(e) => setTimeframe(e.target.value)}
+          className="rounded-md bg-surface-2 px-2 py-1 text-sm"
+        >
+          {TIMEFRAMES.map((t) => (
+            <option key={t} value={t}>
+              {t}
+            </option>
+          ))}
+        </select>
+        <select
+          value={limit}
+          onChange={(e) => setLimit(Number(e.target.value))}
+          className="rounded-md bg-surface-2 px-2 py-1 text-sm"
+        >
+          {LIMITS.map((n) => (
+            <option key={n} value={n}>
+              {n} bars
+            </option>
+          ))}
+        </select>
         <select
           value={strategy}
           onChange={(e) => changeStrategy(e.target.value)}
@@ -206,19 +238,102 @@ export function BacktestPanel() {
         >
           Optimize
         </button>
+        <button
+          onClick={runWalkForward}
+          disabled={loading || isSaved}
+          title={isSaved ? "Walk-forward 僅支援內建策略" : undefined}
+          className="rounded-md bg-surface-2 text-text border border-border-strong px-3 py-1 text-sm font-medium hover:bg-surface-3 disabled:opacity-50"
+        >
+          Walk-forward
+        </button>
       </div>
 
       {error && <p className="text-sm text-error">Backtest error: {error}</p>}
 
       {result && (
         <div className="space-y-3">
-          <Sparkline points={result.equity_curve} />
-          <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
-            <Metric label="Return" value={pct(result.total_return_pct)} good={result.total_return_pct >= 0} />
-            <Metric label="Buy & Hold" value={pct(result.buy_hold_return_pct)} good={result.buy_hold_return_pct >= 0} />
-            <Metric label="Max DD" value={pct(-result.max_drawdown_pct)} good={false} />
-            <Metric label="Trades" value={`${result.num_trades} (${result.win_rate.toFixed(0)}% win)`} />
+          <div className="flex gap-2 border-b border-border text-sm">
+            {(["overview", "trades", "walkforward"] as const).map((t) => (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                className={`px-3 py-1.5 ${
+                  tab === t ? "border-b-2 border-accent text-text" : "text-muted hover:text-text"
+                }`}
+              >
+                {t === "overview" ? "概覽" : t === "trades" ? "交易" : "Walk-forward"}
+              </button>
+            ))}
           </div>
+
+          {tab === "overview" && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
+                <Metric label="Return" value={pct(result.total_return_pct)} good={result.total_return_pct >= 0} />
+                <Metric label="Buy & Hold" value={pct(result.buy_hold_return_pct)} good={result.buy_hold_return_pct >= 0} />
+                <Metric label="CAGR" value={pct(result.cagr)} good={result.cagr >= 0} />
+                <Metric label="Max DD" value={pct(-result.max_drawdown_pct)} good={false} />
+                <Metric label="Sharpe" value={result.sharpe.toFixed(2)} good={result.sharpe >= 0} />
+                <Metric label="Sortino" value={result.sortino.toFixed(2)} good={result.sortino >= 0} />
+                <Metric label="Win rate" value={`${result.win_rate.toFixed(0)}%`} />
+                <Metric
+                  label="Profit factor"
+                  value={result.profit_factor == null ? "∞" : result.profit_factor.toFixed(2)}
+                  good={result.profit_factor == null ? true : result.profit_factor >= 1}
+                />
+              </div>
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
+                <span>Calmar {result.calmar.toFixed(2)}</span>
+                <span>Vol {pct(result.annualized_volatility * 100)}</span>
+                <span>Exposure {result.exposure_pct.toFixed(0)}%</span>
+                <span>Turnover {result.turnover.toFixed(2)}×</span>
+                <span>Max consec. losses {result.max_consecutive_losses}</span>
+                <span>Trades {result.num_trades}</span>
+              </div>
+              <EquityChart points={result.equity_curve} />
+            </div>
+          )}
+
+          {tab === "trades" && (
+            <div className="max-h-80 overflow-y-auto">
+              {result.trades.length === 0 ? (
+                <p className="text-sm text-muted">No trades.</p>
+              ) : (
+                <table className="w-full text-left text-xs">
+                  <thead className="text-faint">
+                    <tr>
+                      <th className="py-1">Entry</th>
+                      <th>Exit</th>
+                      <th className="num">Entry px</th>
+                      <th className="num">Exit px</th>
+                      <th className="num">Qty</th>
+                      <th className="num">Return%</th>
+                      <th className="num">Net PnL</th>
+                      <th className="num">Cost</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {result.trades.map((t, i) => (
+                      <tr key={i} className="border-t border-border">
+                        <td className="py-1 font-mono">{t.entry_time.slice(0, 16).replace("T", " ")}</td>
+                        <td className="font-mono">{t.exit_time.slice(0, 16).replace("T", " ")}</td>
+                        <td className="num">{t.entry_price.toFixed(2)}</td>
+                        <td className="num">{t.exit_price.toFixed(2)}</td>
+                        <td className="num">{t.quantity.toFixed(4)}</td>
+                        <td className={`num ${t.return_pct >= 0 ? "text-up" : "text-down"}`}>{pct(t.return_pct)}</td>
+                        <td className={`num ${t.pnl >= 0 ? "text-up" : "text-down"}`}>{t.pnl.toFixed(2)}</td>
+                        <td className="num text-muted">{t.cost.toFixed(2)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
+
+          {tab === "walkforward" && (
+            <p className="text-sm text-muted">點上方「Walk-forward」按鈕執行樣本外驗證，結果會顯示於下方。</p>
+          )}
         </div>
       )}
 
@@ -319,6 +434,59 @@ export function BacktestPanel() {
             ))}
           </tbody>
         </table>
+      )}
+
+      {walkforward && (
+        <div className="space-y-2">
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+            <span className="text-muted">
+              {walkforward.strategy} · {walkforward.metric} · {walkforward.anchored ? "anchored" : "rolling"} ·{" "}
+              {walkforward.n_folds} folds
+            </span>
+            <span className={walkforward.aggregate_oos_return_pct >= 0 ? "text-up" : "text-down"}>
+              Agg OOS return {pct(walkforward.aggregate_oos_return_pct)}
+            </span>
+            <span className={walkforward.aggregate_oos_metric >= 0 ? "text-up" : "text-down"}>
+              Agg OOS {walkforward.metric} {walkforward.aggregate_oos_metric.toFixed(2)}
+            </span>
+          </div>
+          <table className="w-full text-left text-xs">
+            <thead className="text-faint">
+              <tr>
+                <th className="py-1">Fold</th>
+                <th>Best params</th>
+                <th className="num">IS {walkforward.metric}</th>
+                <th className="num">OOS {walkforward.metric}</th>
+                <th className="num">OOS Ret</th>
+                <th className="num">OOS Max DD</th>
+              </tr>
+            </thead>
+            <tbody>
+              {walkforward.folds.map((f) => (
+                <tr key={f.fold} className="border-t border-border">
+                  <td className="py-1">{f.fold}</td>
+                  {f.error ? (
+                    <td colSpan={5} className="text-error">
+                      {f.error}
+                    </td>
+                  ) : (
+                    <>
+                      <td className="font-mono">
+                        {Object.entries(f.best_params)
+                          .map(([k, v]) => `${k}=${v}`)
+                          .join(", ")}
+                      </td>
+                      <td className="num">{f.is_metric.toFixed(2)}</td>
+                      <td className={`num ${f.oos_metric >= 0 ? "text-up" : "text-down"}`}>{f.oos_metric.toFixed(2)}</td>
+                      <td className={`num ${f.oos_return_pct >= 0 ? "text-up" : "text-down"}`}>{pct(f.oos_return_pct)}</td>
+                      <td className="num text-down">{pct(-f.oos_max_drawdown_pct)}</td>
+                    </>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </section>
   );

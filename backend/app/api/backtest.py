@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 from app.backtest.engine import BacktestResult, run_backtest
 from app.backtest.optimize import OptimizeRow, grid_search
+from app.backtest.validation import WalkForwardReport, walk_forward
 from app.brokers.registry import get_data_broker
 from app.schemas import MarketKind
 from app.strategies.registry import STRATEGIES, build_strategy
@@ -139,6 +140,50 @@ def optimize(req: OptimizeRequest) -> list[OptimizeRow]:
             split=req.split,
             oos_fraction=req.oos_fraction,
             rank_metric=req.rank_metric,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    except NotImplementedError as exc:
+        raise HTTPException(status_code=501, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"{type(exc).__name__}: {exc}")
+
+
+class WalkForwardRequest(BaseModel):
+    symbol: str
+    market: MarketKind = MarketKind.crypto
+    timeframe: str = "1h"
+    limit: int = Field(default=500, ge=10, le=1000)
+    strategy: str = "ma_cross"
+    param_grid: dict[str, list] = Field(default_factory=dict)
+    n_folds: int = Field(default=4, ge=2, le=20)
+    metric: str = "sharpe"
+    anchored: bool = True
+    max_combinations: int = Field(default=200, ge=1, le=500)
+
+
+@router.post("/walk-forward", response_model=WalkForwardReport)
+def walk_forward_endpoint(req: WalkForwardRequest) -> WalkForwardReport:
+    """Walk-forward (anchored/rolling) out-of-sample validation of a strategy's parameters.
+
+    Picks best params per fold on the in-sample window by a risk-adjusted ``metric`` and scores
+    them on the following out-of-sample window; ranking by raw return is deliberately unavailable
+    (the overfitting trap). Fails loud on bad inputs.
+    """
+    try:
+        candles = get_data_broker(req.market).get_ohlcv(req.symbol, req.timeframe, req.limit)
+        return walk_forward(
+            candles,
+            req.strategy,
+            req.param_grid,
+            n_folds=req.n_folds,
+            metric=req.metric,
+            anchored=req.anchored,
+            max_combinations=req.max_combinations,
+            starting_cash=100_000.0,
+            position_fraction=1.0,
+            market=req.market,
+            timeframe=req.timeframe,
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
