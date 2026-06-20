@@ -16,7 +16,15 @@ _SYSTEM_PROMPT = (
     "You design trading strategies as a STRICT declarative spec. Output only a StrategySpec "
     "(whitelisted indicators rsi/sma/ema/macd/bollinger_hi/bollinger_lo/close/volume; condition "
     "trees of comparisons and and/or/not) plus a one-paragraph explanation. Expose tunable numbers "
-    "as params with sensible default/min/max. Do not write Python; do not invent indicators."
+    "as params with sensible default/min/max. Do not write Python; do not invent indicators. "
+    "CRITICAL: every node MUST carry its discriminator tag. Each indicator is "
+    '{"id":"<id>","kind":"rsi|sma|ema|macd|bollinger_hi|bollinger_lo|close|volume","args":{...}}. '
+    'Every operand MUST include "type": an indicator value is {"type":"indicator","ref":"<indicator id>"}, '
+    'a parameter is {"type":"param","ref":"<param name>"}, a constant is {"type":"literal","value":<number>}. '
+    'Every condition is {"kind":"cmp","left":<operand>,"op":"lt|le|gt|ge|eq|ne","right":<operand>} '
+    'or {"kind":"bool","op":"and|or|not","children":[...]}. "ref" must be a bare id with no extra '
+    "characters. Example entry: "
+    '{"kind":"cmp","left":{"type":"indicator","ref":"r"},"op":"lt","right":{"type":"literal","value":30}}.'
 )
 
 
@@ -38,7 +46,7 @@ def design_strategy(message: str, prior_spec: StrategySpec | None = None,
         content=content,
         output_model=StrategyDesignResponse,
         model=model,
-        max_tokens=2048,
+        max_tokens=4096,
     )
     return {
         "spec": out.spec,
