@@ -1,8 +1,5 @@
-"""Tests for the AI signal agent with a mocked Claude client (no network/key needed)."""
-
+"""Tests for the AI signal agent with a mocked structured-completion boundary."""
 from __future__ import annotations
-
-from types import SimpleNamespace
 
 import pytest
 
@@ -12,25 +9,18 @@ from app.schemas import SignalAction
 from app.tests.helpers import make_candles
 
 
-class FakeMessages:
-    def __init__(self, parsed: AISignalResponse):
-        self._parsed = parsed
-        self.last_kwargs: dict | None = None
-
-    def parse(self, **kwargs):
-        self.last_kwargs = kwargs
-        return SimpleNamespace(parsed_output=self._parsed)
-
-
-class FakeClient:
-    def __init__(self, parsed: AISignalResponse):
-        self.messages = FakeMessages(parsed)
+def _patch(monkeypatch, parsed, captured=None):
+    def fake(**kwargs):
+        if captured is not None:
+            captured.update(kwargs)
+        return parsed
+    monkeypatch.setattr(signal_agent, "structured_completion", fake)
 
 
 def test_maps_model_output_to_signal(monkeypatch):
     parsed = AISignalResponse(action=SignalAction.buy, confidence=0.8, rationale="uptrend + low RSI")
-    fake = FakeClient(parsed)
-    monkeypatch.setattr(signal_agent, "get_claude_client", lambda: fake)
+    captured = {}
+    _patch(monkeypatch, parsed, captured)
 
     signal = generate_ai_signal("BTC/USDT", make_candles([float(i) for i in range(1, 40)]))
 
@@ -39,12 +29,13 @@ def test_maps_model_output_to_signal(monkeypatch):
     assert signal.reason == "uptrend + low RSI"
     assert signal.source.startswith("ai:")
     # the model received a compact summary string, not raw candle objects
-    assert "Recent closes" in fake.messages.last_kwargs["messages"][0]["content"]
+    assert "Recent closes" in captured["content"]
+    assert captured["output_model"] is AISignalResponse
 
 
 def test_confidence_is_clamped(monkeypatch):
     parsed = AISignalResponse(action=SignalAction.hold, confidence=1.0, rationale="ambiguous")
-    monkeypatch.setattr(signal_agent, "get_claude_client", lambda: FakeClient(parsed))
+    _patch(monkeypatch, parsed)
     signal = generate_ai_signal("BTC/USDT", make_candles([100.0] * 30))
     assert 0.0 <= signal.confidence <= 1.0
 

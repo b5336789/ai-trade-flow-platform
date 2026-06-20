@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from types import SimpleNamespace
-
 from fastapi.testclient import TestClient
 
 from app.ai import strategy_agent
@@ -36,8 +34,7 @@ def test_crud_and_validation():
 
 def test_design_maps_agent_output(monkeypatch):
     parsed = StrategyDesignResponse(spec=StrategySpec.model_validate(_SPEC), explanation="ok")
-    fake = SimpleNamespace(messages=SimpleNamespace(parse=lambda **k: SimpleNamespace(parsed_output=parsed)))
-    monkeypatch.setattr(strategy_agent, "get_claude_client", lambda: fake)
+    monkeypatch.setattr(strategy_agent, "structured_completion", lambda **k: parsed)
     r = client.post("/api/strategies/design", json={"message": "rsi please"})
     assert r.status_code == 200
     assert r.json()["explanation"] == "ok"

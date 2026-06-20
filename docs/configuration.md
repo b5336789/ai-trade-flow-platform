@@ -8,7 +8,10 @@
 | --- | --- | --- |
 | `TRADING_MODE` | `paper` | `paper`(模擬,安全)或 `live`(真實下單) |
 | `ANTHROPIC_API_KEY` | — | AI 訊號/解釋節點所需 |
-| `AI_MODEL` | `claude-opus-4-8` | 預設模型;高頻訊號可改 `claude-sonnet-4-6` 省成本 |
+| `AI_MODEL` | `claude-opus-4-8` | 預設模型;高頻訊號可改 `claude-sonnet-4-6` 省成本。`AI_PROVIDER=lmstudio` 時填本地模型名稱(如 `qwen3-coder-30b-a3b-instruct`) |
+| `AI_PROVIDER` | `anthropic` | `anthropic`(Claude,原生 SDK)或 `lmstudio`(本地,OpenAI 相容端點) |
+| `AI_BASE_URL` | `http://localhost:1234/v1` | 本地 LLM 端點(`AI_PROVIDER=lmstudio` 時使用)。LM Studio 預設監聽此位址 |
+| `AI_LOCAL_API_KEY` | `lm-studio` | 本地 LLM API key;OpenAI SDK 要求非空,LM Studio 不驗證此值 |
 | `BINANCE_API_KEY` / `BINANCE_API_SECRET` | — | 真實加密貨幣交易;空白則只用公開行情 |
 | `BINANCE_TESTNET` | `true` | `true` 將真實下單導向 Binance 測試網 |
 | `YUANTA_API_KEY` / `YUANTA_API_SECRET` | — | 台股 元大(規劃中) |

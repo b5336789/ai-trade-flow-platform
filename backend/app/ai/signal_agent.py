@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-from app.ai.claude_client import get_claude_client
+from app.ai.structured import structured_completion
 from app.config import settings
 from app.schemas import Candle, Signal, SignalAction
 from app.strategies.indicators import candles_to_df, rsi
@@ -54,22 +54,17 @@ def generate_ai_signal(
         raise ValueError("generate_ai_signal requires candle data")
 
     model = model or settings.ai_model
-    client = get_claude_client()
     summary = _market_summary(symbol, candles)
     if extra_context:
         summary += f"\nAdditional context: {extra_context}"
 
-    response = client.messages.parse(
+    out = structured_completion(
+        system=_SYSTEM_PROMPT,
+        content=summary,
+        output_model=AISignalResponse,
         model=model,
         max_tokens=1024,
-        thinking={"type": "adaptive"},
-        system=_SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": summary}],
-        output_format=AISignalResponse,
     )
-    out = response.parsed_output
-    if out is None:
-        raise RuntimeError("AI signal could not be parsed from the model response")
 
     return Signal(
         action=out.action,
