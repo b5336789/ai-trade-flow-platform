@@ -4,7 +4,7 @@ import { createChart, ColorType, type UTCTimestamp } from "lightweight-charts";
 import { useEffect, useRef } from "react";
 import type { Candle } from "@/lib/api";
 
-export function CandleChart({ candles }: { candles: Candle[] }) {
+export function CandleChart({ candles, height = 320 }: { candles: Candle[]; height?: number }) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -21,7 +21,7 @@ export function CandleChart({ candles }: { candles: Candle[] }) {
       layout: { background: { type: ColorType.Solid, color: bg }, textColor },
       grid: { vertLines: { color: gridColor }, horzLines: { color: gridColor } },
       width: containerRef.current.clientWidth,
-      height: 320,
+      height,
       timeScale: { timeVisible: true },
     });
     const series = chart.addCandlestickSeries({
@@ -48,7 +48,7 @@ export function CandleChart({ candles }: { candles: Candle[] }) {
       window.removeEventListener("resize", onResize);
       chart.remove();
     };
-  }, [candles]);
+  }, [candles, height]);
 
   return <div ref={containerRef} className="w-full" />;
 }
