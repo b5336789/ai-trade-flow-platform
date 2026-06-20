@@ -8,6 +8,7 @@ import {
   type CompareRow,
   type OptimizeRow,
   type StrategyListItem,
+  type WalkForwardReport,
 } from "@/lib/api";
 import { OPTIMIZE_GRID, STRATEGY_NAMES, STRATEGY_PARAMS } from "@/lib/strategies";
 import { EquityChart } from "@/components/EquityChart";
@@ -33,6 +34,7 @@ export function BacktestPanel() {
   const [timeframe, setTimeframe] = useState("1h");
   const [limit, setLimit] = useState(500);
   const [tab, setTab] = useState<"overview" | "trades" | "walkforward">("overview");
+  const [walkforward, setWalkforward] = useState<WalkForwardReport | null>(null);
 
   useEffect(() => { setMarket(market); }, [market]);
 
@@ -54,6 +56,7 @@ export function BacktestPanel() {
     setResult(null);
     setComparison(null);
     setOptimization(null);
+    setWalkforward(null);
     setError(null);
   }
 
@@ -103,6 +106,29 @@ export function BacktestPanel() {
     resetOutputs();
     try {
       setComparison(await api.compareStrategies({ symbol, market, timeframe, limit }));
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function runWalkForward() {
+    setLoading(true);
+    resetOutputs();
+    try {
+      setWalkforward(
+        await api.walkForward({
+          symbol,
+          market,
+          strategy,
+          param_grid: OPTIMIZE_GRID[strategy],
+          timeframe,
+          limit,
+          n_folds: 4,
+          metric: "sharpe",
+        }),
+      );
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -210,6 +236,14 @@ export function BacktestPanel() {
           className="rounded-md bg-surface-2 text-text border border-border-strong px-3 py-1 text-sm font-medium hover:bg-surface-3 disabled:opacity-50"
         >
           Optimize
+        </button>
+        <button
+          onClick={runWalkForward}
+          disabled={loading || isSaved}
+          title={isSaved ? "Walk-forward 僅支援內建策略" : undefined}
+          className="rounded-md bg-surface-2 text-text border border-border-strong px-3 py-1 text-sm font-medium hover:bg-surface-3 disabled:opacity-50"
+        >
+          Walk-forward
         </button>
       </div>
 
@@ -399,6 +433,57 @@ export function BacktestPanel() {
             ))}
           </tbody>
         </table>
+      )}
+
+      {walkforward && (
+        <div className="space-y-2">
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+            <span className="text-muted">
+              {walkforward.strategy} · {walkforward.metric} · {walkforward.anchored ? "anchored" : "rolling"} ·{" "}
+              {walkforward.n_folds} folds
+            </span>
+            <span className={walkforward.aggregate_oos_return_pct >= 0 ? "text-up" : "text-down"}>
+              Agg OOS return {pct(walkforward.aggregate_oos_return_pct)}
+            </span>
+            <span className="text-muted">Agg OOS {walkforward.metric} {walkforward.aggregate_oos_metric.toFixed(2)}</span>
+          </div>
+          <table className="w-full text-left text-xs">
+            <thead className="text-faint">
+              <tr>
+                <th className="py-1">Fold</th>
+                <th>Best params</th>
+                <th className="num">IS {walkforward.metric}</th>
+                <th className="num">OOS {walkforward.metric}</th>
+                <th className="num">OOS Ret</th>
+                <th className="num">OOS Max DD</th>
+              </tr>
+            </thead>
+            <tbody>
+              {walkforward.folds.map((f) => (
+                <tr key={f.fold} className="border-t border-border">
+                  <td className="py-1">{f.fold}</td>
+                  {f.error ? (
+                    <td colSpan={5} className="text-error">
+                      {f.error}
+                    </td>
+                  ) : (
+                    <>
+                      <td className="font-mono">
+                        {Object.entries(f.best_params)
+                          .map(([k, v]) => `${k}=${v}`)
+                          .join(", ")}
+                      </td>
+                      <td className="num">{f.is_metric.toFixed(2)}</td>
+                      <td className={`num ${f.oos_metric >= 0 ? "text-up" : "text-down"}`}>{f.oos_metric.toFixed(2)}</td>
+                      <td className={`num ${f.oos_return_pct >= 0 ? "text-up" : "text-down"}`}>{pct(f.oos_return_pct)}</td>
+                      <td className="num text-down">{pct(-f.oos_max_drawdown_pct)}</td>
+                    </>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </section>
   );
