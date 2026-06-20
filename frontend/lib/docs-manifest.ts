@@ -5,7 +5,7 @@
 export interface DocEntry {
   slug: string;
   title: string;
-  category: "概覽" | "架構" | "功能" | "營運";
+  category: "概覽" | "架構" | "功能" | "營運" | "開發歷程";
   file: string;
   summary: string;
 }
@@ -73,6 +73,27 @@ export const DOCS: DocEntry[] = [
     category: "營運",
     file: "go-live-checklist.md",
     summary: "切換真實交易前必須逐項確認的金融正確性與風控閘門。",
+  },
+  {
+    slug: "overview",
+    title: "專案總覽",
+    category: "概覽",
+    file: "README.md",
+    summary: "文件索引與快速導覽:從這裡開始。",
+  },
+  {
+    slug: "development-log",
+    title: "開發歷程",
+    category: "開發歷程",
+    file: "development-log.md",
+    summary: "v1 16 個檢查點 + v2 各階段里程碑與完成驗證紀錄。",
+  },
+  {
+    slug: "task-backlog",
+    title: "任務清單／路線圖",
+    category: "開發歷程",
+    file: "task-backlog.md",
+    summary: "v1+v2 全部任務、狀態(✅/⬜)、effort 與依賴分析。",
   },
 ];
 
