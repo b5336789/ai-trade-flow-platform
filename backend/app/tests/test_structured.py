@@ -72,3 +72,13 @@ def test_unknown_provider_fails_loud(monkeypatch):
     monkeypatch.setattr(structured.settings, "ai_provider", "bogus")
     with pytest.raises(RuntimeError):
         structured_completion(system="S", content="C", output_model=Out)
+
+
+def test_lmstudio_client_uses_json_schema_mode(monkeypatch):
+    """LM Studio rejects Instructor's default TOOLS mode (object tool_choice);
+    the client must be built in JSON_SCHEMA mode. Construction needs no network."""
+    import instructor
+
+    monkeypatch.setattr(structured, "_lmstudio_client", None)
+    client = structured._get_lmstudio_client()
+    assert client.mode == instructor.Mode.JSON_SCHEMA
