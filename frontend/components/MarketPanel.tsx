@@ -7,6 +7,7 @@ import { setMarket } from "@/lib/useMarket";
 import { PriceChart } from "@/components/PriceChart";
 import { deriveStats, barsPer24h } from "@/lib/market-stats";
 import { L } from "@/lib/labels";
+import type { ChartMarker } from "@/lib/chart-helpers";
 
 const SIGNAL_COLORS: Record<string, string> = {
   buy: "text-up",
@@ -57,6 +58,20 @@ export function MarketPanel() {
 
   const stats = candles.data ? deriveStats(candles.data, barsPer24h(timeframe)) : null;
   const live = isCrypto && !paused ? { symbol, timeframe, market, intervalMs: 3000 } : null;
+
+  // AI 訊號疊在最後一根 K(hold 不疊);text 帶信心度。
+  const aiMarkers: ChartMarker[] = (() => {
+    if (!aiSignal || aiSignal.action === "hold" || !candles.data?.length) return [];
+    const lastIso = candles.data[candles.data.length - 1].timestamp;
+    const time = Math.floor(new Date(lastIso).getTime() / 1000);
+    const isBuy = aiSignal.action === "buy";
+    return [{
+      time,
+      position: isBuy ? "belowBar" : "aboveBar",
+      kind: isBuy ? "buy" : "sell",
+      text: `AI ${aiSignal.action} ${(aiSignal.confidence * 100).toFixed(0)}%`,
+    }];
+  })();
 
   async function askAi() {
     setAiLoading(true);
@@ -144,7 +159,7 @@ export function MarketPanel() {
         <p className="mb-2 text-sm text-error">{L.market.chartError}: {(candles.error as Error).message}</p>
       )}
       {candles.data && candles.data.length > 0 ? (
-        <PriceChart candles={candles.data} live={live} height={360} />
+        <PriceChart candles={candles.data} live={live} markers={aiMarkers} height={360} />
       ) : (
         !candles.isError && <p className="text-sm text-faint">{L.market.loadingCandles}</p>
       )}
