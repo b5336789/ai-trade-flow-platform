@@ -120,6 +120,8 @@ class CompareRequest(BaseModel):
     strategies: list[str] = Field(default_factory=lambda: list(STRATEGIES))
     starting_cash: float = 100_000.0
     position_fraction: float = 1.0
+    start: datetime | None = None
+    end: datetime | None = None
 
 
 class CompareRow(BaseModel):
@@ -136,7 +138,11 @@ class CompareRow(BaseModel):
 def compare(req: CompareRequest) -> list[CompareRow]:
     """Run several strategies over the same history and rank them by return (fetch once)."""
     try:
-        candles = get_data_broker(req.market).get_ohlcv(req.symbol, req.timeframe, req.limit)
+        candles = _fetch_candles(
+            get_data_broker(req.market), req.symbol, req.timeframe, req.limit, req.start, req.end
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
     except NotImplementedError as exc:
         raise HTTPException(status_code=501, detail=str(exc))
     except Exception as exc:
@@ -196,6 +202,8 @@ class OptimizeRequest(BaseModel):
     split: bool = False
     oos_fraction: float = Field(default=0.3, gt=0.0, lt=1.0)
     rank_metric: str = "oos_sharpe"
+    start: datetime | None = None
+    end: datetime | None = None
 
 
 @router.post("/optimize", response_model=list[OptimizeRow])
@@ -207,7 +215,9 @@ def optimize(req: OptimizeRequest) -> list[OptimizeRow]:
     which is the OOS-selected combo.
     """
     try:
-        candles = get_data_broker(req.market).get_ohlcv(req.symbol, req.timeframe, req.limit)
+        candles = _fetch_candles(
+            get_data_broker(req.market), req.symbol, req.timeframe, req.limit, req.start, req.end
+        )
         return grid_search(
             candles,
             req.strategy,
@@ -241,6 +251,8 @@ class WalkForwardRequest(BaseModel):
     metric: str = "sharpe"
     anchored: bool = True
     max_combinations: int = Field(default=200, ge=1, le=500)
+    start: datetime | None = None
+    end: datetime | None = None
 
 
 @router.post("/walk-forward", response_model=WalkForwardReport)
@@ -252,7 +264,9 @@ def walk_forward_endpoint(req: WalkForwardRequest) -> WalkForwardReport:
     (the overfitting trap). Fails loud on bad inputs.
     """
     try:
-        candles = get_data_broker(req.market).get_ohlcv(req.symbol, req.timeframe, req.limit)
+        candles = _fetch_candles(
+            get_data_broker(req.market), req.symbol, req.timeframe, req.limit, req.start, req.end
+        )
         return walk_forward(
             candles,
             req.strategy,

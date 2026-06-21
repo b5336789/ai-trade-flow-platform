@@ -166,3 +166,50 @@ def test_backtest_no_range_still_uses_limit(monkeypatch):
     )
     assert resp.status_code == 200, resp.text
     assert len(resp.json()["equity_curve"]) == 30 - 1
+
+
+def test_compare_respects_date_range(monkeypatch):
+    _stub_range_broker(monkeypatch, [100 + 5 * math.sin(i / 4) for i in range(60)])
+    resp = client.post(
+        "/api/backtest/compare",
+        json={
+            "symbol": "BTC/USDT",
+            "strategies": ["ma_cross"],
+            "start": "2024-01-05T00:00:00Z",
+            "end": "2024-01-25T00:00:00Z",
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()[0]["strategy"] == "ma_cross"
+
+
+def test_optimize_reversed_range_is_422(monkeypatch):
+    _stub_range_broker(monkeypatch, [100.0] * 60)
+    resp = client.post(
+        "/api/backtest/optimize",
+        json={
+            "symbol": "BTC/USDT",
+            "strategy": "ma_cross",
+            "param_grid": {"fast": [2, 3], "slow": [5, 8]},
+            "start": "2024-02-01T00:00:00Z",
+            "end": "2024-01-01T00:00:00Z",
+        },
+    )
+    assert resp.status_code == 422, resp.text
+
+
+def test_walk_forward_respects_date_range(monkeypatch):
+    _stub_range_broker(monkeypatch, [100 + 10 * math.sin(i / 5) for i in range(60)])
+    resp = client.post(
+        "/api/backtest/walk-forward",
+        json={
+            "symbol": "BTC/USDT",
+            "strategy": "ma_cross",
+            "param_grid": {"fast": [3, 5], "slow": [10, 15]},
+            "n_folds": 2,
+            "start": "2024-01-01T00:00:00Z",
+            "end": "2024-02-25T00:00:00Z",
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["n_folds"] == 2
