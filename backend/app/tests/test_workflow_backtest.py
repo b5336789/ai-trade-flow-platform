@@ -40,9 +40,13 @@ def test_two_symbol_backtest_runs_and_is_deterministic():
     assert r1.symbols == ["BTC/USDT", "ETH/USDT"]
     assert len(r1.equity_curve) >= 2
     assert r1.final_equity == r2.final_equity  # deterministic
-    # at least one buy signal recorded for BTC with a non-empty trace
+    # at least one buy signal recorded for BTC with a non-empty trace.
+    # The key MUST be `trace_json` — the same name the DB column, the GET /runs/{id}/signals
+    # endpoint, and the frontend WorkflowSignalDTO use — so the POST response and the persisted
+    # rows are one consistent shape (a mismatch crashed the trace drawer on a fresh backtest).
     btc_buys = [s for s in r1.signals if s["symbol"] == "BTC/USDT" and s["action"] == "buy"]
-    assert btc_buys and btc_buys[0]["trace"]
+    assert btc_buys and btc_buys[0]["trace_json"]
+    assert "trace" not in btc_buys[0]
 
 
 def test_signals_recorded_every_bar_per_order_node():

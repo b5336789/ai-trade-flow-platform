@@ -154,7 +154,7 @@ def run_workflow_backtest(
                     "action": action,
                     "confidence": sig.confidence if sig else 0.5,
                     "price": closes[sym],
-                    "trace": build_trace(graph, nid, ctx.node_outputs),
+                    "trace_json": build_trace(graph, nid, ctx.node_outputs),
                 }
             )
             # Update desired state: buy -> long, sell -> flat, hold -> unchanged.
