@@ -145,3 +145,43 @@ class RuntimeFlag(SQLModel, table=True):
     key: str = Field(primary_key=True)
     value: str = ""
     updated_at: datetime = Field(default_factory=_now)
+
+
+class WorkflowRun(SQLModel, table=True):
+    """One workflow execution — backtest or live/paper (M-backtest).
+
+    Unified run record. For backtests it carries the portfolio metrics/equity/trades as JSON; for
+    live/paper triggers those stay null and only the per-signal rows matter.
+    """
+
+    id: int | None = Field(default=None, primary_key=True)
+    run_id: str = Field(index=True)  # the engine's logical run id (idempotency key)
+    kind: str  # "backtest" | "live" | "paper"
+    workflow_id: int | None = Field(default=None, index=True)
+    graph_json: dict = Field(default_factory=dict, sa_column=Column(JSON))
+    market: str = ""
+    symbols: list = Field(default_factory=list, sa_column=Column(JSON))
+    timeframe: str = ""
+    starting_cash: float | None = Field(default=None)
+    params_json: dict = Field(default_factory=dict, sa_column=Column(JSON))
+    metrics_json: dict | None = Field(default=None, sa_column=Column(JSON))
+    equity_curve_json: list | None = Field(default=None, sa_column=Column(JSON))
+    trades_json: list | None = Field(default=None, sa_column=Column(JSON))
+    status: str = "ok"  # "ok" | "error"
+    created_at: datetime = Field(default_factory=_now, index=True)
+
+
+class WorkflowSignal(SQLModel, table=True):
+    """One emitted signal at an order node, with the node-by-node trace that produced it."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    run_id: int = Field(index=True, foreign_key="workflowrun.id")
+    order_node_id: str
+    symbol: str = Field(index=True)
+    timestamp: str  # bar timestamp ISO8601 (string keeps it portable across markets)
+    bar_index: int | None = Field(default=None)
+    action: str  # "buy" | "sell" | "hold"
+    confidence: float = 0.5
+    price: float = 0.0  # close at the signal bar
+    trace_json: list = Field(default_factory=list, sa_column=Column(JSON))
+    created_at: datetime = Field(default_factory=_now)
