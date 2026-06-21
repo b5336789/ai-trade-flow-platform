@@ -1,7 +1,8 @@
 "use client";
 import { createChart, ColorType, type IChartApi, type ISeriesApi, type UTCTimestamp } from "lightweight-charts";
-import { useEffect, useRef } from "react";
-import type { Candle } from "@/lib/api";
+import { useEffect, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { api, type Candle } from "@/lib/api";
 import {
   toCandlestickData, toVolumeData, markerToSeries,
   type ChartMarker, type Overlay, type LiveConfig, type OHLCV,
@@ -34,7 +35,7 @@ function sma(values: number[], period: number): (number | null)[] {
 }
 
 export function PriceChart({
-  candles, height = 360, markers, overlays, volume = true, onCrosshairMove,
+  candles, height = 360, markers, overlays, volume = true, live, onCrosshairMove,
 }: PriceChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -122,6 +123,45 @@ export function PriceChart({
     return () => { lines.forEach((l) => chart.removeSeries(l)); };
   }, [overlays, candles]);
 
+  // ── Live 輪詢(live 非 null 時啟用)──────────────────────────────
+  const [lastPrice, setLastPrice] = useState<number | null>(null);
+  const [flash, setFlash] = useState<"up" | "down" | null>(null);
+  const lastTimeRef = useRef<number | null>(null);
+
+  const liveQuery = useQuery({
+    queryKey: ["price-live", live?.symbol, live?.timeframe, live?.market],
+    queryFn: () => api.ohlcv(live!.symbol, live!.timeframe, 2, live!.market ?? "crypto"),
+    enabled: !!live,
+    refetchInterval: live ? Math.max(1000, live.intervalMs ?? 3000) : false,
+    refetchIntervalInBackground: false, // 分頁失焦自動停
+  });
+
+  useEffect(() => {
+    const cs = candleSeriesRef.current;
+    const rows = liveQuery.data;
+    if (!cs || !rows || !rows.length) return;
+    const up = cssVar("--up", "#34D399"), down = cssVar("--down", "#F87171");
+    for (const c of rows) {
+      const t = Math.floor(new Date(c.timestamp).getTime() / 1000) as UTCTimestamp;
+      cs.update({ time: t, open: c.open, high: c.high, low: c.low, close: c.close });
+      if (volumeSeriesRef.current) {
+        volumeSeriesRef.current.update({ time: t, value: c.volume, color: c.close >= c.open ? up : down });
+      }
+      lastTimeRef.current = t;
+    }
+    const newClose = rows[rows.length - 1].close;
+    setLastPrice((prev) => {
+      if (prev != null && newClose !== prev) setFlash(newClose > prev ? "up" : "down");
+      return newClose;
+    });
+  }, [liveQuery.data]);
+
+  useEffect(() => {
+    if (!flash) return;
+    const id = setTimeout(() => setFlash(null), 200);
+    return () => clearTimeout(id);
+  }, [flash]);
+
   if (!candles.length) {
     return (
       <div className="grid w-full place-items-center rounded-md border border-border bg-surface-1 text-sm text-muted" style={{ height }}>
@@ -129,5 +169,18 @@ export function PriceChart({
       </div>
     );
   }
-  return <div ref={containerRef} className="w-full" />;
+  return (
+    <div className="relative w-full">
+      {live && lastPrice != null && (
+        <div
+          className={`num absolute right-2 top-2 z-10 rounded-md border border-border bg-surface-2 px-2 py-0.5 text-xs transition-colors ${
+            flash === "up" ? "text-up" : flash === "down" ? "text-down" : "text-text"
+          }`}
+        >
+          {lastPrice.toFixed(2)}
+        </div>
+      )}
+      <div ref={containerRef} className="w-full" />
+    </div>
+  );
 }
