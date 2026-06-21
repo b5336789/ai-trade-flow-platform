@@ -49,9 +49,38 @@ def _make_ccxt(monkeypatch, fake: _FakeExchange) -> CcxtBroker:
     return broker
 
 
+class _NullBroker(Broker):
+    """Minimal concrete Broker that satisfies all abstractmethods but does NOT override get_ohlcv_range."""
+
+    market = None  # type: ignore[assignment]
+    mode = None  # type: ignore[assignment]
+
+    @property
+    def name(self) -> str:
+        return "null"
+
+    def get_ticker(self, symbol):
+        raise NotImplementedError
+
+    def get_ohlcv(self, symbol, timeframe="1h", limit=100):
+        raise NotImplementedError
+
+    def create_order(self, request):
+        raise NotImplementedError
+
+    def get_balance(self):
+        raise NotImplementedError
+
+    def get_positions(self):
+        raise NotImplementedError
+
+
 def test_base_get_ohlcv_range_default_fails_loud():
     # The ABC default must fail loud so unimplemented brokers never silently return nothing.
     assert hasattr(Broker, "get_ohlcv_range")
+    broker = _NullBroker()
+    with pytest.raises(NotImplementedError):
+        broker.get_ohlcv_range("X/Y", "1h", _utc(2024, 1, 1), _utc(2024, 1, 2))
 
 
 def test_ccxt_range_paginates_across_two_pages(monkeypatch):
