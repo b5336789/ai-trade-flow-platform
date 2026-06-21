@@ -55,14 +55,16 @@ export function useWorkflowState() {
   }, [nodes, edges]);
 
   const onNodesChange = useCallback((changes: NodeChange[]) => {
-    // snapshot once when a drag finishes (position change with dragging=false)
-    if (changes.some((c) => c.type === "position" && c.dragging === false)) snapshot();
+    // snapshot once when a drag finishes or when any node is removed (keyboard delete)
+    if (changes.some((c) => (c.type === "position" && c.dragging === false) || c.type === "remove")) snapshot();
     setNodes((nds) => applyNodeChanges(changes, nds));
   }, [snapshot]);
 
   const onEdgesChange = useCallback((changes: EdgeChange[]) => {
+    // snapshot before applying when any edge is removed (keyboard delete)
+    if (changes.some((c) => c.type === "remove")) snapshot();
     setEdges((eds) => applyEdgeChanges(changes, eds));
-  }, []);
+  }, [snapshot]);
 
   const onConnect = useCallback((c: Connection) => {
     snapshot();
