@@ -12,6 +12,8 @@ const config: Config = {
         accent: "var(--accent)", "accent-dim": "var(--accent-dim)",
         up: "var(--up)", down: "var(--down)",
         warning: "var(--warning)", error: "var(--error)", live: "var(--live)",
+        "c-data": "var(--c-data)", "c-strat": "var(--c-strat)", "c-logic": "var(--c-logic)",
+        "c-order": "var(--c-order)", "c-out": "var(--c-out)",
       },
       fontFamily: {
         display: ["var(--font-display)", "var(--font-ui)", "var(--font-cjk)", "sans-serif"],
