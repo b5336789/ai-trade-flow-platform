@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -141,9 +142,15 @@ def run_ad_hoc(graph: WorkflowGraph, session: Session = Depends(get_session)) ->
     ctx = RunContext(session=session)
     result = run_workflow(graph, session=session, ctx=ctx)
     session.add(RunLog(workflow_id=None, status=result.status, detail=result.model_dump(mode="json")))
-    if result.status == "ok":
-        _persist_live_run(session, graph, None, ctx, result)
     session.commit()
+    if result.status == "ok":
+        try:
+            _persist_live_run(session, graph, None, ctx, result)
+        except Exception:
+            session.rollback()
+            logging.getLogger(__name__).exception(
+                "workflow run executed and logged, but history persistence failed"
+            )
     return result
 
 
@@ -158,7 +165,13 @@ def run_saved(workflow_id: int, session: Session = Depends(get_session)) -> RunR
     session.add(
         RunLog(workflow_id=workflow_id, status=result.status, detail=result.model_dump(mode="json"))
     )
-    if result.status == "ok":
-        _persist_live_run(session, graph, workflow_id, ctx, result)
     session.commit()
+    if result.status == "ok":
+        try:
+            _persist_live_run(session, graph, workflow_id, ctx, result)
+        except Exception:
+            session.rollback()
+            logging.getLogger(__name__).exception(
+                "workflow run executed and logged, but history persistence failed"
+            )
     return result
