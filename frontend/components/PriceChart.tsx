@@ -50,7 +50,7 @@ export function PriceChart({
     const down = cssVar("--down", "#F87171");
     const bg = cssVar("--bg", "#0A0B0D");
     const grid = cssVar("--border", "#1f1f1f");
-    const text = cssVar("--text-muted", "#8A9099");
+    const text = cssVar("--muted", "#8A9099");
 
     const chart = createChart(el, {
       layout: { background: { type: ColorType.Solid, color: bg }, textColor: text },
@@ -126,7 +126,6 @@ export function PriceChart({
   // ── Live 輪詢(live 非 null 時啟用)──────────────────────────────
   const [lastPrice, setLastPrice] = useState<number | null>(null);
   const [flash, setFlash] = useState<"up" | "down" | null>(null);
-  const lastTimeRef = useRef<number | null>(null);
 
   const liveQuery = useQuery({
     queryKey: ["price-live", live?.symbol, live?.timeframe, live?.market],
@@ -147,7 +146,6 @@ export function PriceChart({
       if (volumeSeriesRef.current) {
         volumeSeriesRef.current.update({ time: t, value: c.volume, color: c.close >= c.open ? up : down });
       }
-      lastTimeRef.current = t;
     }
     const newClose = rows[rows.length - 1].close;
     setLastPrice((prev) => {
