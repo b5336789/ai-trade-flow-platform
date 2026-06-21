@@ -74,3 +74,29 @@ def test_buy_scaled_to_available_cash():
     assert acquired_qty < 500.0
     # Cash must never go negative
     assert sim.cash >= -1e-9
+
+def test_buy_with_dust_negative_cash_does_not_raise():
+    """Regression: a prior exact-fit buy can leave cash at tiny float-negative dust
+    (e.g. -7e-15). The next buy must be a safe no-op, not crash via fill_cost(qty<0)."""
+    sim = _sim()
+    sim.cash = -7.105427357601002e-15  # observed float dust from an exact cash-cap buy
+    sim.rebalance({"BTC/USDT": 1.0}, {"BTC/USDT": 50.0}, ts="t")
+    # no spendable cash -> nothing bought, and crucially: no ValueError raised
+    assert "BTC/USDT" not in sim.positions or sim.positions["BTC/USDT"].quantity == 0.0
+
+
+def test_equal_weight_two_long_churn_over_bars_never_raises():
+    """Two symbols both long, rebalanced every bar with moving prices — the equal-weight
+    churn path. After full deployment cash sits at ~0, and continued rebalancing must not
+    drive a buy with non-positive cash into fill_cost. Completes cleanly; cash never negative."""
+    sim = _sim()
+    longs = {"BTC/USDT", "ETH/USDT"}
+    btc, eth = 100.0, 50.0
+    for i in range(20):
+        # oscillate prices so targets shift each bar and the cap fires repeatedly
+        btc *= 1.03 if i % 2 == 0 else 0.97
+        eth *= 0.98 if i % 2 == 0 else 1.04
+        prices = {"BTC/USDT": btc, "ETH/USDT": eth}
+        targets = sim.target_quantities(longs, prices)
+        sim.rebalance(targets, prices, ts=f"t{i}")  # must not raise
+        assert sim.cash >= -1e-6, f"cash went negative at bar {i}: {sim.cash}"
