@@ -66,12 +66,25 @@ function BuilderInner() {
         running={running}
       />
       {savedMsg && <p className="px-3 py-1 text-sm text-up">{savedMsg}</p>}
-      <div className="flex h-[520px]">
-        <Palette />
+      <div className="relative flex h-[520px]">
+        {/* Palette: full on xl, icon strip on md, bottom-sheet toggle on mobile */}
+        <div className="hidden md:block">
+          <Palette compact={typeof window !== "undefined" && window.innerWidth < 1280} />
+        </div>
         <div className="relative flex-1">
           <Canvas wf={wf} onInit={setRf} />
         </div>
-        <Inspector node={selectedNode} setParam={wf.setParam} onDelete={wf.deleteNode} onDuplicate={wf.duplicateNode} />
+        {/* Inspector: inline on xl; slide-over on md/sm when a node is selected */}
+        {selectedNode && (
+          <div className="absolute inset-y-0 right-0 z-10 xl:static xl:z-auto">
+            <Inspector node={selectedNode} setParam={wf.setParam} onDelete={wf.deleteNode} onDuplicate={wf.duplicateNode} onClose={() => wf.setSelectedId(null)} />
+          </div>
+        )}
+        {!selectedNode && (
+          <div className="hidden xl:block">
+            <Inspector node={null} setParam={wf.setParam} onDelete={wf.deleteNode} onDuplicate={wf.duplicateNode} />
+          </div>
+        )}
       </div>
       {error && <p className="px-3 py-2 text-sm text-error">Run error: {error}</p>}
       {result && (

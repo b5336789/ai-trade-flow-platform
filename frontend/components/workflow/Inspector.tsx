@@ -34,11 +34,13 @@ export function Inspector({
   setParam,
   onDelete,
   onDuplicate,
+  onClose,
 }: {
   node: Node | null;
   setParam: (id: string, key: string, value: unknown) => void;
   onDelete: (id: string) => void;
   onDuplicate: (id: string) => void;
+  onClose?: () => void;
 }) {
   if (!node) {
     return (
@@ -61,6 +63,15 @@ export function Inspector({
         <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-faint">
           <span className="inline-block h-2 w-2 rounded-full" style={{ background: CATEGORY_COLOR[meta.category] }} />
           {CATEGORY_LABEL[meta.category]}
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="ml-auto text-faint hover:text-text"
+              aria-label="關閉"
+            >
+              ✕
+            </button>
+          )}
         </div>
         <div className="mt-0.5 font-display text-sm font-semibold">{meta.title}</div>
       </div>
