@@ -13,6 +13,8 @@ import {
 import { OPTIMIZE_GRID, STRATEGY_NAMES, STRATEGY_PARAMS } from "@/lib/strategies";
 import { EquityChart } from "@/components/EquityChart";
 import { setMarket } from "@/lib/useMarket";
+import { L } from "@/lib/labels";
+import { Term } from "@/components/Term";
 
 const SAVED_PREFIX = "saved:";
 const TIMEFRAMES = ["1m", "5m", "15m", "1h", "4h", "1d"];
@@ -35,6 +37,7 @@ export function BacktestPanel() {
   const [limit, setLimit] = useState(500);
   const [tab, setTab] = useState<"overview" | "trades" | "walkforward">("overview");
   const [walkforward, setWalkforward] = useState<WalkForwardReport | null>(null);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   useEffect(() => { setMarket(market); }, [market]);
 
@@ -139,7 +142,7 @@ export function BacktestPanel() {
 
   return (
     <section className="rounded-lg border border-border bg-surface-1 p-4">
-      <h2 className="font-display mb-3 text-lg font-semibold">Backtest</h2>
+      <h2 className="font-display mb-3 text-lg font-semibold">{L.backtest.title}</h2>
       <div className="mb-3 flex flex-wrap items-end gap-2">
         <select
           value={market}
@@ -219,34 +222,56 @@ export function BacktestPanel() {
         <button
           onClick={run}
           disabled={loading}
-          className="rounded-md bg-accent px-3 py-1 text-sm font-medium text-bg hover:brightness-110 disabled:opacity-50"
+          className="rounded-md bg-accent px-4 py-1.5 text-sm font-semibold text-bg hover:brightness-110 disabled:opacity-50"
         >
-          {loading ? "…" : "Run"}
+          {loading ? L.common.loading : L.backtest.run}
         </button>
         <button
-          onClick={compare}
-          disabled={loading}
-          className="rounded-md bg-surface-2 text-text border border-border-strong px-3 py-1 text-sm font-medium hover:bg-surface-3 disabled:opacity-50"
+          type="button"
+          onClick={() => setAdvancedOpen((o) => !o)}
+          className="rounded-md border border-border-strong bg-surface-2 px-3 py-1.5 text-sm text-text hover:bg-surface-3"
         >
-          Compare all
-        </button>
-        <button
-          onClick={optimize}
-          disabled={loading || isSaved}
-          title={isSaved ? "最佳化僅支援內建策略" : undefined}
-          className="rounded-md bg-surface-2 text-text border border-border-strong px-3 py-1 text-sm font-medium hover:bg-surface-3 disabled:opacity-50"
-        >
-          Optimize
-        </button>
-        <button
-          onClick={runWalkForward}
-          disabled={loading || isSaved}
-          title={isSaved ? "Walk-forward 僅支援內建策略" : undefined}
-          className="rounded-md bg-surface-2 text-text border border-border-strong px-3 py-1 text-sm font-medium hover:bg-surface-3 disabled:opacity-50"
-        >
-          Walk-forward
+          {L.common.advanced} {advancedOpen ? "▴" : "▾"}
         </button>
       </div>
+
+      {advancedOpen && (
+        <div className="mb-3 space-y-2 rounded-md border border-border bg-surface-2 p-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={compare}
+              disabled={loading}
+              className="rounded-md border border-border-strong bg-surface-1 px-3 py-1 text-sm text-text hover:bg-surface-3 disabled:opacity-50"
+            >
+              {L.backtest.compare}
+            </button>
+            <span className="text-xs text-muted">{L.backtest.compareDesc}</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={optimize}
+              disabled={loading || isSaved}
+              className="rounded-md border border-border-strong bg-surface-1 px-3 py-1 text-sm text-text hover:bg-surface-3 disabled:opacity-50"
+            >
+              <Term k="optimize">{L.backtest.optimize}</Term>
+            </button>
+            <span className="text-xs text-muted">{L.backtest.optimizeDesc}</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={runWalkForward}
+              disabled={loading || isSaved}
+              className="rounded-md border border-border-strong bg-surface-1 px-3 py-1 text-sm text-text hover:bg-surface-3 disabled:opacity-50"
+            >
+              <Term k="walk_forward">{L.backtest.walkforward}</Term>
+            </button>
+            <span className="text-xs text-muted">{L.backtest.walkforwardDesc}</span>
+          </div>
+          {isSaved && (
+            <p className="text-xs text-warning">{L.backtest.advancedOnlyBuiltin}</p>
+          )}
+        </div>
+      )}
 
       {error && <p className="text-sm text-error">Backtest error: {error}</p>}
 
