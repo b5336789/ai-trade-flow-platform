@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   api,
   MARKETS,
@@ -12,6 +12,7 @@ import {
   type WalkForwardReport,
 } from "@/lib/api";
 import { OPTIMIZE_GRID, STRATEGY_NAMES, STRATEGY_PARAMS } from "@/lib/strategies";
+import { seedGraphFromStrategy } from "@/lib/workflow-seed";
 import { EquityChart } from "@/components/EquityChart";
 import { setMarket } from "@/lib/useMarket";
 import { L } from "@/lib/labels";
@@ -54,6 +55,8 @@ export function BacktestPanel() {
 
   const searchParams = useSearchParams();
   const appliedQuery = useRef(false);
+  const router = useRouter();
+  const [seeding, setSeeding] = useState(false);
 
   // Carry intent from 策略室 / nav tree: ?strategy=saved:<id>&symbol=&timeframe=.
   // Apply ONCE. The saved-strategy select needs `saved` loaded to render its option,
@@ -195,6 +198,27 @@ export function BacktestPanel() {
       setError((e as Error).message);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function buildWorkflow() {
+    setSeeding(true);
+    setError(null);
+    try {
+      const graph = seedGraphFromStrategy({
+        strategyId: isSaved ? savedId : null,
+        strategyName: isSaved ? undefined : strategy,
+        symbol,
+        market,
+        timeframe,
+      });
+      const name = `${isSaved ? saved.find((s) => s.id === savedId)?.name ?? "策略" : strategy} · ${symbol}`;
+      const wf = await api.createWorkflow(name, graph);
+      router.push(`/trading-room/workflow?workflow=${wf.id}`);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setSeeding(false);
     }
   }
 
@@ -387,6 +411,16 @@ export function BacktestPanel() {
 
           {result && tab === "overview" && (
             <div className="space-y-3">
+              <div className="flex justify-end">
+                <button
+                  onClick={buildWorkflow}
+                  disabled={seeding}
+                  title={L.linking.buildWorkflowHint}
+                  className="rounded-md border border-accent/40 bg-accent-dim px-3 py-1 text-sm font-medium text-accent hover:border-accent disabled:opacity-50"
+                >
+                  {seeding ? L.linking.buildingWorkflow : `${L.linking.buildWorkflow} →`}
+                </button>
+              </div>
               <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
                 <MetricCard
                   termKey="total_return"

@@ -427,6 +427,7 @@ export const api = {
     }),
   createWorkflow: (name: string, graph: WorkflowGraph) =>
     request<Workflow>("/api/workflows", { method: "POST", body: JSON.stringify({ name, graph }) }),
+  getWorkflow: (id: number) => request<Workflow>(`/api/workflows/${id}`),
   listWorkflows: () => request<Workflow[]>("/api/workflows"),
   listSchedules: () => request<Schedule[]>("/api/schedules"),
   createSchedule: (workflow_id: number, interval_seconds: number) =>
