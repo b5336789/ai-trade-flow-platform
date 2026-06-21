@@ -45,7 +45,7 @@ export function Canvas({ wf, onInit }: { wf: ReturnType<typeof useWorkflowState>
   );
 
   const minimapColor = useCallback(
-    (n: Node) => NODE_CATALOG[(n.data as TradeNodeData).nodeType].colorVar,
+    (n: Node) => NODE_CATALOG[(n.data as TradeNodeData)?.nodeType]?.colorVar ?? "#888",
     [],
   );
 
