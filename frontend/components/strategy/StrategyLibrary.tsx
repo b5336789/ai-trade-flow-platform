@@ -2,7 +2,9 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { api, MARKETS, type BacktestResult } from "@/lib/api";
+import { L } from "@/lib/labels";
 
 interface StrategyLibraryProps {
   onLoad: (id: number) => void;
@@ -14,6 +16,7 @@ function pct(n: number) {
 
 export function StrategyLibrary({ onLoad }: StrategyLibraryProps) {
   const qc = useQueryClient();
+  const router = useRouter();
   const [symbol, setSymbol] = useState("BTC/USDT");
   const [market, setMarket] = useState("crypto");
   const [results, setResults] = useState<Record<number, BacktestResult>>({});
@@ -97,6 +100,17 @@ export function StrategyLibrary({ onLoad }: StrategyLibraryProps) {
                 <p className="mt-2 text-[11px] text-error">⚠ {(backtest.error as Error).message}</p>
               )}
 
+              <button
+                onClick={() =>
+                  router.push(
+                    `/trading-room/backtest?strategy=saved:${s.id}` +
+                      `&symbol=${encodeURIComponent(symbol)}&market=${encodeURIComponent(market)}`,
+                  )
+                }
+                className="mt-3 w-full rounded-sm border border-accent/40 bg-accent-dim px-2 py-1 text-[12px] text-accent hover:border-accent"
+              >
+                {L.linking.sendToBacktest} →
+              </button>
               <div className="mt-3 flex gap-1.5 text-[12px]">
                 <button
                   onClick={() => onLoad(s.id)}
