@@ -8,10 +8,14 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
+from app.config import settings
 from app.db import get_session
 from app.models import RunLog, Workflow, WorkflowRun, WorkflowSignal
+from app.schemas import SignalAction
 from app.workflow.engine import run_workflow
-from app.workflow.schema import RunResult, WorkflowGraph
+from app.workflow.nodes import RunContext
+from app.workflow.run_store import build_trace, persist_workflow_run, resolve_order_symbol
+from app.workflow.schema import NodeType, RunResult, WorkflowGraph
 
 router = APIRouter(prefix="/api/workflows", tags=["workflows"])
 
@@ -83,11 +87,62 @@ def update_workflow(
     return wf
 
 
+def _persist_live_run(session, graph, workflow_id, ctx, result):
+    """Record a live/paper workflow execution as a WorkflowRun + per-order-node signals."""
+    order_nodes = [n for n in graph.nodes if n.type == NodeType.order]
+    signals = []
+    symbols = []
+    for n in order_nodes:
+        try:
+            sym = resolve_order_symbol(graph, n.id)
+        except ValueError:
+            sym = n.params.get("symbol", "")
+        symbols.append(sym)
+        out = ctx.node_outputs.get(n.id)
+        # out is an OrderResult when an order was placed, else None
+        action = "hold"
+        price = 0.0
+        if out is not None and hasattr(out, "side"):
+            action = SignalAction.buy.value if out.side.value == "buy" else SignalAction.sell.value
+            price = out.price
+        signals.append(
+            {
+                "order_node_id": n.id,
+                "symbol": sym,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "bar_index": None,
+                "action": action,
+                "confidence": 0.5,
+                "price": price,
+                "trace": build_trace(graph, n.id, ctx.node_outputs),
+            }
+        )
+    persist_workflow_run(
+        session,
+        run_id=ctx.run_id,
+        kind=settings.trading_mode.value if hasattr(settings.trading_mode, "value") else str(settings.trading_mode),
+        graph=graph,
+        market="crypto",
+        symbols=sorted(set(s for s in symbols if s)),
+        timeframe="",
+        starting_cash=None,
+        params={},
+        metrics=None,
+        equity_curve=None,
+        trades=None,
+        status=result.status,
+        signals=signals,
+    )
+
+
 @router.post("/run", response_model=RunResult)
 def run_ad_hoc(graph: WorkflowGraph, session: Session = Depends(get_session)) -> RunResult:
     """Run a graph without persisting the workflow (handy for the editor's 'Run' button)."""
-    result = run_workflow(graph, session=session)
+    ctx = RunContext(session=session)
+    result = run_workflow(graph, session=session, ctx=ctx)
     session.add(RunLog(workflow_id=None, status=result.status, detail=result.model_dump(mode="json")))
+    if result.status == "ok":
+        _persist_live_run(session, graph, None, ctx, result)
     session.commit()
     return result
 
@@ -98,9 +153,12 @@ def run_saved(workflow_id: int, session: Session = Depends(get_session)) -> RunR
     if wf is None:
         raise HTTPException(status_code=404, detail="workflow not found")
     graph = WorkflowGraph.model_validate(wf.graph)
-    result = run_workflow(graph, session=session)
+    ctx = RunContext(session=session)
+    result = run_workflow(graph, session=session, ctx=ctx)
     session.add(
         RunLog(workflow_id=workflow_id, status=result.status, detail=result.model_dump(mode="json"))
     )
+    if result.status == "ok":
+        _persist_live_run(session, graph, workflow_id, ctx, result)
     session.commit()
     return result
