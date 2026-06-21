@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { api, type Signal } from "@/lib/api";
 import { setMarket } from "@/lib/useMarket";
 import { PriceChart } from "@/components/PriceChart";
@@ -27,15 +28,23 @@ const fmt = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 
 const signed = (n: number) => `${n >= 0 ? "+" : ""}${n.toFixed(2)}`;
 
 export function MarketPanel() {
-  const [symbol, setSymbol] = useState("BTC/USDT");
-  const [timeframe, setTimeframe] = useState("1h");
-  const [market, setMarketState] = useState("crypto");
+  const router = useRouter();
+  const pathname = usePathname();
+  const sp = useSearchParams();
+  const [symbol, setSymbol] = useState((sp.get("symbol") ?? "BTC/USDT").toUpperCase());
+  const [timeframe, setTimeframe] = useState(sp.get("timeframe") ?? "1h");
+  const [market, setMarketState] = useState(sp.get("market") ?? "crypto");
   const [paused, setPaused] = useState(false);
   const [aiSignal, setAiSignal] = useState<Signal | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
 
   useEffect(() => { setMarket(market); }, [market]);
+
+  useEffect(() => {
+    const q = new URLSearchParams({ symbol, timeframe, market });
+    router.replace(`${pathname}?${q.toString()}`, { scroll: false });
+  }, [symbol, timeframe, market, pathname, router]);
 
   const isCrypto = market === "crypto";
 
