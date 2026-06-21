@@ -15,6 +15,7 @@ import { EquityChart } from "@/components/EquityChart";
 import { setMarket } from "@/lib/useMarket";
 import { L } from "@/lib/labels";
 import { Term } from "@/components/Term";
+import { MetricCard } from "@/components/MetricCard";
 import { PriceChart } from "@/components/PriceChart";
 import { tradesToMarkers, type Overlay } from "@/lib/chart-helpers";
 import type { Candle } from "@/lib/api";
@@ -42,6 +43,7 @@ export function BacktestPanel() {
   const [walkforward, setWalkforward] = useState<WalkForwardReport | null>(null);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [overviewCandles, setOverviewCandles] = useState<Candle[]>([]);
+  const [moreMetrics, setMoreMetrics] = useState(false);
 
   useEffect(() => { setMarket(market); }, [market]);
 
@@ -312,26 +314,65 @@ export function BacktestPanel() {
           {tab === "overview" && (
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
-                <Metric label="Return" value={pct(result.total_return_pct)} good={result.total_return_pct >= 0} />
-                <Metric label="Buy & Hold" value={pct(result.buy_hold_return_pct)} good={result.buy_hold_return_pct >= 0} />
-                <Metric label="CAGR" value={pct(result.cagr)} good={result.cagr >= 0} />
-                <Metric label="Max DD" value={pct(-result.max_drawdown_pct)} good={false} />
-                <Metric label="Sharpe" value={result.sharpe.toFixed(2)} good={result.sharpe >= 0} />
-                <Metric label="Sortino" value={result.sortino.toFixed(2)} good={result.sortino >= 0} />
-                <Metric label="Win rate" value={`${result.win_rate.toFixed(0)}%`} />
-                <Metric
-                  label="Profit factor"
-                  value={result.profit_factor == null ? "∞" : result.profit_factor.toFixed(2)}
-                  good={result.profit_factor == null ? true : result.profit_factor >= 1}
+                <MetricCard
+                  termKey="total_return"
+                  label={L.metrics.total_return}
+                  value={pct(result.total_return_pct)}
+                  health={result.total_return_pct >= 0 ? "up" : "down"}
+                  sub={
+                    <span className="text-muted">
+                      {L.metrics.buy_hold} {pct(result.buy_hold_return_pct)} ·{" "}
+                      <span className={result.total_return_pct - result.buy_hold_return_pct >= 0 ? "text-up" : "text-down"}>
+                        {L.backtest.excess} {pct(result.total_return_pct - result.buy_hold_return_pct)}
+                      </span>
+                    </span>
+                  }
+                />
+                <MetricCard
+                  termKey="max_drawdown"
+                  label={L.metrics.max_drawdown}
+                  value={pct(-result.max_drawdown_pct)}
+                  health="down"
+                />
+                <MetricCard
+                  termKey="sharpe"
+                  label={L.metrics.sharpe}
+                  value={result.sharpe.toFixed(2)}
+                  health={result.sharpe < 0 ? "down" : result.sharpe > 1 ? "up" : "neutral"}
+                />
+                <MetricCard
+                  termKey="win_rate"
+                  label={L.metrics.win_rate}
+                  value={`${result.win_rate.toFixed(0)}%`}
+                  health="neutral"
                 />
               </div>
-              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
-                <span>Calmar {result.calmar.toFixed(2)}</span>
-                <span>Vol {pct(result.annualized_volatility * 100)}</span>
-                <span>Exposure {result.exposure_pct.toFixed(0)}%</span>
-                <span>Turnover {result.turnover.toFixed(2)}×</span>
-                <span>Max consec. losses {result.max_consecutive_losses}</span>
-                <span>Trades {result.num_trades}</span>
+              {result.num_trades === 0 && (
+                <p className="rounded-md border border-warning/40 bg-surface-2 px-3 py-2 text-sm text-warning">
+                  {L.backtest.noTrades}
+                </p>
+              )}
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setMoreMetrics((m) => !m)}
+                  className="text-xs text-muted hover:text-text"
+                >
+                  {L.backtest.moreMetrics} {moreMetrics ? "▴" : "▾"}
+                </button>
+                {moreMetrics && (
+                  <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
+                    <span><Term k="cagr">{L.metrics.cagr}</Term> <span className="num">{pct(result.cagr)}</span></span>
+                    <span><Term k="sortino">{L.metrics.sortino}</Term> <span className="num">{result.sortino.toFixed(2)}</span></span>
+                    <span><Term k="calmar">{L.metrics.calmar}</Term> <span className="num">{result.calmar.toFixed(2)}</span></span>
+                    <span><Term k="profit_factor">{L.metrics.profit_factor}</Term> <span className="num">{result.profit_factor == null ? "∞" : result.profit_factor.toFixed(2)}</span></span>
+                    <span><Term k="annualized_volatility">{L.metrics.annualized_volatility}</Term> <span className="num">{pct(result.annualized_volatility * 100)}</span></span>
+                    <span><Term k="exposure">{L.metrics.exposure}</Term> <span className="num">{result.exposure_pct.toFixed(0)}%</span></span>
+                    <span><Term k="turnover">{L.metrics.turnover}</Term> <span className="num">{result.turnover.toFixed(2)}×</span></span>
+                    <span><Term k="max_consecutive_losses">{L.metrics.max_consecutive_losses}</Term> <span className="num">{result.max_consecutive_losses}</span></span>
+                    <span><Term k="num_trades">{L.metrics.num_trades}</Term> <span className="num">{result.num_trades}</span></span>
+                  </div>
+                )}
               </div>
               {overviewCandles.length > 0 && (
                 <PriceChart
