@@ -6,6 +6,8 @@ data provider behind a PaperBroker so 台股/美股 can be paper-traded and back
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from app.brokers import market_data
 from app.brokers.base import Broker
 from app.schemas import (
@@ -45,6 +47,19 @@ class CsvDataBroker(Broker):
 
     def get_ohlcv(self, symbol: str, timeframe: str = "1h", limit: int = 100) -> list[Candle]:
         return self._candles(symbol)[-limit:]
+
+    def get_ohlcv_range(
+        self, symbol: str, timeframe: str = "1h", start: datetime | None = None, end: datetime | None = None
+    ) -> list[Candle]:
+        if start is None or end is None:
+            raise ValueError("get_ohlcv_range requires both start and end")
+        if start > end:
+            raise ValueError(f"start {start.isoformat()} must be before end {end.isoformat()}")
+        # parse_csv produces tz-naive datetimes (datetime.fromisoformat on bare dates like "2024-01-01").
+        # Normalise start/end to tz-naive UTC so the comparison is consistent.
+        _start = start.replace(tzinfo=None) if start.tzinfo is not None else start
+        _end = end.replace(tzinfo=None) if end.tzinfo is not None else end
+        return [c for c in self._candles(symbol) if _start <= c.timestamp <= _end]
 
     def create_order(self, request: OrderRequest) -> OrderResult:  # data-only
         raise NotImplementedError("CsvDataBroker is data-only; wrap it in a PaperBroker to trade")

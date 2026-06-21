@@ -125,3 +125,39 @@ def test_ccxt_range_empty_fails_loud(monkeypatch):
     broker = _make_ccxt(monkeypatch, _FakeExchange([], page_size=2))  # exchange returns nothing
     with pytest.raises(RuntimeError):
         broker.get_ohlcv_range("BTC/USDT", "1h", start, end)
+
+
+# ---------------------------------------------------------------------------
+# CsvDataBroker.get_ohlcv_range
+# ---------------------------------------------------------------------------
+
+from app.brokers import market_data  # noqa: E402
+from app.brokers.csv_data import CsvDataBroker  # noqa: E402
+from app.schemas import MarketKind  # noqa: E402
+
+_CSV = """timestamp,open,high,low,close,volume
+2024-01-01,100,105,99,104,1000
+2024-02-01,104,110,103,109,1200
+2024-03-01,109,112,108,111,1300
+2024-04-01,111,113,107,108,1400
+"""
+
+
+def test_csv_range_filters_to_in_range_only():
+    market_data.clear()
+    market_data.set_candles(MarketKind.tw_stock, "2330", market_data.parse_csv(_CSV))
+    broker = CsvDataBroker(MarketKind.tw_stock)
+
+    candles = broker.get_ohlcv_range("2330", "1d", _utc(2024, 2, 1), _utc(2024, 3, 1))
+
+    assert [c.timestamp.date().isoformat() for c in candles] == ["2024-02-01", "2024-03-01"]
+    market_data.clear()
+
+
+def test_csv_range_reversed_fails_loud():
+    market_data.clear()
+    market_data.set_candles(MarketKind.tw_stock, "2330", market_data.parse_csv(_CSV))
+    broker = CsvDataBroker(MarketKind.tw_stock)
+    with pytest.raises(ValueError):
+        broker.get_ohlcv_range("2330", "1d", _utc(2024, 4, 1), _utc(2024, 1, 1))
+    market_data.clear()
