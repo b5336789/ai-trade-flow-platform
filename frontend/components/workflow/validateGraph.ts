@@ -12,10 +12,18 @@ export interface ValidationResult {
 export function validateGraph(graph: WorkflowGraph): ValidationResult {
   const errors: string[] = [];
   const ids = graph.nodes.map((n) => n.id);
+  const idSet = new Set(ids);
 
   // duplicate ids
   const dupes = ids.filter((id, i) => ids.indexOf(id) !== i);
   if (dupes.length) errors.push(`重複節點 id: ${[...new Set(dupes)].join(", ")}`);
+
+  // edges referencing unknown nodes
+  for (const e of graph.edges) {
+    if (!idSet.has(e.source) || !idSet.has(e.target)) {
+      errors.push(`邊參照不存在的節點: ${e.source}->${e.target}`);
+    }
+  }
 
   // required-input nodes with no incoming edge
   const incoming = new Map<string, number>();
