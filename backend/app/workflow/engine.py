@@ -55,14 +55,19 @@ def _summarize(output: Any) -> dict:
     return {"output": str(output)}
 
 
-def run_workflow(graph: WorkflowGraph, session=None, run_id: str | None = None) -> RunResult:
+def run_workflow(
+    graph: WorkflowGraph, session=None, run_id: str | None = None, ctx: RunContext | None = None
+) -> RunResult:
     """Execute a graph; on any node failure the run stops and reports the error (fail loud).
 
     ``run_id`` identifies this logical run; order nodes fold it into a deterministic
     client_order_id, so re-running with the SAME run_id is idempotent (M0.5). Defaults to a
     fresh id per call.
     """
-    ctx = RunContext(session=session, run_id=run_id)
+    if ctx is None:
+        ctx = RunContext(session=session, run_id=run_id)
+    # else: the caller owns `ctx`; the session/run_id args are intentionally ignored
+    # because the supplied ctx already carries them.
     outputs: dict[str, Any] = {}
     steps: list[StepResult] = []
     orders: list[dict] = []
@@ -91,6 +96,7 @@ def run_workflow(graph: WorkflowGraph, session=None, run_id: str | None = None) 
                 error=f"node '{node.id}' ({node.type.value}) failed: {exc}",
             )
         outputs[node.id] = result
+        ctx.node_outputs[node.id] = result
         summary = _summarize(result)
         steps.append(StepResult(node_id=node.id, type=node.type, summary=summary))
         # Collect orders only from order nodes (logger/pass-through can re-surface the same result).

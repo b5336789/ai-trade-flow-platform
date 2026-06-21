@@ -3,7 +3,10 @@
 import { ReactFlowProvider, type ReactFlowInstance } from "@xyflow/react";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { api, type RunResult } from "@/lib/api";
+import { api, type RunResult, type WorkflowRunDTO, type WorkflowSignalDTO } from "@/lib/api";
+import { SignalTraceDrawer } from "@/components/SignalTraceDrawer";
+import { WorkflowBacktestChart } from "@/components/WorkflowBacktestChart";
+import { WorkflowRunHistory } from "@/components/WorkflowRunHistory";
 import { Canvas } from "./Canvas";
 import { Inspector } from "./Inspector";
 import { Palette } from "./Palette";
@@ -20,6 +23,11 @@ function BuilderInner() {
   const [error, setError] = useState<string | null>(null);
   const [savedMsg, setSavedMsg] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
+  const [btRun, setBtRun] = useState<WorkflowRunDTO | null>(null);
+  const [btSignals, setBtSignals] = useState<WorkflowSignalDTO[]>([]);
+  const [selected, setSelected] = useState<WorkflowSignalDTO | null>(null);
+  const [backtesting, setBacktesting] = useState(false);
+  const [historyRefresh, setHistoryRefresh] = useState(0);
 
   const valid = useMemo(() => validateGraph(wf.buildGraph()), [wf.nodes, wf.edges]);
   const selectedNode = wf.nodes.find((n) => n.id === wf.selectedId) ?? null;
@@ -45,6 +53,32 @@ function BuilderInner() {
     }
   }
 
+  async function handleBacktest() {
+    setBacktesting(true); setError(null); setBtRun(null); setBtSignals([]);
+    try {
+      const res = await api.runWorkflowBacktest({ graph: wf.buildGraph(), limit: 500 });
+      const run = await api.getWorkflowRun(res.run_id);
+      setBtRun(run);
+      setBtSignals(res.signals);
+      setHistoryRefresh((n) => n + 1);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBacktesting(false);
+    }
+  }
+
+  async function openRun(runId: number) {
+    setError(null);
+    try {
+      const [run, sigs] = await Promise.all([api.getWorkflowRun(runId), api.getWorkflowRunSignals(runId)]);
+      setBtRun(run);
+      setBtSignals(sigs);
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }
+
   return (
     <section className="rounded-lg border border-border bg-surface-1">
       <Toolbar
@@ -64,6 +98,8 @@ function BuilderInner() {
         onSave={save}
         onRun={run}
         running={running}
+        onBacktest={handleBacktest}
+        backtesting={backtesting}
       />
       {savedMsg && <p className="px-3 py-1 text-sm text-up">{savedMsg}</p>}
       <div className="relative flex h-[520px]">
@@ -91,7 +127,7 @@ function BuilderInner() {
           </div>
         )}
       </div>
-      {error && <p className="px-3 py-2 text-sm text-error">Run error: {error}</p>}
+      {error && <p className="px-3 py-2 text-sm text-error">Error: {error}</p>}
       {result && (
         <div className="m-3 rounded-lg border border-border bg-surface-2 p-3 text-xs">
           <div className="mb-1">
@@ -107,6 +143,29 @@ function BuilderInner() {
           </ol>
         </div>
       )}
+      {btRun && (
+        <div className="m-3 rounded-lg border border-border bg-surface-2 p-3">
+          <div className="mb-2 flex items-center gap-3 text-xs">
+            <span className="font-display font-semibold text-text">Backtest · {btRun.symbols.join(", ")}</span>
+            {btRun.metrics_json && (
+              <>
+                <span className={btRun.metrics_json.total_return_pct >= 0 ? "text-up" : "text-down"}>
+                  return {btRun.metrics_json.total_return_pct?.toFixed(2)}%
+                </span>
+                {btRun.metrics_json.sharpe != null && (
+                  <span className="text-muted">sharpe {btRun.metrics_json.sharpe.toFixed(2)}</span>
+                )}
+                {btRun.metrics_json.max_drawdown_pct != null && (
+                  <span className="text-muted">drawdown {btRun.metrics_json.max_drawdown_pct.toFixed(2)}%</span>
+                )}
+              </>
+            )}
+          </div>
+          <WorkflowBacktestChart run={btRun} signals={btSignals} onSelectSignal={setSelected} />
+        </div>
+      )}
+      <WorkflowRunHistory kind="backtest" onOpen={openRun} refreshKey={historyRefresh} />
+      <SignalTraceDrawer signal={selected} onClose={() => setSelected(null)} />
     </section>
   );
 }

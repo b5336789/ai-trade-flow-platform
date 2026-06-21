@@ -88,3 +88,36 @@ flowchart TB
 - 選參指標為風險調整後(預設 Sharpe);未知 `metric`、`n_folds<2`、資料不足皆 fail loud。
 
 **驗收(已寫成測試):** 構造一組「IS 極佳、OOS 失敗」的參數,在 OOS 排序下**不會排第 1**(`backend/app/tests/test_optimize.py::test_overfit_combo_does_not_rank_first`、`test_validation.py`)。
+
+## 工作流多資產組合回測(Workflow Portfolio Backtest)
+
+> 以上章節的「單資產回測」以**一個策略對一個 symbol** 為單位執行。本節說明另一種回測模式:把**整張 WorkflowGraph**逐根重放,模擬多資產共用現金的投資組合。
+
+### 與單資產回測的差異
+
+| | 單資產回測 | 工作流組合回測 |
+| --- | --- | --- |
+| 輸入 | `symbol + strategy + params` | `WorkflowGraph`(可含多個 data_source / order 節點) |
+| 資產數 | 1 | ≥1;圖中每個 `order` 節點對應一個 symbol |
+| 倉位計算 | `position_fraction × cash` | **Equal-weight**:現金平均分配給當下所有 active-long 資產 |
+| 成交時點 | 次根開盤(next-bar-open) | 相同,次根開盤 |
+| 交易成本 | `CostModel` 預設開啟 | 相同 |
+| AI 節點 | N/A | 支援,但每根 K 線呼叫一次 LLM;最多 **200 根**,超過 fail loud |
+| 回傳 | `BacktestResult` | `BacktestResult` + `symbols[]` + `signals[]` + 持久化 `run_id` |
+
+### 執行流程
+1. 拉取圖中所有 symbol 的歷史 K 線,取最短對齊長度。
+2. 逐根 K 線以 `BacktestContext` 重放完整工作流:
+   - `data_source` → 截至當根的切片(無前視偏差)
+   - `order` → 記錄訊號意圖(不呼叫 broker)
+   - `risk_exit` → 讀取模擬持倉
+3. 每根收集所有 symbol 的 Signal 後送入 `PortfolioSim`,以次根開盤成交、equal-weight 配置、套用成本。
+4. 全部 K 線跑完後計算與單資產回測相同的指標集,並以 `WorkflowRun` + `WorkflowSignal` 持久化至 DB。
+
+### 驗證(fail loud)
+- 圖中需至少 1 個 `order` 節點。
+- 每個 `order` 節點必須解析到唯一一個 symbol。
+- 所有 `data_source` 節點必須用相同 `timeframe`。
+- 對齊後的歷史至少需 2 根 K 線。
+
+端點:`POST /api/backtest/workflow`,詳見 [api-reference.md](./api-reference.md) 的 Backtest 段。

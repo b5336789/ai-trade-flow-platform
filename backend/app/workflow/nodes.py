@@ -36,6 +36,10 @@ class RunContext:
         # client_order_id so re-running the SAME run (same run_id) is idempotent (M0.5).
         self.run_id = run_id or uuid.uuid4().hex
         self.scratch: dict[str, Any] = {}
+        # Raw per-node outputs for this run (node_id -> value), for tracing/backtest.
+        self.node_outputs: dict[str, Any] = {}
+        # When set, data_source/order/risk_exit run in backtest mode (see BacktestContext).
+        self.backtest: Any | None = None
 
 
 def _client_order_id(run_id: str, node_id: str) -> str:
@@ -78,11 +82,13 @@ def _run_data_source(node: NodeConfig, inputs: list[Any], ctx: RunContext) -> li
         raise ValueError("data_source node requires 'symbol'")
     symbol = p["symbol"]
     market = MarketKind(p.get("market", "crypto"))
+    ctx.scratch["symbol"] = symbol
+    ctx.scratch["market"] = market
+    if ctx.backtest is not None:
+        return ctx.backtest.window_for(symbol)
     candles = get_data_broker(market).get_ohlcv(
         symbol, p.get("timeframe", "1h"), int(p.get("limit", 100))
     )
-    ctx.scratch["symbol"] = symbol
-    ctx.scratch["market"] = market
     return candles
 
 
@@ -125,12 +131,18 @@ def _run_risk_exit(node: NodeConfig, inputs: list[Any], ctx: RunContext) -> Sign
     stop_loss_pct = float(p.get("stop_loss_pct", 0) or 0)
     take_profit_pct = float(p.get("take_profit_pct", 0) or 0)
 
-    broker = get_broker(market)
-    position = next((pos for pos in broker.get_positions() if pos.symbol == symbol), None)
-    if position is None or position.quantity <= 0 or position.avg_price <= 0:
+    if ctx.backtest is not None:
+        sim = ctx.backtest.position_for(symbol)
+        held_qty, avg_price = sim.quantity, sim.avg_price
+    else:
+        broker = get_broker(market)
+        position = next((pos for pos in broker.get_positions() if pos.symbol == symbol), None)
+        held_qty = position.quantity if position else 0.0
+        avg_price = position.avg_price if position else 0.0
+    if held_qty <= 0 or avg_price <= 0:
         return Signal(action=SignalAction.hold, reason="no open position", source="risk_exit")
 
-    pnl_pct = (price / position.avg_price - 1) * 100
+    pnl_pct = (price / avg_price - 1) * 100
     if stop_loss_pct > 0 and pnl_pct <= -stop_loss_pct:
         return Signal(
             action=SignalAction.sell,
@@ -164,6 +176,10 @@ def _run_order(node: NodeConfig, inputs: list[Any], ctx: RunContext):
     if signal.action == SignalAction.hold:
         return None
     p = node.params
+    if ctx.backtest is not None:
+        symbol = ctx.backtest.order_symbol(node.id, p.get("symbol") or ctx.scratch.get("symbol"))
+        ctx.backtest.record(node.id, symbol, signal)
+        return None
     symbol = p.get("symbol") or ctx.scratch.get("symbol")
     if not symbol:
         raise ValueError("order node requires 'symbol' (or an upstream data_source)")

@@ -317,6 +317,41 @@ export interface SavedBacktestRequest {
   position_fraction?: number;
 }
 
+export interface WorkflowSignalDTO {
+  id: number;
+  run_id: number;
+  order_node_id: string;
+  symbol: string;
+  timestamp: string;
+  bar_index: number | null;
+  action: "buy" | "sell" | "hold";
+  confidence: number;
+  price: number;
+  trace_json: { node_id: string; type: string; summary: Record<string, unknown> }[];
+}
+
+export interface WorkflowRunDTO {
+  id: number;
+  run_id: string;
+  kind: "backtest" | "live" | "paper";
+  workflow_id: number | null;
+  market: string;
+  symbols: string[];
+  timeframe: string;
+  starting_cash: number | null;
+  metrics_json: Record<string, number> | null;
+  equity_curve_json: { timestamp: string; equity: number }[] | null;
+  trades_json: unknown[] | null;
+  status: string;
+  created_at: string;
+}
+
+export type WorkflowBacktestResponse = BacktestResult & {
+  run_id: number;
+  symbols: string[];
+  signals: WorkflowSignalDTO[];
+};
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (API_TOKEN) {
@@ -410,6 +445,29 @@ export const api = {
       method: "POST",
       body: JSON.stringify(req),
     }),
+  runWorkflowBacktest: (body: {
+    graph?: WorkflowGraph;
+    workflow_id?: number;
+    market?: string;
+    timeframe?: string;
+    limit?: number;
+    starting_cash?: number;
+  }) =>
+    request<WorkflowBacktestResponse>("/api/backtest/workflow", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  listWorkflowRuns: (params?: { kind?: string; limit?: number }) => {
+    const q = new URLSearchParams();
+    if (params?.kind) q.set("kind", params.kind);
+    if (params?.limit) q.set("limit", String(params.limit));
+    return request<WorkflowRunDTO[]>(`/api/workflows/runs?${q.toString()}`);
+  },
+  getWorkflowRun: (runId: number) => request<WorkflowRunDTO>(`/api/workflows/runs/${runId}`),
+  getWorkflowRunSignals: (runId: number, symbol?: string) =>
+    request<WorkflowSignalDTO[]>(
+      `/api/workflows/runs/${runId}/signals${symbol ? `?symbol=${encodeURIComponent(symbol)}` : ""}`,
+    ),
 };
 
 export const MARKETS = [
