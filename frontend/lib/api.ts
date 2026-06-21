@@ -15,6 +15,12 @@ export interface Candle {
   volume: number;
 }
 
+export interface Ticker {
+  symbol: string;
+  price: number;
+  timestamp: string;
+}
+
 export type SignalAction = "buy" | "sell" | "hold";
 
 export interface Signal {
@@ -378,6 +384,10 @@ export const api = {
   ohlcv: (symbol: string, timeframe = "1h", limit = 100, market = "crypto") =>
     request<Candle[]>(
       `/api/markets/ohlcv?symbol=${encodeURIComponent(symbol)}&timeframe=${timeframe}&limit=${limit}&market=${market}`,
+    ),
+  ticker: (symbol: string, market = "crypto") =>
+    request<Ticker>(
+      `/api/markets/ticker?symbol=${encodeURIComponent(symbol)}&market=${market}`,
     ),
   aiSignal: (symbol: string, market = "crypto", timeframe = "1h", limit = 100) =>
     request<Signal>("/api/ai/signal", {
