@@ -2,6 +2,7 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { L } from "@/lib/labels";
 
 function money(n: number) {
   return n.toLocaleString(undefined, { maximumFractionDigits: 2 });
@@ -21,7 +22,7 @@ export function PortfolioPanel() {
   return (
     <section className="rounded-lg border border-border bg-surface-1 p-4">
       <div className="mb-3 flex items-center gap-2">
-        <h2 className="font-display text-lg font-semibold">Portfolio</h2>
+        <h2 className="font-display text-lg font-semibold">{L.portfolio.title}</h2>
         {config.data && (
           <span
             className={`rounded-sm px-2 py-0.5 text-xs font-medium ${
@@ -39,28 +40,28 @@ export function PortfolioPanel() {
           }}
           className="ml-auto rounded-md bg-surface-2 px-2 py-1 text-xs hover:bg-surface-3"
         >
-          Reset paper
+          {L.portfolio.resetPaper}
         </button>
       </div>
 
       {portfolio.isError ? (
-        <p className="text-sm text-error">Portfolio error: {(portfolio.error as Error).message}</p>
+        <p className="text-sm text-error">{L.portfolio.error}：{(portfolio.error as Error).message}</p>
       ) : portfolio.data ? (
         <>
           <div className="mb-3 grid grid-cols-3 gap-2 text-sm">
-            <Stat label="Cash" value={money(portfolio.data.cash)} />
-            <Stat label="Positions" value={money(portfolio.data.positions_value)} />
-            <Stat label="Equity" value={money(portfolio.data.equity)} />
+            <Stat label={L.portfolio.cash} value={money(portfolio.data.cash)} />
+            <Stat label={L.portfolio.positions} value={money(portfolio.data.positions_value)} />
+            <Stat label={L.portfolio.equity} value={money(portfolio.data.equity)} />
           </div>
           {portfolio.data.positions.length > 0 && (
             <table className="w-full text-left text-xs">
               <thead className="text-faint">
                 <tr>
-                  <th className="py-1">Symbol</th>
-                  <th>Qty</th>
-                  <th>Avg</th>
-                  <th>Price</th>
-                  <th>uPnL</th>
+                  <th className="py-1">{L.portfolio.colSymbol}</th>
+                  <th>{L.portfolio.colQty}</th>
+                  <th>{L.portfolio.colAvg}</th>
+                  <th>{L.portfolio.colPrice}</th>
+                  <th>{L.portfolio.colUpnl}</th>
                 </tr>
               </thead>
               <tbody>
@@ -80,10 +81,10 @@ export function PortfolioPanel() {
           )}
         </>
       ) : (
-        <p className="text-sm text-faint">Loading…</p>
+        <p className="text-sm text-faint">{L.portfolio.loading}</p>
       )}
 
-      <h3 className="mb-1 mt-4 text-sm font-semibold text-muted">Recent orders</h3>
+      <h3 className="mb-1 mt-4 text-sm font-semibold text-muted">{L.portfolio.recentOrders}</h3>
       {orders.data && orders.data.length > 0 ? (
         <ul className="space-y-1 text-xs">
           {orders.data.slice(0, 8).map((o) => (
@@ -105,7 +106,7 @@ export function PortfolioPanel() {
           ))}
         </ul>
       ) : (
-        <p className="text-xs text-faint">No orders yet.</p>
+        <p className="text-xs text-faint">{L.portfolio.noOrders}</p>
       )}
     </section>
   );
