@@ -123,7 +123,13 @@ export function PriceChart({
       line.setData(times.map((t, i) => (series[i] == null ? null : { time: t, value: series[i]! })).filter(Boolean) as { time: UTCTimestamp; value: number }[]);
       return line;
     });
-    return () => { lines.forEach((l) => chart.removeSeries(l)); };
+    // Only remove series if this chart is still the live one. When the chart-init
+    // effect disposes the chart (unmount or height/volume change), chartRef is nulled
+    // or replaced; calling removeSeries on a disposed chart throws "Value is undefined".
+    return () => {
+      if (chartRef.current !== chart) return;
+      lines.forEach((l) => chart.removeSeries(l));
+    };
   }, [overlays, candles]);
 
   // ── Live 輪詢(live 非 null 時啟用)──────────────────────────────
