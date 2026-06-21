@@ -174,6 +174,8 @@ export interface BacktestRequest {
   market?: string;
   timeframe?: string;
   limit?: number;
+  start?: string;
+  end?: string;
   strategy: string;
   params?: Record<string, unknown>;
   starting_cash?: number;
@@ -195,6 +197,8 @@ export interface CompareRequest {
   market?: string;
   timeframe?: string;
   limit?: number;
+  start?: string;
+  end?: string;
   strategies?: string[];
   starting_cash?: number;
   position_fraction?: number;
@@ -222,6 +226,8 @@ export interface OptimizeRequest {
   market?: string;
   timeframe?: string;
   limit?: number;
+  start?: string;
+  end?: string;
   strategy: string;
   param_grid: Record<string, number[]>;
   metric?: string;
@@ -236,6 +242,8 @@ export interface WalkForwardRequest {
   market?: string;
   timeframe?: string;
   limit?: number;
+  start?: string;
+  end?: string;
   strategy: string;
   param_grid: Record<string, number[]>;
   n_folds?: number;
@@ -318,6 +326,8 @@ export interface SavedBacktestRequest {
   market?: string;
   timeframe?: string;
   limit?: number;
+  start?: string;
+  end?: string;
   param_overrides?: Record<string, number>;
   starting_cash?: number;
   position_fraction?: number;

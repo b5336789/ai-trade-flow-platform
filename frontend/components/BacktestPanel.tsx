@@ -39,6 +39,11 @@ export function BacktestPanel() {
   const [saved, setSaved] = useState<StrategyListItem[]>([]);
   const [timeframe, setTimeframe] = useState("1h");
   const [limit, setLimit] = useState(500);
+  const [rangeMode, setRangeMode] = useState(false);
+  const todayISO = new Date().toISOString().slice(0, 10);
+  const oneYearAgoISO = new Date(Date.now() - 365 * 864e5).toISOString().slice(0, 10);
+  const [start, setStart] = useState(oneYearAgoISO);
+  const [end, setEnd] = useState(todayISO);
   const [tab, setTab] = useState<"overview" | "trades" | "compare" | "optimize" | "walkforward">("overview");
   const [appliedHint, setAppliedHint] = useState(false);
   const [walkforward, setWalkforward] = useState<WalkForwardReport | null>(null);
@@ -72,6 +77,8 @@ export function BacktestPanel() {
     setAppliedHint(false);
   }
 
+  const rangeArgs = rangeMode ? { start, end } : {};
+
   async function optimize() {
     setLoading(true);
     resetOutputs();
@@ -85,6 +92,7 @@ export function BacktestPanel() {
           param_grid: OPTIMIZE_GRID[strategy],
           timeframe,
           limit,
+          ...rangeArgs,
           split: true,
           rank_metric: "oos_sharpe",
         }),
@@ -103,8 +111,8 @@ export function BacktestPanel() {
     try {
       const res =
         isSaved && savedId != null
-          ? await api.backtestSavedStrategy(savedId, { symbol, market, timeframe, limit })
-          : await api.backtest({ symbol, market, strategy, params, timeframe, limit });
+          ? await api.backtestSavedStrategy(savedId, { symbol, market, timeframe, limit, ...rangeArgs })
+          : await api.backtest({ symbol, market, strategy, params, timeframe, limit, ...rangeArgs });
       try {
         setOverviewCandles(await api.ohlcv(symbol, timeframe, limit, market));
       } catch {
@@ -123,7 +131,7 @@ export function BacktestPanel() {
     setLoading(true);
     resetOutputs();
     try {
-      setComparison(await api.compareStrategies({ symbol, market, timeframe, limit }));
+      setComparison(await api.compareStrategies({ symbol, market, timeframe, limit, ...rangeArgs }));
       setTab("compare");
     } catch (e) {
       setError((e as Error).message);
@@ -145,6 +153,7 @@ export function BacktestPanel() {
           param_grid: OPTIMIZE_GRID[strategy],
           timeframe,
           limit,
+          ...rangeArgs,
           n_folds: 4,
           metric: "sharpe",
         }),
@@ -197,17 +206,43 @@ export function BacktestPanel() {
             </option>
           ))}
         </select>
-        <select
-          value={limit}
-          onChange={(e) => setLimit(Number(e.target.value))}
-          className="rounded-md bg-surface-2 px-2 py-1 text-sm"
+        <button
+          type="button"
+          onClick={() => setRangeMode((m) => !m)}
+          className="rounded-md bg-surface-2 px-2 py-1 text-sm hover:bg-surface-3"
         >
-          {LIMITS.map((n) => (
-            <option key={n} value={n}>
-              {n} bars
-            </option>
-          ))}
-        </select>
+          {rangeMode ? "日期區間" : "最近 N 根"}
+        </button>
+        {!rangeMode && (
+          <select
+            value={limit}
+            onChange={(e) => setLimit(Number(e.target.value))}
+            className="rounded-md bg-surface-2 px-2 py-1 text-sm"
+          >
+            {LIMITS.map((n) => (
+              <option key={n} value={n}>
+                {n} bars
+              </option>
+            ))}
+          </select>
+        )}
+        {rangeMode && (
+          <>
+            <input
+              type="date"
+              value={start}
+              onChange={(e) => setStart(e.target.value)}
+              className="rounded-md bg-surface-2 px-2 py-1 text-sm"
+            />
+            <span className="text-xs text-muted">→</span>
+            <input
+              type="date"
+              value={end}
+              onChange={(e) => setEnd(e.target.value)}
+              className="rounded-md bg-surface-2 px-2 py-1 text-sm"
+            />
+          </>
+        )}
         <select
           value={strategy}
           onChange={(e) => changeStrategy(e.target.value)}
