@@ -31,6 +31,15 @@ def _to_dt(ms: int | None) -> datetime:
     return datetime.fromtimestamp(ms / 1000, tz=timezone.utc)
 
 
+MAX_RANGE_BARS = 5000  # hard cap so a long range / small timeframe can't run away
+
+_TIMEFRAME_MS = {
+    "1m": 60_000, "3m": 180_000, "5m": 300_000, "15m": 900_000, "30m": 1_800_000,
+    "1h": 3_600_000, "2h": 7_200_000, "4h": 14_400_000, "6h": 21_600_000,
+    "12h": 43_200_000, "1d": 86_400_000, "1w": 604_800_000,
+}
+
+
 class CcxtBroker(Broker):
     market = MarketKind.crypto
     mode = TradingMode.live
@@ -78,6 +87,50 @@ class CcxtBroker(Broker):
             )
             for r in raw
         ]
+
+    def get_ohlcv_range(
+        self, symbol: str, timeframe: str, start: datetime, end: datetime
+    ) -> list[Candle]:
+        start_ms = int(start.timestamp() * 1000)
+        end_ms = int(end.timestamp() * 1000)
+        step = _TIMEFRAME_MS.get(timeframe, 3_600_000)
+        out: list[Candle] = []
+        since = start_ms
+        last_ts: int | None = None
+        while since <= end_ms and len(out) < MAX_RANGE_BARS:
+            raw = self._exchange.fetch_ohlcv(symbol, timeframe=timeframe, since=since)
+            if not raw:
+                break
+            advanced = False
+            for r in raw:
+                ts = int(r[0])
+                if ts > end_ms:
+                    advanced = False
+                    break
+                if last_ts is not None and ts <= last_ts:
+                    continue  # de-dupe overlap across pages
+                out.append(
+                    Candle(
+                        timestamp=_to_dt(ts),
+                        open=float(r[1]),
+                        high=float(r[2]),
+                        low=float(r[3]),
+                        close=float(r[4]),
+                        volume=float(r[5]),
+                    )
+                )
+                last_ts = ts
+                advanced = True
+                if len(out) >= MAX_RANGE_BARS:
+                    break
+            if not advanced:
+                break  # no progress (range exhausted or exchange ignored since) → stop, don't spin
+            since = last_ts + step  # next page starts after the last bar we kept
+        if not out:
+            raise RuntimeError(
+                f"No OHLCV data for {symbol} {timeframe} in range {start.isoformat()}..{end.isoformat()}"
+            )
+        return out[:MAX_RANGE_BARS]
 
     def create_order(self, request: OrderRequest) -> OrderResult:
         if not self.has_credentials:
