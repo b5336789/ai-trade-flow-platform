@@ -77,42 +77,50 @@ export function Inspector({
       </div>
 
       <div className="flex-1 space-y-2 overflow-y-auto p-3">
-        {meta.params.map((f) => {
-          if (d.nodeType === "strategy" && f.key === "name") {
-            return (
-              <label key="name" className="block text-[10px] text-muted">
-                name
-                <select
-                  value={strategyName}
-                  onChange={(e) => set("name", e.target.value)}
-                  className="mt-0.5 w-full rounded-sm bg-surface-2 px-1.5 py-1 text-xs text-text"
-                >
-                  {STRATEGY_NAMES.map((s) => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
-              </label>
-            );
-          }
-          return (
-            <label key={f.key} className="block text-[10px] text-muted">
-              {f.label}
-              <FieldInput field={f} value={d.params[f.key]} onChange={(v) => set(f.key, v)} />
-            </label>
-          );
-        })}
+        {d.nodeType === "strategy" && d.params.strategy_id ? (
+          <div className="rounded-sm bg-surface-2 px-2 py-1.5 text-xs text-muted">
+            已存策略 #{String(d.params.strategy_id)}
+          </div>
+        ) : (
+          <>
+            {meta.params.map((f) => {
+              if (d.nodeType === "strategy" && f.key === "name") {
+                return (
+                  <label key="name" className="block text-[10px] text-muted">
+                    name
+                    <select
+                      value={strategyName}
+                      onChange={(e) => set("name", e.target.value)}
+                      className="mt-0.5 w-full rounded-sm bg-surface-2 px-1.5 py-1 text-xs text-text"
+                    >
+                      {STRATEGY_NAMES.map((s) => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                  </label>
+                );
+              }
+              return (
+                <label key={f.key} className="block text-[10px] text-muted">
+                  {f.label}
+                  <FieldInput field={f} value={d.params[f.key]} onChange={(v) => set(f.key, v)} />
+                </label>
+              );
+            })}
 
-        {strategyParamKeys.map((key) => (
-          <label key={key} className="block text-[10px] text-muted">
-            {key}
-            <input
-              type="number"
-              value={String(d.params[key] ?? STRATEGY_PARAMS[strategyName][key])}
-              onChange={(e) => set(key, Number(e.target.value))}
-              className="mt-0.5 w-full rounded-sm bg-surface-2 px-1.5 py-1 text-xs text-text"
-            />
-          </label>
-        ))}
+            {strategyParamKeys.map((key) => (
+              <label key={key} className="block text-[10px] text-muted">
+                {key}
+                <input
+                  type="number"
+                  value={String(d.params[key] ?? STRATEGY_PARAMS[strategyName][key])}
+                  onChange={(e) => set(key, Number(e.target.value))}
+                  className="mt-0.5 w-full rounded-sm bg-surface-2 px-1.5 py-1 text-xs text-text"
+                />
+              </label>
+            ))}
+          </>
+        )}
 
         {d.nodeType === "combine" && String(d.params.mode ?? "AND") === "OR" && (
           <label className="block text-[10px] text-muted">

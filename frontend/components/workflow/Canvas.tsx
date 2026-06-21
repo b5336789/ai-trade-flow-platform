@@ -36,7 +36,7 @@ export function Canvas({ wf, onInit }: { wf: ReturnType<typeof useWorkflowState>
       const payload = JSON.parse(raw) as { type: NodeType; savedStrategyId?: number; name?: string };
       const position = screenToFlowPosition({ x: e.clientX, y: e.clientY });
       if (payload.savedStrategyId !== undefined) {
-        wf.addNode("strategy", position, { savedStrategyId: payload.savedStrategyId, params: { name: payload.name } });
+        wf.addNode("strategy", position, { savedStrategyId: payload.savedStrategyId, params: { strategy_id: payload.savedStrategyId, name: payload.name } });
       } else {
         wf.addNode(payload.type, position);
       }
