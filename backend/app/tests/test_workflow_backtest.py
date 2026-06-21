@@ -54,6 +54,22 @@ def test_signals_recorded_every_bar_per_order_node():
     assert {s["action"] for s in r.signals} <= {"buy", "sell", "hold"}
 
 
+def test_genuine_node_error_fails_loud():
+    # Uses an unknown strategy so the error message is "unknown strategy 'nonexistent_strategy'..."
+    # which does NOT contain any warmup keyword — proving real errors still raise (fail loud).
+    g = WorkflowGraph(
+        nodes=[
+            NodeConfig(id="d", type=NodeType.data_source, params={"symbol": "BTC/USDT"}),
+            NodeConfig(id="s", type=NodeType.strategy, params={"name": "nonexistent_strategy"}),
+            NodeConfig(id="o", type=NodeType.order, params={}),
+        ],
+        edges=[Edge(source="d", target="s"), Edge(source="s", target="o")],
+    )
+    h = {"BTC/USDT": make_candles([1, 2, 3, 4, 5])}
+    with pytest.raises(ValueError, match="workflow failed"):
+        run_workflow_backtest(g, h, cost_model=CostModel.zero())
+
+
 def test_ai_bar_cap_fails_loud():
     g = WorkflowGraph(
         nodes=[

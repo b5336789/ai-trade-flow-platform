@@ -104,7 +104,6 @@ def run_workflow_backtest(
             pending_targets = None
 
         # 2) Run the graph on data through close[bar_i]; collect order-node signals + traces.
-        bt.current_index = bar_i  # window_for uses each symbol's own slice up to this ts
         # Map the global bar to each symbol's local index for the window slice.
         bt.histories = {s: histories[s][: by_ts[s][ts] + 1] for s in symbols}
         bt.positions = {
@@ -120,7 +119,17 @@ def run_workflow_backtest(
         # Warmup: strategy raises ValueError when not enough candles; treat as all-hold.
         # Real errors (cycle, unknown node, etc.) still fail loud.
         if result.status != "ok":
-            warmup_keywords = ("needs at least", "not enough", "insufficient")
+            # FRAGILE: matches on human-readable error strings from strategy.generate().
+            # Deliberately a narrow allowlist of insufficient-data phrases only — do NOT
+            # broaden to swallow other errors. Each entry corresponds to a specific built-in:
+            #   "needs at least"  — ma_cross, rsi, bollinger (primary), spec
+            #   "not enough"      — generic guard (future strategies)
+            #   "insufficient"    — spec indicator warmup ("insufficient data for its window")
+            #   "needs more candles" — macd ("macd needs more candles before signal/line are defined")
+            #   "not yet defined" — bollinger secondary path ("bollinger bands not yet defined")
+            # TODO(follow-up): strategies should raise a structured WarmupError preserved through
+            # the engine so this string-matching guard can be replaced with isinstance checks.
+            warmup_keywords = ("needs at least", "not enough", "insufficient", "needs more candles", "not yet defined")
             if result.error and any(kw in result.error for kw in warmup_keywords):
                 pass  # treat early-bar strategy warmup as all-hold, continue
             else:
@@ -151,6 +160,8 @@ def run_workflow_backtest(
                 desired_long[sym] = False
 
         # 3) Equal-weight targets become the NEXT bar's pending fills (no look-ahead).
+        # Final bar: decision is recorded above but cannot fill — there is no next-bar open.
+        # Mirrors run_backtest's convention where the last bar signal is captured but not executed.
         if bar_i < len(timeline) - 1:
             longs = {s for s, on in desired_long.items() if on}
             pending_targets = sim.target_quantities(longs, closes)
