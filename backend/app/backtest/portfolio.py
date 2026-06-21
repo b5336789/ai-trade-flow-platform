@@ -38,14 +38,19 @@ class PortfolioSim:
         self.cash = self.starting_cash
 
     def equity(self, prices: dict[str, float]) -> float:
-        held = sum(p.quantity * prices.get(sym, p.avg_price) for sym, p in self.positions.items())
+        held = 0.0
+        for sym, p in self.positions.items():
+            if p.quantity > _QTY_EPS:
+                if sym not in prices:
+                    raise ValueError(f"equity() missing price for held symbol {sym!r}")
+                held += p.quantity * prices[sym]
         return self.cash + held
 
     def target_quantities(self, desired_long: set[str], prices: dict[str, float]) -> dict[str, float]:
         equity = self.equity(prices)
         longs = [s for s in desired_long if prices.get(s, 0.0) > 0]
         n = len(longs)
-        targets: dict[str, float] = {sym: 0.0 for sym in prices}
+        targets: dict[str, float] = {sym: 0.0 for sym in set(prices) | desired_long}
         if n == 0:
             return targets
         per = equity / n
