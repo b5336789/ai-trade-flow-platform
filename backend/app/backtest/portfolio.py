@@ -74,12 +74,19 @@ class PortfolioSim:
                 self._sell(sym, pos, -delta, price, ts)
 
     def _buy(self, sym: str, pos: _Pos, qty: float, price: float, ts: str) -> None:
+        # No spendable cash -> can't buy. This also guards the float-dust case where a prior
+        # exact cash-cap buy left cash at a tiny negative (~-7e-15): without it, the scale below
+        # would go negative and feed a negative quantity into fill_cost (which rejects it).
+        if self.cash <= 0:
+            return
         fill = self.cost_model.slippage_price(OrderSide.buy, price)
         fee = self.cost_model.fill_cost(self.market, OrderSide.buy, fill, qty).total
         outlay = qty * fill + fee
         if outlay > self.cash:  # never let cash go negative; scale the buy to fit
-            scale = self.cash / outlay if outlay > 0 else 0.0
+            scale = self.cash / outlay  # cash > 0 and outlay > 0 here, so scale is in (0, 1)
             qty *= scale
+            if qty <= _QTY_EPS:  # scaled below the dust threshold -> skip before costing it
+                return
             fee = self.cost_model.fill_cost(self.market, OrderSide.buy, fill, qty).total
             outlay = qty * fill + fee
         if qty <= _QTY_EPS:
