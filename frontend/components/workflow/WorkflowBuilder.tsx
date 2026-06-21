@@ -152,8 +152,8 @@ function BuilderInner() {
                 <span className={btRun.metrics_json.total_return_pct >= 0 ? "text-up" : "text-down"}>
                   return {btRun.metrics_json.total_return_pct?.toFixed(2)}%
                 </span>
-                {btRun.metrics_json.sharpe_ratio != null && (
-                  <span className="text-muted">sharpe {btRun.metrics_json.sharpe_ratio.toFixed(2)}</span>
+                {btRun.metrics_json.sharpe != null && (
+                  <span className="text-muted">sharpe {btRun.metrics_json.sharpe.toFixed(2)}</span>
                 )}
                 {btRun.metrics_json.max_drawdown_pct != null && (
                   <span className="text-muted">drawdown {btRun.metrics_json.max_drawdown_pct.toFixed(2)}%</span>

@@ -95,7 +95,7 @@ Body:`WorkflowGraph`(臨時執行,不儲存)。→ `RunResult`
 ### `GET /api/workflows/runs`
 Query:`kind`(可選,`backtest`/`live`/`paper`)、`limit`(預設 20)。
 → `WorkflowRun[]`(最新在前)
-`WorkflowRun { id, workflow_id, kind, status, started_at, finished_at, symbols, error, metrics_json }`
+`WorkflowRun { id, run_id, workflow_id, kind, status, symbols, metrics_json, equity_curve_json, trades_json, created_at }`
 
 ### `GET /api/workflows/runs/{id}`
 → 單筆 `WorkflowRun`(含完整欄位)。找不到回 `404`。
@@ -103,8 +103,8 @@ Query:`kind`(可選,`backtest`/`live`/`paper`)、`limit`(預設 20)。
 ### `GET /api/workflows/runs/{id}/signals`
 Query:`symbol`(可選,篩選單一資產)。
 → `WorkflowSignal[]`
-`WorkflowSignal { id, run_id, symbol, bar_time, action, confidence, trace_json }`
-`trace_json` 為字串化 JSON,內含各節點 id → 輸出摘要的鍵值對,可用於前端重現訊號推導過程。
+`WorkflowSignal { id, run_id, order_node_id, symbol, timestamp, bar_index, action, confidence, price, trace_json, created_at }`
+`trace_json` 為 JSON 陣列,內含各節點 id → 輸出摘要的鍵值對,可用於前端重現訊號推導過程。
 
 ## Backtest
 
@@ -147,8 +147,8 @@ Body:
   "symbols": ["BTC/USDT", "ETH/USDT"],
   "result": { "...BacktestResult 欄位..." },
   "signals": [
-    { "symbol": "BTC/USDT", "bar_time": "2024-01-02T01:00:00Z",
-      "action": "buy", "confidence": 0.82, "trace_json": "{...}" }
+    { "symbol": "BTC/USDT", "timestamp": "2024-01-02T01:00:00Z",
+      "action": "buy", "confidence": 0.82, "trace_json": [...] }
   ]
 }
 ```

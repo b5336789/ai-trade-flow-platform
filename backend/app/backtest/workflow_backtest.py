@@ -121,15 +121,19 @@ def run_workflow_backtest(
         if result.status != "ok":
             # FRAGILE: matches on human-readable error strings from strategy.generate().
             # Deliberately a narrow allowlist of insufficient-data phrases only — do NOT
-            # broaden to swallow other errors. Each entry corresponds to a specific built-in:
-            #   "needs at least"  — ma_cross, rsi, bollinger (primary), spec
-            #   "not enough"      — generic guard (future strategies)
-            #   "insufficient"    — spec indicator warmup ("insufficient data for its window")
-            #   "needs more candles" — macd ("macd needs more candles before signal/line are defined")
-            #   "not yet defined" — bollinger secondary path ("bollinger bands not yet defined")
+            # broaden to swallow other errors. Each entry is the EXACT phrase from a specific
+            # built-in strategy's ValueError:
+            #   "needs at least"                      — ma_cross, rsi, bollinger primary
+            #                                           ("rsi needs at least N candles, got M")
+            #   "needs more candles before signal"    — macd exact phrase
+            #                                           ("macd needs more candles before signal/line are defined")
+            #   "bands not yet defined"               — bollinger secondary path
+            #                                           ("bollinger bands not yet defined")
+            #   "insufficient data for its window"    — spec indicator warmup
+            #                                           ("indicator 'x' has insufficient data for its window")
             # TODO(follow-up): strategies should raise a structured WarmupError preserved through
             # the engine so this string-matching guard can be replaced with isinstance checks.
-            warmup_keywords = ("needs at least", "not enough", "insufficient", "needs more candles", "not yet defined")
+            warmup_keywords = ("needs at least", "needs more candles before signal", "bands not yet defined", "insufficient data for its window")
             if result.error and any(kw in result.error for kw in warmup_keywords):
                 pass  # treat early-bar strategy warmup as all-hold, continue
             else:
