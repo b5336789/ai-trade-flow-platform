@@ -2,17 +2,85 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
+from sqlmodel import Session
 
 from app.backtest.engine import BacktestResult, run_backtest
 from app.backtest.optimize import OptimizeRow, grid_search
 from app.backtest.validation import WalkForwardReport, walk_forward
+from app.backtest.workflow_backtest import WorkflowBacktestResult, run_workflow_backtest
 from app.brokers.registry import get_data_broker
+from app.db import get_session
+from app.models import Workflow
 from app.schemas import MarketKind
 from app.strategies.registry import STRATEGIES, build_strategy
+from app.workflow.run_store import persist_workflow_run, resolve_order_symbol
+from app.workflow.schema import NodeType, WorkflowGraph
 
 router = APIRouter(prefix="/api/backtest", tags=["backtest"])
+
+
+class WorkflowBacktestRequest(BaseModel):
+    graph: WorkflowGraph | None = None
+    workflow_id: int | None = None
+    market: MarketKind = MarketKind.crypto
+    timeframe: str = "1h"
+    limit: int = Field(default=500, ge=10, le=1000)
+    starting_cash: float = 100_000.0
+
+
+class WorkflowBacktestResponse(WorkflowBacktestResult):
+    run_id: int
+
+
+@router.post("/workflow", response_model=WorkflowBacktestResponse)
+def workflow_backtest(req: WorkflowBacktestRequest, session: Session = Depends(get_session)) -> WorkflowBacktestResponse:
+    if req.graph is None and req.workflow_id is None:
+        raise HTTPException(status_code=422, detail="provide either 'graph' or 'workflow_id'")
+    graph = req.graph
+    if graph is None:
+        wf = session.get(Workflow, req.workflow_id)
+        if wf is None:
+            raise HTTPException(status_code=404, detail="workflow not found")
+        graph = WorkflowGraph.model_validate(wf.graph)
+    try:
+        order_nodes = [n for n in graph.nodes if n.type == NodeType.order]
+        if not order_nodes:
+            raise ValueError("workflow backtest requires at least one order node")
+        symbols = sorted({resolve_order_symbol(graph, n.id) for n in order_nodes})
+        broker = get_data_broker(req.market)
+        histories = {s: broker.get_ohlcv(s, req.timeframe, req.limit) for s in symbols}
+        result = run_workflow_backtest(
+            graph,
+            histories,
+            starting_cash=req.starting_cash,
+            market=req.market,
+            timeframe=req.timeframe,
+        )
+        run_db_id = persist_workflow_run(
+            session,
+            run_id=f"bt-{req.workflow_id or 'adhoc'}",
+            kind="backtest",
+            graph=graph,
+            market=req.market.value,
+            symbols=result.symbols,
+            timeframe=req.timeframe,
+            starting_cash=req.starting_cash,
+            params={"limit": req.limit},
+            metrics=result.model_dump(mode="json", exclude={"signals", "equity_curve", "trades"}),
+            equity_curve=[p.model_dump(mode="json") for p in result.equity_curve],
+            trades=[t.model_dump(mode="json") for t in result.trades],
+            status="ok",
+            signals=result.signals,
+        )
+        return WorkflowBacktestResponse(**result.model_dump(), run_id=run_db_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    except NotImplementedError as exc:
+        raise HTTPException(status_code=501, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"{type(exc).__name__}: {exc}")
 
 
 class BacktestRequest(BaseModel):

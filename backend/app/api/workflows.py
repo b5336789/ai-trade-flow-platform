@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from sqlmodel import Session, select
 
 from app.db import get_session
-from app.models import RunLog, Workflow
+from app.models import RunLog, Workflow, WorkflowRun, WorkflowSignal
 from app.workflow.engine import run_workflow
 from app.workflow.schema import RunResult, WorkflowGraph
 
@@ -33,6 +33,30 @@ def create_workflow(payload: WorkflowCreate, session: Session = Depends(get_sess
 @router.get("", response_model=list[Workflow])
 def list_workflows(session: Session = Depends(get_session)) -> list[Workflow]:
     return list(session.exec(select(Workflow).order_by(Workflow.id.desc())).all())
+
+
+@router.get("/runs", response_model=list[WorkflowRun])
+def list_runs(kind: str | None = None, limit: int = 50, session: Session = Depends(get_session)) -> list[WorkflowRun]:
+    q = select(WorkflowRun).order_by(WorkflowRun.id.desc()).limit(limit)
+    if kind:
+        q = q.where(WorkflowRun.kind == kind)
+    return list(session.exec(q).all())
+
+
+@router.get("/runs/{run_id}", response_model=WorkflowRun)
+def get_run(run_id: int, session: Session = Depends(get_session)) -> WorkflowRun:
+    run = session.get(WorkflowRun, run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail="run not found")
+    return run
+
+
+@router.get("/runs/{run_id}/signals", response_model=list[WorkflowSignal])
+def get_run_signals(run_id: int, symbol: str | None = None, session: Session = Depends(get_session)) -> list[WorkflowSignal]:
+    q = select(WorkflowSignal).where(WorkflowSignal.run_id == run_id).order_by(WorkflowSignal.bar_index)
+    if symbol:
+        q = q.where(WorkflowSignal.symbol == symbol)
+    return list(session.exec(q).all())
 
 
 @router.get("/{workflow_id}", response_model=Workflow)
