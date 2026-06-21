@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   api,
   MARKETS,
@@ -50,6 +51,37 @@ export function BacktestPanel() {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [overviewCandles, setOverviewCandles] = useState<Candle[]>([]);
   const [moreMetrics, setMoreMetrics] = useState(false);
+
+  const searchParams = useSearchParams();
+  const appliedQuery = useRef(false);
+
+  // Carry intent from 策略室 / nav tree: ?strategy=saved:<id>&symbol=&timeframe=.
+  // Apply ONCE. The saved-strategy select needs `saved` loaded to render its option,
+  // so re-run until either applied or there is no saved-strategy intent to wait for.
+  useEffect(() => {
+    if (appliedQuery.current) return;
+    const qSymbol = searchParams.get("symbol");
+    const qTimeframe = searchParams.get("timeframe");
+    const qMarket = searchParams.get("market");
+    const qStrategy = searchParams.get("strategy"); // e.g. "saved:12" or "ma_cross"
+
+    if (qSymbol) setSymbol(qSymbol.toUpperCase());
+    if (qTimeframe && TIMEFRAMES.includes(qTimeframe)) setTimeframe(qTimeframe);
+    if (qMarket && MARKETS.some((m) => m.value === qMarket)) setMarketState(qMarket);
+
+    if (qStrategy?.startsWith(SAVED_PREFIX)) {
+      // Wait for the saved list so the <select> can show the option; bail once loaded.
+      const id = Number(qStrategy.slice(SAVED_PREFIX.length));
+      if (saved.length === 0) return; // try again after listSavedStrategies resolves
+      if (saved.some((s) => s.id === id)) changeStrategy(qStrategy);
+      appliedQuery.current = true;
+    } else if (qStrategy && STRATEGY_NAMES.includes(qStrategy)) {
+      changeStrategy(qStrategy);
+      appliedQuery.current = true;
+    } else if (qSymbol || qTimeframe || qMarket) {
+      appliedQuery.current = true; // params present but no strategy intent
+    }
+  }, [searchParams, saved]);
 
   useEffect(() => { setMarket(market); }, [market]);
 

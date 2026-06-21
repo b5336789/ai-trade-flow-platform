@@ -61,6 +61,13 @@ export const L = {
     max_consecutive_losses: "最大連虧",
     num_trades: "交易數",
   },
+  linking: {
+    sendToBacktest: "拿去回測",
+    sendToBacktestHint: "先存入策略庫才能拿去回測",
+    buildWorkflow: "建立工作流",
+    buildingWorkflow: "建立中…",
+    buildWorkflowHint: "用此策略 + 下單節點預生成工作流",
+  },
 } as const;
 
 // 每個指標一句白話(主+次全覆蓋)。<Term> 以 hover tooltip 呈現。
