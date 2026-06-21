@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { api, type Signal } from "@/lib/api";
 import { setMarket } from "@/lib/useMarket";
 import { CandleChart } from "./CandleChart";
+import { Onboarding } from "./Onboarding";
 
 const DEFAULT_SYMBOL: Record<string, string> = {
   crypto: "BTC/USDT",
@@ -101,6 +102,7 @@ export function HomeDashboard() {
 
   return (
     <div className="space-y-4">
+      <Onboarding />
       {/* Header band — context + controls. The big number lives on the chart, not here. */}
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
