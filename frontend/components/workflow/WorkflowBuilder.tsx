@@ -13,7 +13,8 @@ import {
 } from "@xyflow/react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { api, type NodeType, type RunResult, type WorkflowGraph } from "@/lib/api";
-import { TradeNode, type TradeNodeData } from "./TradeNode";
+import { TradeNode } from "./TradeNode";
+import type { TradeNodeData } from "./useWorkflowState";
 
 const DEFAULTS: Record<NodeType, Record<string, unknown>> = {
   data_source: { symbol: "BTC/USDT", timeframe: "1h", limit: 100 },
@@ -52,7 +53,7 @@ export function WorkflowBuilder() {
   const nodeTypes = useMemo(() => ({ trade: TradeNode }), []);
   const idCounter = useRef(100);
 
-  const setParam = useCallback<TradeNodeData["setParam"]>((id, key, value) => {
+  const setParam = useCallback((id: string, key: string, value: unknown) => {
     setNodes((nds) =>
       nds.map((n) =>
         n.id === id

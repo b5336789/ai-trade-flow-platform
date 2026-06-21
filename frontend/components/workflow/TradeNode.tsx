@@ -1,192 +1,44 @@
 "use client";
 
 import { Handle, Position, type NodeProps } from "@xyflow/react";
-import type { NodeType } from "@/lib/api";
-import { STRATEGY_NAMES, STRATEGY_PARAMS } from "@/lib/strategies";
+import { CATEGORY_LABEL, NODE_CATALOG, summaryText } from "./nodeCatalog";
+import type { TradeNodeData } from "./useWorkflowState";
 
-export interface TradeNodeData {
-  nodeType: NodeType;
-  params: Record<string, unknown>;
-  setParam: (id: string, key: string, value: unknown) => void;
-  [key: string]: unknown;
-}
-
-const TITLES: Record<NodeType, string> = {
-  data_source: "Data Source",
-  strategy: "Strategy",
-  ai_signal: "AI Signal",
-  risk_exit: "Risk Exit (SL/TP)",
-  order: "Order",
-  logger: "Logger",
-  condition: "Condition",
-  combine: "Combine",
-  branch: "Branch",
-};
-
-const COMBINE_MODES = ["AND", "OR", "weighted"];
-const CONDITION_OPERATORS = [">", ">=", "<", "<=", "==", "!="];
-
-function Field({
-  label,
-  value,
-  onChange,
-  type = "text",
-}: {
-  label: string;
-  value: unknown;
-  onChange: (v: string) => void;
-  type?: string;
-}) {
-  return (
-    <label className="mb-1 block text-[10px] text-muted">
-      {label}
-      <input
-        type={type}
-        value={String(value ?? "")}
-        onChange={(e) => onChange(e.target.value)}
-        className="mt-0.5 w-full rounded-sm bg-surface-2 px-1 py-0.5 text-xs text-text"
-      />
-    </label>
-  );
-}
-
-export function TradeNode({ id, data }: NodeProps) {
+export function TradeNode({ data, selected }: NodeProps) {
   const d = data as TradeNodeData;
-  const p = d.params;
-  const set = (key: string, value: unknown) => d.setParam(id, key, value);
-  const hasInput = d.nodeType !== "data_source";
-  const hasOutput = d.nodeType !== "logger" && d.nodeType !== "order";
+  const meta = NODE_CATALOG[d.nodeType];
+  const summary = summaryText(d.nodeType, d.params);
+  const isAI = d.nodeType === "ai_signal";
 
   return (
-    <div className="min-w-[170px] rounded-md border border-border bg-surface-1 p-2 shadow">
-      {hasInput && <Handle type="target" position={Position.Left} />}
-      <div className="mb-1 text-xs font-semibold text-accent">{TITLES[d.nodeType]}</div>
-
-      {d.nodeType === "data_source" && (
-        <>
-          <Field label="symbol" value={p.symbol} onChange={(v) => set("symbol", v)} />
-          <Field label="timeframe" value={p.timeframe} onChange={(v) => set("timeframe", v)} />
-          <Field label="limit" type="number" value={p.limit} onChange={(v) => set("limit", Number(v))} />
-        </>
+    <div
+      className="relative w-[158px] overflow-hidden rounded-md border bg-surface-1 text-text shadow"
+      style={{
+        borderColor: selected ? "var(--accent)" : "var(--border)",
+        borderWidth: selected ? 2 : 1,
+      }}
+    >
+      <div className="absolute left-0 top-0 h-full w-[3px]" style={{ background: meta.colorVar }} />
+      {meta.hasInput && (
+        <Handle type="target" position={Position.Left} style={{ borderColor: meta.colorVar, background: "var(--surface-1)" }} />
       )}
-
-      {d.nodeType === "strategy" &&
-        (() => {
-          const name = String(p.name ?? "ma_cross");
-          const schema = STRATEGY_PARAMS[name] ?? {};
-          return (
-            <>
-              <label className="mb-1 block text-[10px] text-muted">
-                name
-                <select
-                  value={name}
-                  onChange={(e) => set("name", e.target.value)}
-                  className="mt-0.5 w-full rounded-sm bg-surface-2 px-1 py-0.5 text-xs"
-                >
-                  {STRATEGY_NAMES.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              {Object.keys(schema).map((key) => (
-                <Field
-                  key={key}
-                  label={key}
-                  type="number"
-                  value={p[key] ?? schema[key]}
-                  onChange={(v) => set(key, Number(v))}
-                />
-              ))}
-            </>
-          );
-        })()}
-
-      {d.nodeType === "ai_signal" && (
-        <Field label="model (optional)" value={p.model} onChange={(v) => set("model", v || undefined)} />
+      <div className="pl-2 pr-2 pt-1.5">
+        <div className="flex items-center gap-1.5">
+          <span className="inline-block h-2 w-2 rounded-full" style={{ background: meta.colorVar }} />
+          <span className={`truncate text-xs font-semibold ${isAI ? "text-accent" : "text-text"}`}>{meta.title}</span>
+        </div>
+        <div className="mt-0.5 text-[9px] uppercase tracking-wide text-faint">{CATEGORY_LABEL[meta.category]}</div>
+      </div>
+      <div className="px-2 pb-2 pt-1">
+        {summary ? (
+          <div className="num truncate rounded-sm bg-surface-2 px-1 py-0.5 text-[11px] text-muted">{summary}</div>
+        ) : (
+          <div className="text-[10px] text-faint">{isAI ? "AI signal" : "—"}</div>
+        )}
+      </div>
+      {meta.hasOutput && (
+        <Handle type="source" position={Position.Right} style={{ borderColor: meta.colorVar, background: "var(--surface-1)" }} />
       )}
-
-      {d.nodeType === "risk_exit" && (
-        <>
-          <Field label="stop_loss_pct" type="number" value={p.stop_loss_pct} onChange={(v) => set("stop_loss_pct", Number(v))} />
-          <Field label="take_profit_pct" type="number" value={p.take_profit_pct} onChange={(v) => set("take_profit_pct", Number(v))} />
-        </>
-      )}
-
-      {d.nodeType === "order" && (
-        <Field label="quantity" type="number" value={p.quantity} onChange={(v) => set("quantity", Number(v))} />
-      )}
-
-      {d.nodeType === "combine" && (
-        <>
-          <label className="mb-1 block text-[10px] text-muted">
-            mode
-            <select
-              value={String(p.mode ?? "AND")}
-              onChange={(e) => set("mode", e.target.value)}
-              className="mt-0.5 w-full rounded-sm bg-surface-2 px-1 py-0.5 text-xs"
-            >
-              {COMBINE_MODES.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </select>
-          </label>
-          {String(p.mode ?? "AND") === "OR" && (
-            <Field label="bias (buy/sell)" value={p.bias} onChange={(v) => set("bias", v)} />
-          )}
-          <div className="text-[10px] text-faint">merges many Signals into one</div>
-        </>
-      )}
-
-      {d.nodeType === "condition" && (
-        <>
-          <Field label="source" value={p.source} onChange={(v) => set("source", v)} />
-          <label className="mb-1 block text-[10px] text-muted">
-            operator
-            <select
-              value={String(p.operator ?? ">")}
-              onChange={(e) => set("operator", e.target.value)}
-              className="mt-0.5 w-full rounded-sm bg-surface-2 px-1 py-0.5 text-xs"
-            >
-              {CONDITION_OPERATORS.map((o) => (
-                <option key={o} value={o}>
-                  {o}
-                </option>
-              ))}
-            </select>
-          </label>
-          <Field label="value" type="number" value={p.value} onChange={(v) => set("value", Number(v))} />
-        </>
-      )}
-
-      {d.nodeType === "branch" && (
-        <>
-          <Field label="source" value={p.source} onChange={(v) => set("source", v)} />
-          <label className="mb-1 block text-[10px] text-muted">
-            operator
-            <select
-              value={String(p.operator ?? ">")}
-              onChange={(e) => set("operator", e.target.value)}
-              className="mt-0.5 w-full rounded-sm bg-surface-2 px-1 py-0.5 text-xs"
-            >
-              {CONDITION_OPERATORS.map((o) => (
-                <option key={o} value={o}>
-                  {o}
-                </option>
-              ))}
-            </select>
-          </label>
-          <Field label="value" type="number" value={p.value} onChange={(v) => set("value", Number(v))} />
-          <div className="text-[10px] text-faint">passes Signal when condition holds, else hold</div>
-        </>
-      )}
-
-      {d.nodeType === "logger" && <div className="text-[10px] text-faint">records run output</div>}
-
-      {hasOutput && <Handle type="source" position={Position.Right} />}
     </div>
   );
 }
