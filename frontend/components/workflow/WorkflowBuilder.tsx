@@ -67,9 +67,14 @@ function BuilderInner() {
       />
       {savedMsg && <p className="px-3 py-1 text-sm text-up">{savedMsg}</p>}
       <div className="relative flex h-[520px]">
-        {/* Palette: full on xl, icon strip on md, bottom-sheet toggle on mobile */}
-        <div className="hidden md:block">
-          <Palette compact={typeof window !== "undefined" && window.innerWidth < 1280} />
+        {/* Palette: full on xl, icon strip on md, hidden on mobile */}
+        {/* Full palette: desktop only */}
+        <div className="hidden xl:block">
+          <Palette />
+        </div>
+        {/* Compact icon-strip palette: tablet only */}
+        <div className="hidden md:block xl:hidden">
+          <Palette compact />
         </div>
         <div className="relative flex-1">
           <Canvas wf={wf} onInit={setRf} />

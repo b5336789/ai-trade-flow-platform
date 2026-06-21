@@ -66,7 +66,7 @@ export function Inspector({
           {onClose && (
             <button
               onClick={onClose}
-              className="ml-auto text-faint hover:text-text"
+              className="ml-auto text-faint hover:text-text xl:hidden"
               aria-label="關閉"
             >
               ✕
