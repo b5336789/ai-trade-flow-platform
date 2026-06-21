@@ -14,6 +14,9 @@ export function WorkflowBacktestChart({
   onSelectSignal: (s: WorkflowSignalDTO) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  // Fix 2: store callback in a ref so chart effect doesn't re-mount on every parent render
+  const onSelectRef = useRef(onSelectSignal);
+  useEffect(() => { onSelectRef.current = onSelectSignal; }, [onSelectSignal]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -80,15 +83,33 @@ export function WorkflowBacktestChart({
     series.setMarkers(allMarkers);
     chart.timeScale().fitContent();
 
+    // Fix 1: derive bar interval from equity curve; only fire when click is within ~1.5 bars of a marker.
+    // This prevents opening the drawer when clicking empty chart space far from any signal.
+    const barIntervalMs = points.length >= 2
+      ? Math.abs(
+          new Date(points[1].timestamp).getTime() - new Date(points[0].timestamp).getTime()
+        )
+      : 0;
+    // Use 1.5× the bar interval as the proximity threshold
+    const proximityThresholdMs = barIntervalMs * 1.5;
+
     const clickHandler = (param: MouseEventParams) => {
       if (param.time == null) return;
+      if (signals.length === 0) return;
+      // Need at least a bar interval to define "near"; if curve has <2 points, skip
+      if (barIntervalMs === 0) return;
       const clickMs = (param.time as UTCTimestamp) * 1000;
       const hit = signals.reduce<WorkflowSignalDTO | null>((best, s) => {
         const d = Math.abs(new Date(s.timestamp).getTime() - clickMs);
         if (!best) return s;
         return Math.abs(new Date(best.timestamp).getTime() - clickMs) <= d ? best : s;
       }, null);
-      if (hit) onSelectSignal(hit);
+      if (!hit) return;
+      const hitMs = new Date(hit.timestamp).getTime();
+      // Only select when click is within the proximity threshold of the nearest signal
+      if (Math.abs(hitMs - clickMs) <= proximityThresholdMs) {
+        onSelectRef.current(hit);
+      }
     };
 
     chart.subscribeClick(clickHandler);
@@ -100,7 +121,7 @@ export function WorkflowBacktestChart({
       chart.unsubscribeClick(clickHandler as Parameters<typeof chart.unsubscribeClick>[0]);
       chart.remove();
     };
-  }, [run, signals, onSelectSignal]);
+  }, [run, signals]);
 
   return <div ref={containerRef} className="w-full" />;
 }

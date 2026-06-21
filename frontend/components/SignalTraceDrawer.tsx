@@ -83,7 +83,7 @@ export function SignalTraceDrawer({
       >
         {signal.trace_json.map((step, i) => (
           <li
-            key={step.node_id}
+            key={`${step.node_id}-${i}`}
             style={{
               background: "var(--surface-2, #16181D)",
               border: "1px solid var(--border, rgba(255,255,255,.08))",
