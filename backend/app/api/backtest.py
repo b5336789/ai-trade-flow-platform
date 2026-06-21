@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlmodel import Session
@@ -19,6 +21,15 @@ from app.workflow.run_store import persist_workflow_run, resolve_order_symbol
 from app.workflow.schema import NodeType, WorkflowGraph
 
 router = APIRouter(prefix="/api/backtest", tags=["backtest"])
+
+
+def _fetch_candles(broker, symbol, timeframe, limit, start, end):
+    """Range fetch when both start+end are given (C2), else the legacy limit path. Fails loud."""
+    if start is not None and end is not None:
+        if start >= end:
+            raise ValueError("start must be before end")
+        return broker.get_ohlcv_range(symbol, timeframe, start, end)
+    return broker.get_ohlcv(symbol, timeframe, limit)
 
 
 class WorkflowBacktestRequest(BaseModel):
@@ -92,6 +103,8 @@ class BacktestRequest(BaseModel):
     params: dict = Field(default_factory=dict)
     starting_cash: float = 100_000.0
     position_fraction: float = 1.0
+    start: datetime | None = None  # C2: when start+end both set, fetch by range instead of limit
+    end: datetime | None = None
 
 
 @router.get("/strategies")
@@ -265,7 +278,9 @@ def walk_forward_endpoint(req: WalkForwardRequest) -> WalkForwardReport:
 def backtest(req: BacktestRequest) -> BacktestResult:
     try:
         strategy = build_strategy(req.strategy, req.params)
-        candles = get_data_broker(req.market).get_ohlcv(req.symbol, req.timeframe, req.limit)
+        candles = _fetch_candles(
+            get_data_broker(req.market), req.symbol, req.timeframe, req.limit, req.start, req.end
+        )
         return run_backtest(
             candles,
             strategy,
