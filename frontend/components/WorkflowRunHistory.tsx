@@ -6,15 +6,17 @@ import { api, type WorkflowRunDTO } from "@/lib/api";
 export function WorkflowRunHistory({
   kind,
   onOpen,
+  refreshKey,
 }: {
   kind?: string;
   onOpen: (runId: number) => void;
+  refreshKey?: number;
 }) {
   const [runs, setRuns] = useState<WorkflowRunDTO[]>([]);
 
   useEffect(() => {
     api.listWorkflowRuns({ kind, limit: 50 }).then(setRuns).catch(() => setRuns([]));
-  }, [kind]);
+  }, [kind, refreshKey]);
 
   if (runs.length === 0) return null;
 

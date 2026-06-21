@@ -27,6 +27,7 @@ function BuilderInner() {
   const [btSignals, setBtSignals] = useState<WorkflowSignalDTO[]>([]);
   const [selected, setSelected] = useState<WorkflowSignalDTO | null>(null);
   const [backtesting, setBacktesting] = useState(false);
+  const [historyRefresh, setHistoryRefresh] = useState(0);
 
   const valid = useMemo(() => validateGraph(wf.buildGraph()), [wf.nodes, wf.edges]);
   const selectedNode = wf.nodes.find((n) => n.id === wf.selectedId) ?? null;
@@ -59,6 +60,7 @@ function BuilderInner() {
       const run = await api.getWorkflowRun(res.run_id);
       setBtRun(run);
       setBtSignals(res.signals);
+      setHistoryRefresh((n) => n + 1);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -125,7 +127,7 @@ function BuilderInner() {
           </div>
         )}
       </div>
-      {error && <p className="px-3 py-2 text-sm text-error">Run error: {error}</p>}
+      {error && <p className="px-3 py-2 text-sm text-error">Error: {error}</p>}
       {result && (
         <div className="m-3 rounded-lg border border-border bg-surface-2 p-3 text-xs">
           <div className="mb-1">
@@ -162,7 +164,7 @@ function BuilderInner() {
           <WorkflowBacktestChart run={btRun} signals={btSignals} onSelectSignal={setSelected} />
         </div>
       )}
-      <WorkflowRunHistory kind="backtest" onOpen={openRun} />
+      <WorkflowRunHistory kind="backtest" onOpen={openRun} refreshKey={historyRefresh} />
       <SignalTraceDrawer signal={selected} onClose={() => setSelected(null)} />
     </section>
   );
