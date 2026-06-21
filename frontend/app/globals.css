@@ -10,6 +10,7 @@
   --accent: #22D3EE; --accent-dim: rgba(34,211,238,0.14);
   --up: #34D399; --down: #F87171;
   --warning: #FBBF24; --error: #EF4444; --live: #FB7185;
+  --c-data: #8A9099; --c-strat: #22D3EE; --c-logic: #FBBF24; --c-order: #34D399; --c-out: #A78BFA;
   /* font CSS vars are bound to the geist package + next/font in layout.tsx */
   --font-ui: var(--font-geist-sans); --font-mono: var(--font-geist-mono);
 }
