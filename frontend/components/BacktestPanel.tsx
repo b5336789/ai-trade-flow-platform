@@ -39,7 +39,8 @@ export function BacktestPanel() {
   const [saved, setSaved] = useState<StrategyListItem[]>([]);
   const [timeframe, setTimeframe] = useState("1h");
   const [limit, setLimit] = useState(500);
-  const [tab, setTab] = useState<"overview" | "trades" | "walkforward">("overview");
+  const [tab, setTab] = useState<"overview" | "trades" | "compare" | "optimize" | "walkforward">("overview");
+  const [appliedHint, setAppliedHint] = useState(false);
   const [walkforward, setWalkforward] = useState<WalkForwardReport | null>(null);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [overviewCandles, setOverviewCandles] = useState<Candle[]>([]);
@@ -68,6 +69,7 @@ export function BacktestPanel() {
     setWalkforward(null);
     setError(null);
     setOverviewCandles([]);
+    setAppliedHint(false);
   }
 
   async function optimize() {
@@ -87,6 +89,7 @@ export function BacktestPanel() {
           rank_metric: "oos_sharpe",
         }),
       );
+      setTab("optimize");
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -121,6 +124,7 @@ export function BacktestPanel() {
     resetOutputs();
     try {
       setComparison(await api.compareStrategies({ symbol, market, timeframe, limit }));
+      setTab("compare");
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -145,6 +149,7 @@ export function BacktestPanel() {
           metric: "sharpe",
         }),
       );
+      setTab("walkforward");
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -295,23 +300,25 @@ export function BacktestPanel() {
 
       {error && <p className="text-sm text-error">Backtest error: {error}</p>}
 
-      {result && (
+      {(result || comparison || optimization || walkforward) && (
         <div className="space-y-3">
           <div className="flex gap-2 border-b border-border text-sm">
-            {(["overview", "trades", "walkforward"] as const).map((t) => (
-              <button
-                key={t}
-                onClick={() => setTab(t)}
-                className={`px-3 py-1.5 ${
-                  tab === t ? "border-b-2 border-accent text-text" : "text-muted hover:text-text"
-                }`}
-              >
-                {t === "overview" ? "概覽" : t === "trades" ? "交易" : "Walk-forward"}
-              </button>
-            ))}
+            {result && (
+              <>
+                <TabBtn id="overview" tab={tab} setTab={setTab}>{L.backtest.overview}</TabBtn>
+                <TabBtn id="trades" tab={tab} setTab={setTab}>{L.backtest.trades}</TabBtn>
+              </>
+            )}
+            {comparison && <TabBtn id="compare" tab={tab} setTab={setTab}>{L.backtest.tabCompare}</TabBtn>}
+            {optimization && <TabBtn id="optimize" tab={tab} setTab={setTab}>{L.backtest.tabOptimize}</TabBtn>}
+            {walkforward && <TabBtn id="walkforward" tab={tab} setTab={setTab}>{L.backtest.tabWalkforward}</TabBtn>}
           </div>
 
-          {tab === "overview" && (
+          {appliedHint && tab === "overview" && (
+            <p className="text-xs text-accent">{L.backtest.applied}</p>
+          )}
+
+          {result && tab === "overview" && (
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
                 <MetricCard
@@ -386,10 +393,10 @@ export function BacktestPanel() {
             </div>
           )}
 
-          {tab === "trades" && (
+          {result && tab === "trades" && (
             <div className="max-h-80 overflow-y-auto">
               {result.trades.length === 0 ? (
-                <p className="text-sm text-muted">No trades.</p>
+                <p className="text-sm text-muted">{L.backtest.noTrades}</p>
               ) : (
                 <table className="w-full text-left text-xs">
                   <thead className="text-faint">
@@ -423,161 +430,159 @@ export function BacktestPanel() {
             </div>
           )}
 
-          {tab === "walkforward" && (
-            <p className="text-sm text-muted">點上方「Walk-forward」按鈕執行樣本外驗證，結果會顯示於下方。</p>
-          )}
-        </div>
-      )}
-
-      {optimization && (
-        <table className="w-full text-left text-xs">
-          <thead className="text-faint">
-            <tr>
-              <th className="py-1">Params</th>
-              <th>OOS Ret</th>
-              <th>IS→OOS Gap</th>
-              <th>OOS Sharpe</th>
-              <th>Max DD</th>
-              <th>Trades</th>
-              <th>Win%</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {optimization.slice(0, 10).map((r, i) => (
-              <tr key={i} className="border-t border-border">
-                <td className="py-1 font-mono">
-                  {i === 0 && !r.error ? "🏆 " : ""}
-                  {Object.entries(r.params)
-                    .map(([k, v]) => `${k}=${v}`)
-                    .join(", ")}
-                </td>
-                {r.error ? (
-                  <td colSpan={7} className="text-error">
-                    {r.error}
-                  </td>
-                ) : (
-                  <>
-                    {/* M0.4: headline is the out-of-sample return; IS→OOS gap exposes overfitting. */}
-                    <td className={`num ${(r.oos_return_pct ?? r.total_return_pct) >= 0 ? "text-up" : "text-down"}`}>
-                      {pct(r.oos_return_pct ?? r.total_return_pct)}
-                    </td>
-                    <td className={`num ${(r.is_oos_gap_pct ?? 0) > 0 ? "text-warning" : "text-muted"}`}>
-                      {r.is_oos_gap_pct == null ? "—" : pct(r.is_oos_gap_pct)}
-                    </td>
-                    <td className={`num ${(r.oos_sharpe ?? 0) >= 0 ? "text-up" : "text-down"}`}>
-                      {r.oos_sharpe == null ? "—" : r.oos_sharpe.toFixed(2)}
-                    </td>
-                    <td className="num text-down">{pct(-r.max_drawdown_pct)}</td>
-                    <td className="num">{r.num_trades}</td>
-                    <td className="num">{r.win_rate.toFixed(0)}%</td>
-                    <td>
-                      <button
-                        onClick={() => {
-                          setParams({ ...(r.params as Record<string, number>) });
-                          setOptimization(null);
-                        }}
-                        className="text-accent hover:underline"
-                      >
-                        use
-                      </button>
-                    </td>
-                  </>
-                )}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-
-      {comparison && (
-        <table className="w-full text-left text-xs">
-          <thead className="text-faint">
-            <tr>
-              <th className="py-1">Strategy</th>
-              <th>Return</th>
-              <th>Max DD</th>
-              <th>Trades</th>
-              <th>Win%</th>
-            </tr>
-          </thead>
-          <tbody>
-            {comparison.map((r, i) => (
-              <tr key={r.strategy} className="border-t border-border">
-                <td className="py-1">
-                  {i === 0 && !r.error ? "🏆 " : ""}
-                  {r.strategy}
-                </td>
-                {r.error ? (
-                  <td colSpan={4} className="text-error">
-                    {r.error}
-                  </td>
-                ) : (
-                  <>
-                    <td className={`num ${r.total_return_pct >= 0 ? "text-up" : "text-down"}`}>
-                      {pct(r.total_return_pct)}
-                    </td>
-                    <td className="num text-down">{pct(-r.max_drawdown_pct)}</td>
-                    <td className="num">{r.num_trades}</td>
-                    <td className="num">{r.win_rate.toFixed(0)}%</td>
-                  </>
-                )}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-
-      {walkforward && (
-        <div className="space-y-2">
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-            <span className="text-muted">
-              {walkforward.strategy} · {walkforward.metric} · {walkforward.anchored ? "anchored" : "rolling"} ·{" "}
-              {walkforward.n_folds} folds
-            </span>
-            <span className={walkforward.aggregate_oos_return_pct >= 0 ? "text-up" : "text-down"}>
-              Agg OOS return {pct(walkforward.aggregate_oos_return_pct)}
-            </span>
-            <span className={walkforward.aggregate_oos_metric >= 0 ? "text-up" : "text-down"}>
-              Agg OOS {walkforward.metric} {walkforward.aggregate_oos_metric.toFixed(2)}
-            </span>
-          </div>
-          <table className="w-full text-left text-xs">
-            <thead className="text-faint">
-              <tr>
-                <th className="py-1">Fold</th>
-                <th>Best params</th>
-                <th className="num">IS {walkforward.metric}</th>
-                <th className="num">OOS {walkforward.metric}</th>
-                <th className="num">OOS Ret</th>
-                <th className="num">OOS Max DD</th>
-              </tr>
-            </thead>
-            <tbody>
-              {walkforward.folds.map((f) => (
-                <tr key={f.fold} className="border-t border-border">
-                  <td className="py-1">{f.fold}</td>
-                  {f.error ? (
-                    <td colSpan={5} className="text-error">
-                      {f.error}
-                    </td>
-                  ) : (
-                    <>
-                      <td className="font-mono">
-                        {Object.entries(f.best_params)
-                          .map(([k, v]) => `${k}=${v}`)
-                          .join(", ")}
-                      </td>
-                      <td className="num">{f.is_metric.toFixed(2)}</td>
-                      <td className={`num ${f.oos_metric >= 0 ? "text-up" : "text-down"}`}>{f.oos_metric.toFixed(2)}</td>
-                      <td className={`num ${f.oos_return_pct >= 0 ? "text-up" : "text-down"}`}>{pct(f.oos_return_pct)}</td>
-                      <td className="num text-down">{pct(-f.oos_max_drawdown_pct)}</td>
-                    </>
-                  )}
+          {tab === "compare" && comparison && (
+            <table className="w-full text-left text-xs">
+              <thead className="text-faint">
+                <tr>
+                  <th className="py-1">Strategy</th>
+                  <th>Return</th>
+                  <th>Max DD</th>
+                  <th>Trades</th>
+                  <th>Win%</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {comparison.map((r, i) => (
+                  <tr key={r.strategy} className="border-t border-border">
+                    <td className="py-1">
+                      {i === 0 && !r.error ? "🏆 " : ""}
+                      {r.strategy}
+                    </td>
+                    {r.error ? (
+                      <td colSpan={4} className="text-error">
+                        {r.error}
+                      </td>
+                    ) : (
+                      <>
+                        <td className={`num ${r.total_return_pct >= 0 ? "text-up" : "text-down"}`}>
+                          {pct(r.total_return_pct)}
+                        </td>
+                        <td className="num text-down">{pct(-r.max_drawdown_pct)}</td>
+                        <td className="num">{r.num_trades}</td>
+                        <td className="num">{r.win_rate.toFixed(0)}%</td>
+                      </>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+
+          {tab === "optimize" && optimization && (
+            <table className="w-full text-left text-xs">
+              <thead className="text-faint">
+                <tr>
+                  <th className="py-1">Params</th>
+                  <th>OOS Ret</th>
+                  <th>IS→OOS Gap</th>
+                  <th>OOS Sharpe</th>
+                  <th>Max DD</th>
+                  <th>Trades</th>
+                  <th>Win%</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {optimization.slice(0, 10).map((r, i) => (
+                  <tr key={i} className="border-t border-border">
+                    <td className="py-1 font-mono">
+                      {i === 0 && !r.error ? "🏆 " : ""}
+                      {Object.entries(r.params)
+                        .map(([k, v]) => `${k}=${v}`)
+                        .join(", ")}
+                    </td>
+                    {r.error ? (
+                      <td colSpan={7} className="text-error">
+                        {r.error}
+                      </td>
+                    ) : (
+                      <>
+                        {/* M0.4: headline is the out-of-sample return; IS→OOS gap exposes overfitting. */}
+                        <td className={`num ${(r.oos_return_pct ?? r.total_return_pct) >= 0 ? "text-up" : "text-down"}`}>
+                          {pct(r.oos_return_pct ?? r.total_return_pct)}
+                        </td>
+                        <td className={`num ${(r.is_oos_gap_pct ?? 0) > 0 ? "text-warning" : "text-muted"}`}>
+                          {r.is_oos_gap_pct == null ? "—" : pct(r.is_oos_gap_pct)}
+                        </td>
+                        <td className={`num ${(r.oos_sharpe ?? 0) >= 0 ? "text-up" : "text-down"}`}>
+                          {r.oos_sharpe == null ? "—" : r.oos_sharpe.toFixed(2)}
+                        </td>
+                        <td className="num text-down">{pct(-r.max_drawdown_pct)}</td>
+                        <td className="num">{r.num_trades}</td>
+                        <td className="num">{r.win_rate.toFixed(0)}%</td>
+                        <td>
+                          <button
+                            onClick={() => {
+                              setParams({ ...(r.params as Record<string, number>) });
+                              setOptimization(null);
+                              setAppliedHint(true);
+                              setTab("overview");
+                            }}
+                            className="text-accent hover:underline"
+                          >
+                            use
+                          </button>
+                        </td>
+                      </>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+
+          {tab === "walkforward" && walkforward && (
+            <div className="space-y-2">
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                <span className="text-muted">
+                  {walkforward.strategy} · {walkforward.metric} · {walkforward.anchored ? "anchored" : "rolling"} ·{" "}
+                  {walkforward.n_folds} folds
+                </span>
+                <span className={walkforward.aggregate_oos_return_pct >= 0 ? "text-up" : "text-down"}>
+                  Agg OOS return {pct(walkforward.aggregate_oos_return_pct)}
+                </span>
+                <span className={walkforward.aggregate_oos_metric >= 0 ? "text-up" : "text-down"}>
+                  Agg OOS {walkforward.metric} {walkforward.aggregate_oos_metric.toFixed(2)}
+                </span>
+              </div>
+              <table className="w-full text-left text-xs">
+                <thead className="text-faint">
+                  <tr>
+                    <th className="py-1">Fold</th>
+                    <th>Best params</th>
+                    <th className="num">IS {walkforward.metric}</th>
+                    <th className="num">OOS {walkforward.metric}</th>
+                    <th className="num">OOS Ret</th>
+                    <th className="num">OOS Max DD</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {walkforward.folds.map((f) => (
+                    <tr key={f.fold} className="border-t border-border">
+                      <td className="py-1">{f.fold}</td>
+                      {f.error ? (
+                        <td colSpan={5} className="text-error">
+                          {f.error}
+                        </td>
+                      ) : (
+                        <>
+                          <td className="font-mono">
+                            {Object.entries(f.best_params)
+                              .map(([k, v]) => `${k}=${v}`)
+                              .join(", ")}
+                          </td>
+                          <td className="num">{f.is_metric.toFixed(2)}</td>
+                          <td className={`num ${f.oos_metric >= 0 ? "text-up" : "text-down"}`}>{f.oos_metric.toFixed(2)}</td>
+                          <td className={`num ${f.oos_return_pct >= 0 ? "text-up" : "text-down"}`}>{pct(f.oos_return_pct)}</td>
+                          <td className="num text-down">{pct(-f.oos_max_drawdown_pct)}</td>
+                        </>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
     </section>
@@ -591,5 +596,23 @@ function Metric({ label, value, good }: { label: string; value: string; good?: b
       <div className="text-xs text-faint">{label}</div>
       <div className={`num font-semibold ${color}`}>{value}</div>
     </div>
+  );
+}
+
+function TabBtn({
+  id, tab, setTab, children,
+}: {
+  id: "overview" | "trades" | "compare" | "optimize" | "walkforward";
+  tab: string;
+  setTab: (t: "overview" | "trades" | "compare" | "optimize" | "walkforward") => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={() => setTab(id)}
+      className={`px-3 py-1.5 ${tab === id ? "border-b-2 border-accent text-text" : "text-muted hover:text-text"}`}
+    >
+      {children}
+    </button>
   );
 }
