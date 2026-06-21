@@ -15,6 +15,9 @@ import { EquityChart } from "@/components/EquityChart";
 import { setMarket } from "@/lib/useMarket";
 import { L } from "@/lib/labels";
 import { Term } from "@/components/Term";
+import { PriceChart } from "@/components/PriceChart";
+import { tradesToMarkers, type Overlay } from "@/lib/chart-helpers";
+import type { Candle } from "@/lib/api";
 
 const SAVED_PREFIX = "saved:";
 const TIMEFRAMES = ["1m", "5m", "15m", "1h", "4h", "1d"];
@@ -38,6 +41,7 @@ export function BacktestPanel() {
   const [tab, setTab] = useState<"overview" | "trades" | "walkforward">("overview");
   const [walkforward, setWalkforward] = useState<WalkForwardReport | null>(null);
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [overviewCandles, setOverviewCandles] = useState<Candle[]>([]);
 
   useEffect(() => { setMarket(market); }, [market]);
 
@@ -61,6 +65,7 @@ export function BacktestPanel() {
     setOptimization(null);
     setWalkforward(null);
     setError(null);
+    setOverviewCandles([]);
   }
 
   async function optimize() {
@@ -95,6 +100,11 @@ export function BacktestPanel() {
         isSaved && savedId != null
           ? await api.backtestSavedStrategy(savedId, { symbol, market, timeframe, limit })
           : await api.backtest({ symbol, market, strategy, params, timeframe, limit });
+      try {
+        setOverviewCandles(await api.ohlcv(symbol, timeframe, limit, market));
+      } catch {
+        setOverviewCandles([]);
+      }
       setResult(res);
       setTab("overview");
     } catch (e) {
@@ -139,6 +149,14 @@ export function BacktestPanel() {
       setLoading(false);
     }
   }
+
+  const ovOverlays: Overlay[] =
+    strategy === "ma_cross"
+      ? [
+          { id: "fast", type: "sma", period: Number(params.fast ?? 10), color: "--accent" },
+          { id: "slow", type: "sma", period: Number(params.slow ?? 20), color: "--muted" },
+        ]
+      : [];
 
   return (
     <section className="rounded-lg border border-border bg-surface-1 p-4">
@@ -315,6 +333,14 @@ export function BacktestPanel() {
                 <span>Max consec. losses {result.max_consecutive_losses}</span>
                 <span>Trades {result.num_trades}</span>
               </div>
+              {overviewCandles.length > 0 && (
+                <PriceChart
+                  candles={overviewCandles}
+                  markers={tradesToMarkers(result.trades)}
+                  overlays={ovOverlays}
+                  height={320}
+                />
+              )}
               <EquityChart points={result.equity_curve} />
             </div>
           )}

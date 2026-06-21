@@ -115,7 +115,10 @@ export function PriceChart({
     const closes = candles.map((c) => c.close);
     const times = candles.map((c) => Math.floor(new Date(c.timestamp).getTime() / 1000) as UTCTimestamp);
     const lines = overlays.map((ov) => {
-      const line = chart.addLineSeries({ color: ov.color ?? cssVar("--accent", "#22D3EE"), lineWidth: 1 });
+      const ovColor = ov.color
+              ? (ov.color.startsWith("--") ? cssVar(ov.color, "#22D3EE") : ov.color)
+              : cssVar("--accent", "#22D3EE");
+            const line = chart.addLineSeries({ color: ovColor, lineWidth: 1 });
       const series = sma(closes, ov.period);
       line.setData(times.map((t, i) => (series[i] == null ? null : { time: t, value: series[i]! })).filter(Boolean) as { time: UTCTimestamp; value: number }[]);
       return line;
