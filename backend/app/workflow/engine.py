@@ -66,6 +66,8 @@ def run_workflow(
     """
     if ctx is None:
         ctx = RunContext(session=session, run_id=run_id)
+    # else: the caller owns `ctx`; the session/run_id args are intentionally ignored
+    # because the supplied ctx already carries them.
     outputs: dict[str, Any] = {}
     steps: list[StepResult] = []
     orders: list[dict] = []
