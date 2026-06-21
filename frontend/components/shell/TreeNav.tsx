@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { NAV, type NavItem } from "@/lib/nav";
+import { StrategyLibraryTree } from "./StrategyLibraryTree";
 
 function isActive(pathname: string, href?: string) {
   return !!href && (pathname === href || pathname.startsWith(href + "/"));
@@ -42,23 +43,26 @@ function TreeRow({ item, pathname, onNavigate }: { item: NavItem; pathname: stri
         <div className="ml-3 border-l border-border pl-1">
           {item.children.map((leaf) => {
             const la = isActive(pathname, leaf.href);
+            const isLibrary = leaf.href === "/strategy-lab#library";
             return (
-              <Link
-                key={leaf.href}
-                href={leaf.href}
-                onClick={onNavigate}
-                className={`flex items-center gap-2 rounded-md border-l-2 px-3 py-2 text-[13px] ${
-                  la ? `${leaf.live ? "border-live text-live" : "border-accent text-text"} bg-accent-dim`
-                     : "border-transparent text-muted hover:bg-surface-2"
-                }`}
-              >
-                <span className="nav-label flex min-w-0 flex-col leading-tight">
-                  <span>{leaf.label}</span>
-                  {leaf.subtitle && (
-                    <span className="text-[11px] text-faint">{leaf.subtitle}</span>
-                  )}
-                </span>
-              </Link>
+              <div key={leaf.href}>
+                <Link
+                  href={leaf.href}
+                  onClick={onNavigate}
+                  className={`flex items-center gap-2 rounded-md border-l-2 px-3 py-2 text-[13px] ${
+                    la ? `${leaf.live ? "border-live text-live" : "border-accent text-text"} bg-accent-dim`
+                       : "border-transparent text-muted hover:bg-surface-2"
+                  }`}
+                >
+                  <span className="nav-label flex min-w-0 flex-col leading-tight">
+                    <span>{leaf.label}</span>
+                    {leaf.subtitle && (
+                      <span className="text-[11px] text-faint">{leaf.subtitle}</span>
+                    )}
+                  </span>
+                </Link>
+                {isLibrary && <StrategyLibraryTree onNavigate={onNavigate} />}
+              </div>
             );
           })}
         </div>
