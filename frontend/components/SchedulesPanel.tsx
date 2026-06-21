@@ -3,6 +3,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api } from "@/lib/api";
+import { L } from "@/lib/labels";
 
 export function SchedulesPanel() {
   const qc = useQueryClient();
@@ -21,7 +22,7 @@ export function SchedulesPanel() {
   async function schedule() {
     setError(null);
     if (workflowId === "") {
-      setError("Select a saved workflow first (save one in the builder above).");
+      setError(L.schedules.selectWorkflow);
       return;
     }
     try {
@@ -46,17 +47,17 @@ export function SchedulesPanel() {
 
   return (
     <section className="rounded-lg border border-border bg-surface-1 p-4">
-      <h2 className="font-display mb-3 text-lg font-semibold">Schedules (auto-run)</h2>
+      <h2 className="font-display mb-3 text-lg font-semibold">{L.schedules.title}</h2>
 
       <div className="mb-3 flex flex-wrap items-end gap-2">
         <label className="text-xs text-muted">
-          workflow
+          {L.schedules.workflow}
           <select
             value={workflowId}
             onChange={(e) => setWorkflowId(e.target.value === "" ? "" : Number(e.target.value))}
             className="ml-1 rounded-md bg-surface-2 px-2 py-1 text-sm"
           >
-            <option value="">— select —</option>
+            <option value="">{L.schedules.selectPlaceholder}</option>
             {workflows.data?.map((w) => (
               <option key={w.id} value={w.id}>
                 #{w.id} {w.name}
@@ -65,7 +66,7 @@ export function SchedulesPanel() {
           </select>
         </label>
         <label className="text-xs text-muted">
-          every (s)
+          {L.schedules.everySeconds}
           <input
             type="number"
             min={5}
@@ -78,7 +79,7 @@ export function SchedulesPanel() {
           onClick={schedule}
           className="rounded-md bg-accent px-3 py-1 text-sm font-medium text-bg hover:brightness-110"
         >
-          Schedule
+          {L.schedules.schedule}
         </button>
       </div>
 
@@ -88,11 +89,11 @@ export function SchedulesPanel() {
         <table className="w-full text-left text-xs">
           <thead className="text-faint">
             <tr>
-              <th className="py-1">Workflow</th>
-              <th>Interval</th>
-              <th>State</th>
-              <th>Last run</th>
-              <th>Last status</th>
+              <th className="py-1">{L.schedules.workflow}</th>
+              <th>{L.schedules.colInterval}</th>
+              <th>{L.schedules.colState}</th>
+              <th>{L.schedules.colLastRun}</th>
+              <th>{L.schedules.colLastStatus}</th>
               <th />
             </tr>
           </thead>
@@ -108,7 +109,7 @@ export function SchedulesPanel() {
                       s.enabled ? "bg-up/15 text-up" : "bg-surface-3 text-muted"
                     }`}
                   >
-                    {s.enabled ? "running" : "paused"}
+                    {s.enabled ? L.schedules.running : L.schedules.paused}
                   </button>
                 </td>
                 <td className="text-muted">
@@ -119,7 +120,7 @@ export function SchedulesPanel() {
                 </td>
                 <td>
                   <button onClick={() => remove(s.id)} className="text-error hover:underline">
-                    delete
+                    {L.schedules.delete}
                   </button>
                 </td>
               </tr>
@@ -127,9 +128,7 @@ export function SchedulesPanel() {
           </tbody>
         </table>
       ) : (
-        <p className="text-xs text-faint">
-          No schedules yet. Save a workflow in the builder, then schedule it here.
-        </p>
+        <p className="text-xs text-faint">{L.schedules.empty}</p>
       )}
     </section>
   );

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { api, MARKETS } from "@/lib/api";
+import { L } from "@/lib/labels";
 
 const SAMPLE = `timestamp,open,high,low,close,volume
 2024-01-01,100,105,99,104,1000
@@ -47,7 +48,7 @@ export function DataImportPanel() {
           value={symbol}
           onChange={(e) => setSymbol(e.target.value)}
           className="rounded-md bg-surface-2 px-2 py-1 text-sm"
-          placeholder="代號 (如 2330 / AAPL)"
+          placeholder={L.dataImport.symbolPlaceholder}
         />
         <button onClick={importCsv} className="rounded-md bg-accent px-3 py-1 text-sm font-medium text-bg hover:brightness-110">
           匯入
