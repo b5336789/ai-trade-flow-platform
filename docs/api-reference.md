@@ -88,6 +88,24 @@ Body:`WorkflowGraph`(臨時執行,不儲存)。→ `RunResult`
 ```
 節點型別:`data_source` | `strategy` | `ai_signal` | `order` | `logger`。
 
+## Workflow Run History
+
+所有工作流執行(即時/紙上/回測)均自動持久化為 `WorkflowRun`,每筆訊號另存為 `WorkflowSignal`(含逐節點 `trace_json`)。
+
+### `GET /api/workflows/runs`
+Query:`kind`(可選,`backtest`/`live`/`paper`)、`limit`(預設 20)。
+→ `WorkflowRun[]`(最新在前)
+`WorkflowRun { id, workflow_id, kind, status, started_at, finished_at, symbols, error, metrics_json }`
+
+### `GET /api/workflows/runs/{id}`
+→ 單筆 `WorkflowRun`(含完整欄位)。找不到回 `404`。
+
+### `GET /api/workflows/runs/{id}/signals`
+Query:`symbol`(可選,篩選單一資產)。
+→ `WorkflowSignal[]`
+`WorkflowSignal { id, run_id, symbol, bar_time, action, confidence, trace_json }`
+`trace_json` 為字串化 JSON,內含各節點 id → 輸出摘要的鍵值對,可用於前端重現訊號推導過程。
+
 ## Backtest
 
 ### `GET /api/backtest/strategies`
@@ -105,6 +123,36 @@ Body:`{ symbol, ..., strategies? }`(預設全部)。
 Body:`{ symbol, ..., strategy, param_grid: {fast:[5,10], slow:[20,30]}, metric?, max_combinations? }`
 → `OptimizeRow[]`(依 metric 排名),`{ params, total_return_pct, num_trades, win_rate, max_drawdown_pct, error }`
 組合數超過 `max_combinations`(預設 200)回 `422`。
+
+### `POST /api/backtest/workflow`
+對一張 `WorkflowGraph` 執行多資產共用現金的歷史組合回測(逐根 K 線重放)。
+
+Body:
+```json
+{
+  "graph": { "nodes": [...], "edges": [...] },
+  "workflow_id": "optional-uuid",
+  "market": "crypto",
+  "timeframe": "1h",
+  "limit": 500,
+  "starting_cash": 100000
+}
+```
+`graph` 與 `workflow_id` 擇一(提供 `workflow_id` 時從 DB 讀取圖)。`market`、`timeframe`、`limit`、`starting_cash` 均有預設值。
+
+→
+```json
+{
+  "run_id": "uuid",
+  "symbols": ["BTC/USDT", "ETH/USDT"],
+  "result": { "...BacktestResult 欄位..." },
+  "signals": [
+    { "symbol": "BTC/USDT", "bar_time": "2024-01-02T01:00:00Z",
+      "action": "buy", "confidence": 0.82, "trace_json": "{...}" }
+  ]
+}
+```
+驗證失敗(圖無 order 節點 / symbol 不唯一 / timeframe 不一致 / 資料不足 / AI 節點超過 bar 上限)回 `422`。
 
 ## Schedules(自動執行)
 
