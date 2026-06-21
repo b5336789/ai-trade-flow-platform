@@ -36,6 +36,10 @@ class RunContext:
         # client_order_id so re-running the SAME run (same run_id) is idempotent (M0.5).
         self.run_id = run_id or uuid.uuid4().hex
         self.scratch: dict[str, Any] = {}
+        # Raw per-node outputs for this run (node_id -> value), for tracing/backtest.
+        self.node_outputs: dict[str, Any] = {}
+        # When set, data_source/order/risk_exit run in backtest mode (see BacktestContext).
+        self.backtest: Any | None = None
 
 
 def _client_order_id(run_id: str, node_id: str) -> str:
