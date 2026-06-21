@@ -115,7 +115,7 @@ def _persist_live_run(session, graph, workflow_id, ctx, result):
                 "action": action,
                 "confidence": 0.5,
                 "price": price,
-                "trace": build_trace(graph, n.id, ctx.node_outputs),
+                "trace_json": build_trace(graph, n.id, ctx.node_outputs),
             }
         )
     persist_workflow_run(

@@ -86,7 +86,7 @@ def test_persist_workflow_run_writes_signals():
                     "action": "buy",
                     "confidence": 0.9,
                     "price": 9.0,
-                    "trace": [{"node_id": "s", "type": "strategy", "summary": {}}],
+                    "trace_json": [{"node_id": "s", "type": "strategy", "summary": {}}],
                 }
             ],
         )

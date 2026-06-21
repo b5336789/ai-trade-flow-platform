@@ -107,7 +107,7 @@ def persist_workflow_run(
                 action=sig["action"],
                 confidence=sig.get("confidence", 0.5),
                 price=sig.get("price", 0.0),
-                trace_json=sig.get("trace", []),
+                trace_json=sig.get("trace_json", []),
             )
         )
     session.commit()
