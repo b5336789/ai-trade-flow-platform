@@ -2,7 +2,8 @@
 
 import { ReactFlowProvider, type ReactFlowInstance } from "@xyflow/react";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { api, type RunResult, type WorkflowRunDTO, type WorkflowSignalDTO } from "@/lib/api";
 import { SignalTraceDrawer } from "@/components/SignalTraceDrawer";
 import { WorkflowBacktestChart } from "@/components/WorkflowBacktestChart";
@@ -28,6 +29,26 @@ function BuilderInner() {
   const [selected, setSelected] = useState<WorkflowSignalDTO | null>(null);
   const [backtesting, setBacktesting] = useState(false);
   const [historyRefresh, setHistoryRefresh] = useState(0);
+
+  const searchParams = useSearchParams();
+  const loadedWorkflow = useRef(false);
+
+  // Deep-link from a backtest result: ?workflow=<id> seeds the canvas once.
+  useEffect(() => {
+    if (loadedWorkflow.current) return;
+    const idStr = searchParams.get("workflow");
+    if (!idStr) return;
+    const id = Number(idStr);
+    if (!Number.isFinite(id)) return;
+    loadedWorkflow.current = true;
+    api
+      .getWorkflow(id)
+      .then((w) => {
+        wf.setGraph(w.graph);
+        setName(w.name);
+      })
+      .catch((e) => setError((e as Error).message));
+  }, [searchParams]);
 
   const valid = useMemo(() => validateGraph(wf.buildGraph()), [wf.nodes, wf.edges]);
   const selectedNode = wf.nodes.find((n) => n.id === wf.selectedId) ?? null;

@@ -1,5 +1,10 @@
+import { Suspense } from "react";
 import { WorkflowBuilder } from "@/components/workflow/WorkflowBuilder";
 
 export default function WorkflowPage() {
-  return <WorkflowBuilder />;
+  return (
+    <Suspense fallback={null}>
+      <WorkflowBuilder />
+    </Suspense>
+  );
 }
