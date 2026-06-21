@@ -21,8 +21,7 @@ function BuilderInner() {
   const [savedMsg, setSavedMsg] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
 
-  const graph = wf.buildGraph();
-  const valid = useMemo(() => validateGraph(graph), [graph]);
+  const valid = useMemo(() => validateGraph(wf.buildGraph()), [wf.nodes, wf.edges]);
   const selectedNode = wf.nodes.find((n) => n.id === wf.selectedId) ?? null;
   const mode = config.data?.trading_mode ?? "paper";
 
@@ -83,7 +82,7 @@ function BuilderInner() {
           </div>
           <ol className="space-y-0.5">
             {result.steps.map((s) => (
-              <li key={s.node_id}>
+              <li key={s.node_id} className="text-text">
                 <span className="text-faint">{s.type}</span> [{s.node_id}]: {JSON.stringify(s.summary)}
               </li>
             ))}
