@@ -5,6 +5,7 @@ import type { ValidationResult } from "./validateGraph";
 export function Toolbar({
   mode, valid, nodeCount, edgeCount, canUndo, canRedo,
   onUndo, onRedo, onZoomIn, onZoomOut, onFit, name, onName, onSave, onRun, running,
+  onBacktest, backtesting,
 }: {
   mode: string;
   valid: ValidationResult;
@@ -22,6 +23,8 @@ export function Toolbar({
   onSave: () => void;
   onRun: () => void;
   running: boolean;
+  onBacktest: () => void;
+  backtesting: boolean;
 }) {
   const live = mode === "live";
   const btn = "rounded-md bg-surface-2 px-2 py-1 text-xs hover:bg-surface-3 disabled:opacity-40";
@@ -56,6 +59,13 @@ export function Toolbar({
         className={`rounded-md px-3 py-1 text-sm font-medium disabled:opacity-50 ${live ? "bg-live/20 text-live hover:bg-live/30" : "bg-accent text-bg hover:brightness-110"}`}
       >
         {running ? "Running…" : live ? "▶ 送出真實訂單" : "▶ 執行回測"}
+      </button>
+      <button
+        onClick={onBacktest}
+        disabled={backtesting || !valid.valid}
+        className="rounded-md bg-surface-2 px-3 py-1 text-sm font-medium hover:bg-surface-3 disabled:opacity-50"
+      >
+        {backtesting ? "Backtesting…" : "📊 Backtest"}
       </button>
     </div>
   );
