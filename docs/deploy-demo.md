@@ -50,8 +50,8 @@ EIP 固定,開機後網址不變。
 ```bash
 ssh ec2-user@$(terraform output -raw eip)
 sudo cat /var/log/user-data.log     # 開機腳本輸出
-cd /opt/app && sudo docker compose ps
-sudo docker compose logs --tail=100
+cd /opt/app && sudo docker compose -f docker-compose.demo.yml ps
+sudo docker compose -f docker-compose.demo.yml logs --tail=100
 ```
 資料庫是容器內 SQLite,實例重建會歸零(demo 可接受)。
 

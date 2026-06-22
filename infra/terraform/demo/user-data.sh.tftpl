@@ -23,7 +23,7 @@ if [ ! -f /swapfile ]; then
 fi
 
 # App source
-git clone ${repo_url} /opt/app
+[ -d /opt/app/.git ] || git clone ${repo_url} /opt/app
 cd /opt/app
 git checkout ${branch}
 
@@ -50,8 +50,8 @@ After=docker.service network-online.target
 Type=oneshot
 RemainAfterExit=yes
 WorkingDirectory=/opt/app
-ExecStart=/usr/bin/docker compose up -d
-ExecStop=/usr/bin/docker compose down
+ExecStart=/usr/bin/docker compose -f docker-compose.demo.yml up -d
+ExecStop=/usr/bin/docker compose -f docker-compose.demo.yml down
 
 [Install]
 WantedBy=multi-user.target
@@ -60,5 +60,5 @@ systemctl daemon-reload
 systemctl enable atf-demo
 
 # First boot: build images + start
-docker compose up -d --build
+docker compose -f docker-compose.demo.yml up -d --build
 echo "=== user-data done: $(date -u) ==="
