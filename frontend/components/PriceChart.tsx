@@ -155,7 +155,7 @@ export function PriceChart({
     const series = all.flatMap((cfg) => {
       const color = cfg.color
         ? (cfg.color.startsWith("--") ? cssVar(cfg.color, "#8A9099") : cfg.color)
-        : cssVar("--text-muted", "#8A9099");
+        : cssVar("--muted", "#8A9099");
       if (cfg.type === "bollinger") {
         const bb = bollinger(closes, cfg.period, 2);
         const mid = chart.addLineSeries({ color, lineWidth: 1, priceLineVisible: false, lastValueVisible: false });

@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { api, type Signal } from "@/lib/api";
 import { setMarket } from "@/lib/useMarket";
@@ -77,7 +77,10 @@ export function MarketPanel() {
   });
 
   const stats = candles.data ? deriveStats(candles.data, barsPer24h(timeframe)) : null;
-  const live = isCrypto && !paused ? { symbol, timeframe, market, intervalMs: 3000 } : null;
+  const live = useMemo(
+    () => isCrypto && !paused ? { symbol, timeframe, market, intervalMs: 3000 } : null,
+    [isCrypto, paused, symbol, timeframe, market],
+  );
 
   // AI 訊號疊在最後一根 K(hold 不疊);text 帶信心度。
   const aiMarkers: ChartMarker[] = (() => {
@@ -93,18 +96,18 @@ export function MarketPanel() {
     }];
   })();
 
-  const indicators: IndicatorConfig[] = [
+  const indicators: IndicatorConfig[] = useMemo(() => [
     ...(maOn ? [
-      { id: "ma20", type: "sma" as const, period: 20, color: "--text-muted" },
-      { id: "ma50", type: "sma" as const, period: 50, color: "--text-faint" },
+      { id: "ma20", type: "sma" as const, period: 20, color: "--muted" },
+      { id: "ma50", type: "sma" as const, period: 50, color: "--faint" },
     ] : []),
     ...(emaOn ? [{ id: "ema20", type: "ema" as const, period: 20, color: "--warning" }] : []),
     ...(bollOn ? [{ id: "bb", type: "bollinger" as const, period: 20, color: "--border-strong" }] : []),
-  ];
-  const oscillators: OscillatorConfig[] = [
+  ], [maOn, emaOn, bollOn]);
+  const oscillators: OscillatorConfig[] = useMemo(() => [
     ...(rsiOn ? [{ id: "rsi", type: "rsi" as const, period: 14 }] : []),
     ...(macdOn ? [{ id: "macd", type: "macd" as const }] : []),
-  ];
+  ], [rsiOn, macdOn]);
 
   async function askAi() {
     setAiLoading(true);
