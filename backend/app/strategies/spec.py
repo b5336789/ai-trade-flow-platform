@@ -7,10 +7,11 @@ The interpreter (SpecStrategy, below in Task 2) turns it into a Signal.
 from __future__ import annotations
 
 import enum
+import re
 from typing import Annotated, Literal, Union
 
 import pandas as pd
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.schemas import Candle, Signal, SignalAction
 from app.strategies.base import Strategy
@@ -19,6 +20,22 @@ from app.strategies import indicators as ind
 MAX_INDICATORS = 16
 MAX_PARAMS = 16
 MAX_TREE_DEPTH = 6
+
+_IDENT_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+
+
+def _clean_ident(value: object) -> object:
+    """Recover a bare identifier from sloppy LLM output.
+
+    Local models occasionally append stray characters to an id/ref
+    (e.g. 'sma50}}, '). Extract the leading identifier token so the spec's
+    ref<->id cross-checks still align. Non-string or unrecognizable values
+    pass through untouched so a genuinely malformed spec still fails loud.
+    """
+    if not isinstance(value, str):
+        return value
+    match = _IDENT_RE.match(value.strip())
+    return match.group(0) if match else value
 
 
 class IndicatorKind(str, enum.Enum):
@@ -52,10 +69,14 @@ class IndicatorRef(BaseModel):
     type: Literal["indicator"] = "indicator"
     ref: str
 
+    _clean_ref = field_validator("ref", mode="before")(_clean_ident)
+
 
 class ParamRef(BaseModel):
     type: Literal["param"] = "param"
     ref: str
+
+    _clean_ref = field_validator("ref", mode="before")(_clean_ident)
 
 
 class LiteralRef(BaseModel):
@@ -74,11 +95,15 @@ class ParamDef(BaseModel):
     max: float | None = None
     step: float | None = None
 
+    _clean_name = field_validator("name", mode="before")(_clean_ident)
+
 
 class IndicatorDef(BaseModel):
     id: str
     kind: IndicatorKind
     args: dict[str, Union[float, ParamRef]] = Field(default_factory=dict)
+
+    _clean_id = field_validator("id", mode="before")(_clean_ident)
 
 
 class Comparison(BaseModel):
