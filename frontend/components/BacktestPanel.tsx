@@ -149,7 +149,7 @@ export function BacktestPanel() {
           ? await api.backtestSavedStrategy(savedId, { symbol, market, timeframe, limit, ...rangeArgs })
           : await api.backtest({ symbol, market, strategy, params, timeframe, limit, ...rangeArgs });
       try {
-        setOverviewCandles(await api.ohlcv(symbol, timeframe, limit, market));
+        setOverviewCandles(await api.ohlcv(symbol, timeframe, limit, market, rangeMode ? start : undefined, rangeMode ? end : undefined));
       } catch {
         setOverviewCandles([]);
       }
@@ -225,7 +225,7 @@ export function BacktestPanel() {
   const ovOverlays: Overlay[] =
     strategy === "ma_cross"
       ? [
-          { id: "fast", type: "sma", period: Number(params.fast ?? 10), color: "--accent" },
+          { id: "fast", type: "sma", period: Number(params.fast ?? 10), color: "--text" },
           { id: "slow", type: "sma", period: Number(params.slow ?? 20), color: "--muted" },
         ]
       : [];
@@ -429,9 +429,9 @@ export function BacktestPanel() {
                   health={result.total_return_pct >= 0 ? "up" : "down"}
                   sub={
                     <span className="text-muted">
-                      {L.metrics.buy_hold} {pct(result.buy_hold_return_pct)} ·{" "}
+                      {L.metrics.buy_hold} <span className="num">{pct(result.buy_hold_return_pct)}</span> ·{" "}
                       <span className={result.total_return_pct - result.buy_hold_return_pct >= 0 ? "text-up" : "text-down"}>
-                        {L.backtest.excess} {pct(result.total_return_pct - result.buy_hold_return_pct)}
+                        {L.backtest.excess} <span className="num">{pct(result.total_return_pct - result.buy_hold_return_pct)}</span>
                       </span>
                     </span>
                   }
@@ -687,16 +687,6 @@ export function BacktestPanel() {
         </div>
       )}
     </section>
-  );
-}
-
-function Metric({ label, value, good }: { label: string; value: string; good?: boolean }) {
-  const color = good === undefined ? "text-text" : good ? "text-up" : "text-down";
-  return (
-    <div className="rounded-md bg-surface-2 p-2">
-      <div className="text-xs text-faint">{label}</div>
-      <div className={`num font-semibold ${color}`}>{value}</div>
-    </div>
   );
 }
 

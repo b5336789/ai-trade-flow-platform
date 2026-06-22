@@ -391,10 +391,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   config: () => request<AppConfig>("/api/config"),
-  ohlcv: (symbol: string, timeframe = "1h", limit = 100, market = "crypto") =>
-    request<Candle[]>(
-      `/api/markets/ohlcv?symbol=${encodeURIComponent(symbol)}&timeframe=${timeframe}&limit=${limit}&market=${market}`,
-    ),
+  ohlcv: (symbol: string, timeframe = "1h", limit = 100, market = "crypto", start?: string, end?: string) => {
+    let url = `/api/markets/ohlcv?symbol=${encodeURIComponent(symbol)}&timeframe=${timeframe}&limit=${limit}&market=${market}`;
+    if (start && end) url += `&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`;
+    return request<Candle[]>(url);
+  },
   ticker: (symbol: string, market = "crypto") =>
     request<Ticker>(
       `/api/markets/ticker?symbol=${encodeURIComponent(symbol)}&market=${market}`,
