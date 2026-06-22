@@ -1,0 +1,11 @@
+# Copy to terraform.tfvars (gitignored) and fill in. NEVER commit terraform.tfvars.
+ssh_ingress_cidr  = "1.2.3.4/32" # your IP/32 — run: curl -s ifconfig.me
+ssh_public_key    = "ssh-ed25519 AAAA... you@host"
+anthropic_api_key = "sk-ant-..."
+api_token         = "pick-a-long-random-string"
+
+# Optional overrides:
+# aws_region        = "ap-east-2"
+# instance_type     = "t4g.medium"
+# start_cron        = "cron(30 8 ? * MON-FRI *)" # weekdays only
+# stop_cron         = "cron(0 18 ? * MON-FRI *)"
