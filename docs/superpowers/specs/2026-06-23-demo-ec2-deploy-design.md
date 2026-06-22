@@ -5,8 +5,8 @@
 
 ## 目標與成功標準
 - 一個 `terraform apply` 即可開出可公開存取的 demo 站(前端 + 後端 + SQLite),開機自動起服務。
-- 成本遠低於現行架構:執行中 ~US$0.5/天、關機 ~US$0.2/天(僅 EBS+EIP)。
-- 用 stop/start EC2 控制 demo 開關;`terraform destroy` 可歸零。
+- 成本遠低於現行架構。**搭配排程(每天只開 9.5 小時)實際約 US$0.3/天**(運算 ~$0.16 + EBS ~$0.08 + 停機 EIP ~$0.07);若 24h 全開 ~$0.5/天。
+- 每天台灣時間 08:30 自動開、18:00 自動關(EventBridge Scheduler);也可手動 stop/start;`terraform destroy` 可歸零。
 - 完全不更動現有 `infra/terraform/prod`。
 
 成功標準:
@@ -27,11 +27,13 @@
 | TLS/網域 | 不做,純 HTTP + 公有 IP |
 | Terraform state | **local state**(demo 用,免依賴 bootstrap S3 backend) |
 | Region | 預設 `ap-east-2`(台北,沿用專案慣例;變數可改 us-east-1 更便宜) |
+| 排程 | **EventBridge Scheduler** 每天台灣時間 **08:30 開機、18:00 關機**(timezone `Asia/Taipei`);cron 變數化 |
+| 開機自動起服務 | user-data 裝 **systemd unit**,每次 EC2 啟動跑 `docker compose up -d`(首次才 `--build`)——因 user-data 只在首次開機執行 |
 
 ## 範圍
 ### 做(In scope)
 - 新目錄 `infra/terraform/demo/`:`versions.tf`、`variables.tf`、`main.tf`、`outputs.tf`、`user-data.sh.tftpl`、`terraform.tfvars.example`。
-- `docs/deploy-demo.md` runbook(apply / 取 URL / stop-start / destroy / 取本機 IP / 看 log)。
+- `docs/deploy-demo.md` runbook(apply / 取 URL / 手動 stop-start / **暫停或改排程時段** / destroy / 取本機 IP / 看 log / 首次 build 等待說明)。
 - `.gitignore` 追加忽略 demo 的 local state 與 `terraform.tfvars`。
 
 ### 不做(Out of scope,YAGNI)
@@ -46,6 +48,11 @@
 - `aws_security_group`:ingress 22 ← `var.ssh_ingress_cidr`;ingress 3000、8000 ← `0.0.0.0/0`;egress all。
 - `aws_instance`:`t4g.small`(`var.instance_type`)、上述 AMI/subnet/SG/key、`root_block_device` gp3 30GB、`user_data`=templatefile(帶入 secrets + EIP 佔位)。
 - `aws_eip` + `aws_eip_association`:固定公有 IP 綁到 instance。
+- **排程(每日自動開關機)**:
+  - `aws_iam_role` + inline policy:EventBridge Scheduler 可 assume,允許 `ec2:StartInstances`/`ec2:StopInstances`(限本 instance ARN)。
+  - `aws_scheduler_schedule "start"`:`cron(30 8 * * ? *)`、`schedule_expression_timezone = "Asia/Taipei"`、target = `arn:aws:scheduler:::aws-sdk:ec2:startInstances`、input = `{"InstanceIds":["<id>"]}`、`flexible_time_window { mode = "OFF" }`。
+  - `aws_scheduler_schedule "stop"`:`cron(0 18 * * ? *)`、同 timezone、target = `...:stopInstances`。
+  - cron 兩條以變數 `start_cron`/`stop_cron` 帶入(預設每天;改 `cron(... ? * MON-FRI *)` 即只平日)。EIP 在停機期間維持綁定,start 後 IP 不變。
 
 > EIP 與 user-data 的相依:user-data 需要 EIP 位址寫進 `NEXT_PUBLIC_API_BASE_URL`。以 `aws_eip` 先配置 → 用其 `public_ip` 算 `user_data`;EIP 與 instance 用 `aws_eip_association` 綁定(避免 instance↔eip 循環相依;`user_data` 變更會觸發 instance 重建,可接受)。
 
@@ -55,11 +62,12 @@
 2. 建 2GB swap(`/swapfile`)→ 確保 `next build` 不 OOM。
 3. `git clone <repo_url>` 到 `/opt/app`、`git checkout <branch>`。
 4. 寫 `/opt/app/.env`:`TRADING_MODE=paper`、`AI_PROVIDER=anthropic`、`ANTHROPIC_API_KEY=...`、`AI_MODEL=claude-opus-4-8`、`API_TOKEN=...`、`NEXT_PUBLIC_API_TOKEN=...`、`NEXT_PUBLIC_API_BASE_URL=http://<eip>:8000`、`API_CORS_ORIGINS=http://<eip>:3000`。
-5. `cd /opt/app && docker compose up -d --build`。
-6. 全程輸出到 `/var/log/user-data.log`(`exec > >(tee ...)`),失敗保留 log 供 SSH 排查(fail-loud:不靜默)。
+5. 寫 systemd unit `/etc/systemd/system/atf-demo.service`(`Type=oneshot`、`RemainAfterExit=yes`、`WorkingDirectory=/opt/app`、`ExecStart=/usr/bin/docker compose up -d`、`After=docker.service`、`Requires=docker.service`、`WantedBy=multi-user.target`)→ `systemctl enable atf-demo`。讓**每次 EC2 啟動**(排程開機)都自動把容器拉起。
+6. 首次:`cd /opt/app && docker compose up -d --build`(建映像);其後開機由 systemd unit 跑 `up -d`(重用映像,不重 build)。
+7. 全程輸出到 `/var/log/user-data.log`(`exec > >(tee ...)`),失敗保留 log 供 SSH 排查(fail-loud:不靜默)。
 
 ### 變數(`variables.tf`)
-`aws_region`(default `ap-east-2`)、`instance_type`(default `t4g.small`)、`ssh_ingress_cidr`(必填,如 `1.2.3.4/32`)、`ssh_public_key`(必填)、`anthropic_api_key`(sensitive)、`api_token`(sensitive, default 產生提示)、`repo_url`(default 公開 GitHub)、`branch`(default `main`)。
+`aws_region`(default `ap-east-2`)、`instance_type`(default `t4g.small`)、`ssh_ingress_cidr`(必填,如 `1.2.3.4/32`)、`ssh_public_key`(必填)、`anthropic_api_key`(sensitive)、`api_token`(sensitive;由使用者自訂任一字串,`NEXT_PUBLIC_API_TOKEN` 用相同值)、`repo_url`(default 公開 GitHub)、`branch`(default `main`)、`start_cron`(default `cron(30 8 * * ? *)`)、`stop_cron`(default `cron(0 18 * * ? *)`)、`schedule_timezone`(default `Asia/Taipei`)。
 
 ### 輸出(`outputs.tf`)
 `demo_url` = `http://<eip>:3000`、`api_health_url`、`ssh_command` = `ssh ec2-user@<eip>`、`eip`。
