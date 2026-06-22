@@ -69,3 +69,37 @@ resource "aws_security_group" "demo" {
 
   tags = local.common_tags
 }
+
+resource "aws_eip" "demo" {
+  domain = "vpc"
+  tags   = merge(local.common_tags, { Name = "${local.name}-eip" })
+}
+
+resource "aws_instance" "demo" {
+  ami                         = data.aws_ssm_parameter.al2023.value
+  instance_type               = var.instance_type
+  subnet_id                   = data.aws_subnets.default.ids[0]
+  vpc_security_group_ids      = [aws_security_group.demo.id]
+  key_name                    = aws_key_pair.demo.key_name
+  associate_public_ip_address = true
+
+  root_block_device {
+    volume_type = "gp3"
+    volume_size = 30
+  }
+
+  user_data = templatefile("${path.module}/user-data.sh.tftpl", {
+    repo_url          = var.repo_url
+    branch            = var.branch
+    anthropic_api_key = var.anthropic_api_key
+    api_token         = var.api_token
+    eip               = aws_eip.demo.public_ip
+  })
+
+  tags = merge(local.common_tags, { Name = "${local.name}-ec2" })
+}
+
+resource "aws_eip_association" "demo" {
+  instance_id   = aws_instance.demo.id
+  allocation_id = aws_eip.demo.id
+}
