@@ -1,0 +1,27 @@
+# Demo deployment compose: runs the baked PRODUCTION images (no dev server, no
+# bind mounts). NEXT_PUBLIC_* are build-time args (interpolated from .env).
+# Used on the demo EC2:
+#   docker compose -f docker-compose.demo.yml up -d --build
+services:
+  backend:
+    build: ./backend
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_BASE_URL: "${NEXT_PUBLIC_API_BASE_URL}"
+        NEXT_PUBLIC_API_TOKEN: "${NEXT_PUBLIC_API_TOKEN}"
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    depends_on:
+      - backend
+    restart: unless-stopped

@@ -1,0 +1,9 @@
+# Copy to terraform.tfvars (gitignored) and fill in. NEVER commit terraform.tfvars.
+anthropic_api_key = "sk-ant-..."
+api_token         = "pick-a-long-random-string"
+
+# Optional overrides:
+# aws_region        = "ap-east-2"
+# instance_type     = "t4g.medium"
+# start_cron        = "cron(30 8 ? * MON-FRI *)" # weekdays only
+# stop_cron         = "cron(0 18 ? * MON-FRI *)"

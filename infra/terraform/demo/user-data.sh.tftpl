@@ -1,0 +1,64 @@
+#!/bin/bash
+set -euo pipefail
+exec > >(tee /var/log/user-data.log) 2>&1
+echo "=== user-data start: $(date -u) ==="
+
+# Docker + git
+dnf install -y docker git
+systemctl enable --now docker
+
+# docker compose v2 plugin (arm64)
+mkdir -p /usr/libexec/docker/cli-plugins
+curl -fSL https://github.com/docker/compose/releases/download/v2.29.7/docker-compose-linux-aarch64 \
+  -o /usr/libexec/docker/cli-plugins/docker-compose
+chmod +x /usr/libexec/docker/cli-plugins/docker-compose
+
+# 2GB swap so frontend image build does not OOM on a 2GB box
+if [ ! -f /swapfile ]; then
+  dd if=/dev/zero of=/swapfile bs=1M count=2048
+  chmod 600 /swapfile
+  mkswap /swapfile
+  swapon /swapfile
+  echo '/swapfile none swap sw 0 0' >> /etc/fstab
+fi
+
+# App source
+[ -d /opt/app/.git ] || git clone ${repo_url} /opt/app
+cd /opt/app
+git checkout ${branch}
+
+# Environment for docker compose (env_file: .env)
+cat > /opt/app/.env <<ENV
+TRADING_MODE=paper
+AI_PROVIDER=anthropic
+AI_MODEL=claude-opus-4-8
+ANTHROPIC_API_KEY=${anthropic_api_key}
+API_TOKEN=${api_token}
+NEXT_PUBLIC_API_TOKEN=${api_token}
+NEXT_PUBLIC_API_BASE_URL=http://${eip}:8000
+API_CORS_ORIGINS=http://${eip}:3000
+ENV
+
+# systemd unit: bring containers up on EVERY boot (user-data only runs once).
+cat > /etc/systemd/system/atf-demo.service <<UNIT
+[Unit]
+Description=AI Trade Flow demo (docker compose)
+Requires=docker.service
+After=docker.service network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/app
+ExecStart=/usr/bin/docker compose -f docker-compose.demo.yml up -d
+ExecStop=/usr/bin/docker compose -f docker-compose.demo.yml down
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+systemctl daemon-reload
+systemctl enable atf-demo
+
+# First boot: build images + start
+docker compose -f docker-compose.demo.yml up -d --build
+echo "=== user-data done: $(date -u) ==="
