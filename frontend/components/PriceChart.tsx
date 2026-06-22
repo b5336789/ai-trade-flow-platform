@@ -5,8 +5,8 @@ import { useQuery } from "@tanstack/react-query";
 import { api, type Candle } from "@/lib/api";
 import {
   toCandlestickData, toVolumeData, markerToSeries,
-  sma, ema, bollinger,
-  type ChartMarker, type Overlay, type LiveConfig, type OHLCV, type IndicatorConfig,
+  sma, ema, bollinger, rsi, macd,
+  type ChartMarker, type Overlay, type LiveConfig, type OHLCV, type IndicatorConfig, type OscillatorConfig,
 } from "@/lib/chart-helpers";
 
 export interface PriceChartProps {
@@ -15,6 +15,7 @@ export interface PriceChartProps {
   markers?: ChartMarker[];
   overlays?: Overlay[];
   indicators?: IndicatorConfig[];
+  oscillators?: OscillatorConfig[];
   volume?: boolean;
   live?: LiveConfig | null;
   onCrosshairMove?: (p: OHLCV | null) => void;
@@ -27,7 +28,7 @@ function cssVar(name: string, fallback: string): string {
 }
 
 export function PriceChart({
-  candles, height = 360, markers, overlays, indicators, volume = true, live, onCrosshairMove,
+  candles, height = 360, markers, overlays, indicators, oscillators = [], volume = true, live, onCrosshairMove,
   chartType = "candles", logScale = false,
 }: PriceChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -35,6 +36,7 @@ export function PriceChart({
   // 主序列 ref(可能是 candlestick / line / area)
   const mainSeriesRef = useRef<ISeriesApi<"Candlestick" | "Line" | "Area"> | null>(null);
   const volumeSeriesRef = useRef<ISeriesApi<"Histogram"> | null>(null);
+  const oscRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   // 建圖一次。candles 變動只 setData,不重建(避免閃爍/丟縮放)。
   useEffect(() => {
@@ -158,6 +160,84 @@ export function PriceChart({
     };
   }, [overlays, indicators, candles]);
 
+  // ── 副圖:RSI / MACD(獨立 chart 實例,時間軸雙向同步)──────────────
+  useEffect(() => {
+    const mainChart = chartRef.current;
+    if (!mainChart || !oscillators?.length) return;
+    const grid = cssVar("--border", "#1f1f1f");
+    const text = cssVar("--muted", "#8A9099");
+    const bg = cssVar("--bg", "#0A0B0D");
+    const accent = cssVar("--accent", "#22D3EE");
+    const upC = cssVar("--up", "#34D399"), downC = cssVar("--down", "#F87171");
+    const times = candles.map((c) => Math.floor(new Date(c.timestamp).getTime() / 1000) as UTCTimestamp);
+    const closes = candles.map((c) => c.close);
+    const toLine = (vals: (number | null)[]) =>
+      times.map((t, i) => (vals[i] == null ? null : { time: t, value: vals[i]! }))
+           .filter(Boolean) as { time: UTCTimestamp; value: number }[];
+
+    const charts: IChartApi[] = [];
+    let syncing = false; // 防雙向遞迴
+
+    for (const o of oscillators) {
+      const el = oscRefs.current[o.id];
+      if (!el) continue;
+      const h = o.type === "rsi" ? 110 : 120;
+      const c = createChart(el, {
+        layout: { background: { type: ColorType.Solid, color: bg }, textColor: text },
+        grid: { vertLines: { color: grid }, horzLines: { color: grid } },
+        width: el.clientWidth, height: h,
+        timeScale: { timeVisible: true, visible: false },
+        crosshair: { mode: 1 },
+      });
+      if (o.type === "rsi") {
+        const line = c.addLineSeries({ color: accent, lineWidth: 1 });
+        line.setData(toLine(rsi(closes, o.period ?? 14)));
+        // 30/70 參考線
+        line.createPriceLine({ price: 70, color: grid, lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: "70" });
+        line.createPriceLine({ price: 30, color: grid, lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: "30" });
+      } else {
+        const m = macd(closes);
+        const hist = c.addHistogramSeries({ priceLineVisible: false });
+        hist.setData(times.map((t, i) => (m.hist[i] == null ? null : {
+          time: t, value: m.hist[i]!, color: (m.hist[i] as number) >= 0 ? upC : downC,
+        })).filter(Boolean) as { time: UTCTimestamp; value: number; color: string }[]);
+        const macdLine = c.addLineSeries({ color: accent, lineWidth: 1 });
+        const sigLine = c.addLineSeries({ color: text, lineWidth: 1 });
+        macdLine.setData(toLine(m.macd));
+        sigLine.setData(toLine(m.signal));
+      }
+      const ro = new ResizeObserver(() => c.applyOptions({ width: el.clientWidth }));
+      ro.observe(el);
+      (c as unknown as { _ro?: ResizeObserver })._ro = ro;
+      charts.push(c);
+    }
+
+    // 雙向同步:主圖 ↔ 每張副圖
+    const allCharts = [mainChart, ...charts];
+    const unsub: Array<() => void> = [];
+    for (const src of allCharts) {
+      const handler = (range: unknown) => {
+        if (syncing || range == null) return;
+        syncing = true;
+        for (const dst of allCharts) {
+          if (dst !== src) dst.timeScale().setVisibleLogicalRange(range as never);
+        }
+        syncing = false;
+      };
+      src.timeScale().subscribeVisibleLogicalRangeChange(handler);
+      unsub.push(() => src.timeScale().unsubscribeVisibleLogicalRangeChange(handler));
+    }
+
+    return () => {
+      unsub.forEach((u) => u());
+      charts.forEach((c) => {
+        const ro = (c as unknown as { _ro?: ResizeObserver })._ro;
+        ro?.disconnect();
+        c.remove();
+      });
+    };
+  }, [oscillators, candles]);
+
   // ── Live 輪詢(live 非 null 時啟用)──────────────────────────────
   const [lastPrice, setLastPrice] = useState<number | null>(null);
   const [flash, setFlash] = useState<"up" | "down" | null>(null);
@@ -221,6 +301,14 @@ export function PriceChart({
         </div>
       )}
       <div ref={containerRef} className="w-full" />
+      {(oscillators ?? []).map((o) => (
+        <div key={o.id} className="relative mt-1">
+          <span className="absolute left-2 top-1 z-10 text-[10px] uppercase tracking-wide text-faint">
+            {o.type === "rsi" ? `RSI ${o.period ?? 14}` : "MACD 12·26·9"}
+          </span>
+          <div ref={(el) => { oscRefs.current[o.id] = el; }} className="w-full" />
+        </div>
+      ))}
     </div>
   );
 }
