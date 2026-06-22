@@ -5,7 +5,8 @@ import { useQuery } from "@tanstack/react-query";
 import { api, type Candle } from "@/lib/api";
 import {
   toCandlestickData, toVolumeData, markerToSeries,
-  type ChartMarker, type Overlay, type LiveConfig, type OHLCV,
+  sma, ema, bollinger,
+  type ChartMarker, type Overlay, type LiveConfig, type OHLCV, type IndicatorConfig,
 } from "@/lib/chart-helpers";
 
 export interface PriceChartProps {
@@ -13,6 +14,7 @@ export interface PriceChartProps {
   height?: number;
   markers?: ChartMarker[];
   overlays?: Overlay[];
+  indicators?: IndicatorConfig[];
   volume?: boolean;
   live?: LiveConfig | null;
   onCrosshairMove?: (p: OHLCV | null) => void;
@@ -24,20 +26,8 @@ function cssVar(name: string, fallback: string): string {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
 }
 
-// 簡單均線(用收盤價算 SMA);overlays 疊加用。
-function sma(values: number[], period: number): (number | null)[] {
-  const out: (number | null)[] = [];
-  let sum = 0;
-  for (let i = 0; i < values.length; i++) {
-    sum += values[i];
-    if (i >= period) sum -= values[i - period];
-    out.push(i >= period - 1 ? sum / period : null);
-  }
-  return out;
-}
-
 export function PriceChart({
-  candles, height = 360, markers, overlays, volume = true, live, onCrosshairMove,
+  candles, height = 360, markers, overlays, indicators, volume = true, live, onCrosshairMove,
   chartType = "candles", logScale = false,
 }: PriceChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -128,29 +118,45 @@ export function PriceChart({
     cs.setMarkers((markers ?? []).map((m) => markerToSeries(m, up, down)));
   }, [markers]);
 
-  // 疊加均線
+  // 疊加均線(含 Bollinger);同時涵蓋舊 overlays → 轉等效 indicator(DRY)。
   useEffect(() => {
     const chart = chartRef.current;
-    if (!chart || !overlays?.length) return;
-    const closes = candles.map((c) => c.close);
+    if (!chart) return;
     const times = candles.map((c) => Math.floor(new Date(c.timestamp).getTime() / 1000) as UTCTimestamp);
-    const lines = overlays.map((ov) => {
-      const ovColor = ov.color
-              ? (ov.color.startsWith("--") ? cssVar(ov.color, "#22D3EE") : ov.color)
-              : cssVar("--accent", "#22D3EE");
-            const line = chart.addLineSeries({ color: ovColor, lineWidth: 1 });
-      const series = sma(closes, ov.period);
-      line.setData(times.map((t, i) => (series[i] == null ? null : { time: t, value: series[i]! })).filter(Boolean) as { time: UTCTimestamp; value: number }[]);
-      return line;
+    const closes = candles.map((c) => c.close);
+    const toLine = (vals: (number | null)[]) =>
+      times.map((t, i) => (vals[i] == null ? null : { time: t, value: vals[i]! }))
+           .filter(Boolean) as { time: UTCTimestamp; value: number }[];
+
+    // 舊 overlays(sma/ema)轉成 IndicatorConfig,維持向下相容。
+    const legacy: IndicatorConfig[] = (overlays ?? []).map((o) => ({
+      id: o.id, type: o.type, period: o.period, color: o.color,
+    }));
+    const all = [...legacy, ...(indicators ?? [])];
+
+    const series = all.flatMap((cfg) => {
+      const color = cfg.color
+        ? (cfg.color.startsWith("--") ? cssVar(cfg.color, "#8A9099") : cfg.color)
+        : cssVar("--text-muted", "#8A9099");
+      if (cfg.type === "bollinger") {
+        const bb = bollinger(closes, cfg.period, 2);
+        const mid = chart.addLineSeries({ color, lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
+        const upper = chart.addLineSeries({ color, lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false });
+        const lower = chart.addLineSeries({ color, lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false });
+        mid.setData(toLine(bb.mid)); upper.setData(toLine(bb.upper)); lower.setData(toLine(bb.lower));
+        return [mid, upper, lower];
+      }
+      const vals = cfg.type === "ema" ? ema(closes, cfg.period) : sma(closes, cfg.period);
+      const line = chart.addLineSeries({ color, lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
+      line.setData(toLine(vals));
+      return [line];
     });
-    // Only remove series if this chart is still the live one. When the chart-init
-    // effect disposes the chart (unmount or height/volume change), chartRef is nulled
-    // or replaced; calling removeSeries on a disposed chart throws "Value is undefined".
+
     return () => {
-      if (chartRef.current !== chart) return;
-      lines.forEach((l) => chart.removeSeries(l));
+      if (chartRef.current !== chart) return; // chart 已 dispose 時不可 removeSeries
+      series.forEach((s) => chart.removeSeries(s));
     };
-  }, [overlays, candles]);
+  }, [overlays, indicators, candles]);
 
   // ── Live 輪詢(live 非 null 時啟用)──────────────────────────────
   const [lastPrice, setLastPrice] = useState<number | null>(null);
