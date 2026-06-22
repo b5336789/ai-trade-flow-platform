@@ -8,9 +8,9 @@ output "api_health_url" {
   value       = "http://${aws_eip.demo.public_ip}:8000/health"
 }
 
-output "ssh_command" {
-  description = "SSH into the instance (use the private key matching ssh_public_key)."
-  value       = "ssh ec2-user@${aws_eip.demo.public_ip}"
+output "ssm_command" {
+  description = "Open a shell on the instance via SSM (no SSH needed)."
+  value       = "aws ssm start-session --target ${aws_instance.demo.id}"
 }
 
 output "instance_id" {

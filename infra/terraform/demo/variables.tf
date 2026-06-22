@@ -16,16 +16,6 @@ variable "instance_type" {
   default     = "t4g.small"
 }
 
-variable "ssh_ingress_cidr" {
-  type        = string
-  description = "CIDR allowed to SSH (port 22), e.g. \"1.2.3.4/32\". Get yours with: curl -s ifconfig.me"
-}
-
-variable "ssh_public_key" {
-  type        = string
-  description = "SSH public key material (contents of e.g. ~/.ssh/id_ed25519.pub) for EC2 login."
-}
-
 variable "anthropic_api_key" {
   type        = string
   description = "Anthropic API key for AI nodes. Written to the instance .env."

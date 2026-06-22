@@ -25,24 +25,10 @@ data "aws_subnets" "default" {
   }
 }
 
-resource "aws_key_pair" "demo" {
-  key_name   = "${local.name}-key"
-  public_key = var.ssh_public_key
-  tags       = local.common_tags
-}
-
 resource "aws_security_group" "demo" {
   name        = "${local.name}-sg"
-  description = "Demo: SSH from operator, HTTP app ports public"
+  description = "Demo: public HTTP app ports (SSM for shell, no SSH)"
   vpc_id      = data.aws_vpc.default.id
-
-  ingress {
-    description = "SSH"
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = [var.ssh_ingress_cidr]
-  }
 
   ingress {
     description = "Frontend"
@@ -81,7 +67,7 @@ resource "aws_instance" "demo" {
   instance_type               = var.instance_type
   subnet_id                   = data.aws_subnets.default.ids[0]
   vpc_security_group_ids      = [aws_security_group.demo.id]
-  key_name                    = aws_key_pair.demo.key_name
+  iam_instance_profile        = aws_iam_instance_profile.ssm.name
   associate_public_ip_address = true
 
   root_block_device {
@@ -103,6 +89,34 @@ resource "aws_instance" "demo" {
 resource "aws_eip_association" "demo" {
   instance_id   = aws_instance.demo.id
   allocation_id = aws_eip.demo.id
+}
+
+# SSM Session Manager access (replaces SSH; needs no inbound port).
+data "aws_iam_policy_document" "ec2_assume" {
+  statement {
+    actions = ["sts:AssumeRole"]
+    principals {
+      type        = "Service"
+      identifiers = ["ec2.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "ssm" {
+  name               = "${local.name}-ssm"
+  assume_role_policy = data.aws_iam_policy_document.ec2_assume.json
+  tags               = local.common_tags
+}
+
+resource "aws_iam_role_policy_attachment" "ssm" {
+  role       = aws_iam_role.ssm.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
+resource "aws_iam_instance_profile" "ssm" {
+  name = "${local.name}-ssm"
+  role = aws_iam_role.ssm.name
+  tags = local.common_tags
 }
 
 # IAM role assumed by EventBridge Scheduler to start/stop this instance
