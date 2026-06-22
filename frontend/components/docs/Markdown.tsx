@@ -1,7 +1,18 @@
-import type { ComponentPropsWithoutRef } from "react";
+import type { ComponentPropsWithoutRef, ReactNode } from "react";
+import { isValidElement } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { DOCS } from "@/lib/docs-manifest";
+import { MermaidDiagram } from "@/components/docs/MermaidDiagram";
+
+// A fenced ```mermaid block arrives as <pre><code className="language-mermaid">.
+// Detect that code child so `pre` can unwrap it (render the diagram, not a code box).
+function mermaidSource(child: ReactNode): string | null {
+  if (!isValidElement(child)) return null;
+  const props = child.props as { className?: string; children?: ReactNode };
+  if (!(props.className ?? "").includes("language-mermaid")) return null;
+  return String(props.children ?? "").replace(/\n$/, "");
+}
 
 // Map a relative ./foo.md link in the source docs to its published /docs route,
 // falling back to the GitHub source when the target isn't published.
@@ -67,12 +78,19 @@ export function Markdown({ source }: { source: string }) {
               </code>
             );
           },
-          pre: (p) => (
-            <pre
-              className="my-4 overflow-x-auto rounded-md border border-border bg-bg p-3 font-code text-[12.5px] leading-relaxed"
-              {...p}
-            />
-          ),
+          pre: ({ children, ...p }) => {
+            const child = Array.isArray(children) ? children[0] : children;
+            const mmd = mermaidSource(child);
+            if (mmd != null) return <MermaidDiagram chart={mmd} />;
+            return (
+              <pre
+                className="my-4 overflow-x-auto rounded-md border border-border bg-bg p-3 font-code text-[12.5px] leading-relaxed"
+                {...p}
+              >
+                {children}
+              </pre>
+            );
+          },
           table: (p) => (
             <div className="my-4 overflow-x-auto">
               <table className="w-full border-collapse text-[13px]" {...p} />
