@@ -53,3 +53,33 @@ def test_duplicate_indicator_ids_rejected():
     bad["indicators"].append(bad["indicators"][0])
     with pytest.raises(ValidationError):
         StrategySpec.model_validate(bad)
+
+
+def test_ref_with_trailing_junk_is_repaired():
+    # Local models sometimes emit a ref with stray characters appended,
+    # e.g. '"ref": "r}}, "'. The leading identifier token must be recovered
+    # so the ref still resolves to indicator 'r'.
+    spec_dict = _rsi_spec()
+    spec_dict["entry"]["left"] = {"type": "indicator", "ref": "r}}, "}
+    spec = StrategySpec.model_validate(spec_dict)
+    assert spec.entry.left.ref == "r"
+
+
+def test_corrupted_id_and_ref_realign():
+    # Same trailing-junk corruption on both the indicator id and its ref
+    # must normalize to the same token so the cross-check still passes.
+    spec_dict = _rsi_spec()
+    spec_dict["indicators"][0]["id"] = "r}} "
+    spec_dict["entry"]["left"] = {"type": "indicator", "ref": "r  "}
+    spec = StrategySpec.model_validate(spec_dict)
+    assert spec.indicators[0].id == "r"
+    assert spec.entry.left.ref == "r"
+
+
+def test_unrepairable_ref_still_fails_loud():
+    # A ref that has no valid leading identifier is left untouched and
+    # must still fail validation — repair never masks a genuinely bad spec.
+    bad = _rsi_spec()
+    bad["entry"]["left"] = {"type": "indicator", "ref": "}}{{"}
+    with pytest.raises(ValidationError):
+        StrategySpec.model_validate(bad)

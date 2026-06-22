@@ -44,9 +44,12 @@ def structured_completion(
     output_model: type[T],
     model: str | None = None,
     max_tokens: int = 2048,
-    max_retries: int = 2,
+    max_retries: int | None = None,
 ) -> T:
     model = model or settings.ai_model
+    # Local models emit malformed JSON more often than Claude; default to the
+    # configured retry budget so structured output survives transient glitches.
+    max_retries = settings.ai_max_retries if max_retries is None else max_retries
     provider = settings.ai_provider
 
     if provider == "anthropic":
