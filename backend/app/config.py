@@ -31,6 +31,10 @@ class Settings(BaseSettings):
     ai_base_url: str = "http://localhost:1234/v1"
     ai_local_api_key: str = "lm-studio"
 
+    # Structured-output retries when the model returns malformed/invalid JSON (lmstudio path).
+    # Local models need more attempts than Claude; bump via AI_MAX_RETRIES if validation keeps failing.
+    ai_max_retries: int = 5
+
     @field_validator("anthropic_api_key", mode="before")
     @classmethod
     def _normalize_anthropic_api_key(cls, value: object) -> object:
