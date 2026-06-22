@@ -31,6 +31,7 @@
 | **v2 Phase 1** | M1.1–M1.5(跨市場一致性 + broker) | 🟡 進行中(M1.3、M1.4 ✅;剩 M1.1、M1.2、M1.5) | |
 | **v2 Phase 2** | M2.1–M2.3(招牌功能) | 🟡 進行中(M2.1 ✅;策略室以 **spec-based** 安全路線實作完成,前端齊備;剩 M2.3 選配) | 見下方註 |
 | **前端完成** | 策略室 UI + 文件中心 + 策略室→交易室 接通 | ✅ 完成 | 分支 `feature/strategy-room-and-docs-web`;見 `development-log.md` FE.1–FE.3 |
+| **UX 大改版** | 即時線圖 / 回測重做 / 導覽中文化 / 串接 | ✅ 完成(PR #37) | 分支 `feat/ux-overhaul-charts-backtest`;238 tests 綠;見 `development-log.md` UX.1 |
 | **Backlog** | 非目標 / 未來 | ⬜ 不在本期 | 美股 live(IBKR/Alpaca)等 |
 
 > **M2.2 註:** 招牌「策略室」採**宣告式 spec**(`strategies/spec.py`:白名單指標 + 條件樹,**永不執行任意程式碼**)而非 PRD 原案的「NL→任意 Python + 硬沙箱」。此路線從根本消除沙箱逃逸面,更適合 production,且已含前端(`/strategy-lab`)、AI 設計(`ai/strategy_agent.py`)、策略庫 CRUD 與回測。原 M2.2 的硬沙箱子任務因此不再需要;若日後要支援任意程式碼策略再評估。
@@ -278,6 +279,15 @@
 | --- | --- | --- | --- |
 | BK.1 | [ ] | 美股自動 live(IBKR / Alpaca adapter) | 本期**不做**;美股維持 signal-only。日後若改用有官方 API 的券商再新增 adapter |
 | BK.2 | [ ] | 永豐 Shioaji adapter | 元大 SPARK 整合若過痛的備案(`pip install shioaji`) |
+
+### 延後 / 後續(UX 大改版 follow-ups)
+
+| ID | ✓ | 項目 | 說明 |
+| --- | --- | --- | --- |
+| BK.3 | [ ] | WebSocket 真即時行情 | 市場頁目前以輪詢模擬即時;換 WebSocket 降延遲、減 HTTP 開銷 |
+| BK.4 | [ ] | 市場頁雙輪詢合一 | ticker 列與 K 線圖各自輪詢;整合成單一資料來源減少冗餘請求 |
+| BK.5 | [ ] | `cssVar` 跨圖元件收斂 | `PriceChart` 色彩目前部分硬編;統一走 CSS variable token(`--up`/`--down`/`--accent`) |
+| BK.6 | [ ] | 台股 / 美股實盤接券商 | 台股 元大 SPARK、美股 signal-only → 真正下單;依 M1.2 執行 |
 | — | ❌ | 多帳號 / 帳號系統 / 計費 / SaaS | **非目標**,不做 |
 | — | ❌ | 毫秒級 HFT | **非目標**;維持 K 棒級節奏 |
 | — | ❌ | 期權 / 期貨 / 槓桿 / 融資 / 做空 | **非目標**;本期強制 long/flat only |

@@ -66,6 +66,14 @@
 | FE.2 | 文件中心上網頁 | 新增 `/docs`:系統功能詳細說明(策略室 / 交易室 / 跨領域能力,AI 標記)+ 9 篇技術文件(架構 / 功能 / 營運)以 markdown 渲染。`content/docs/` 提交入庫並由 `scripts/sync-docs.mjs`(predev/prebuild)自 repo `docs/` 同步,因 Docker frontend build context 只含 `frontend/`。`react-markdown`+`remark-gfm`,on-brand components map。 | `next build` 把 `/docs` 與 9 篇 `/docs/[slug]` 預渲染為靜態 HTML(SSG,適配 standalone);dogfood hub + 內文 on-brand 渲染。 |
 | FE.3 | 策略室 → 交易室 接通 | 交易室回測面板的策略下拉新增「策略庫」optgroup,可直接回測策略室設計的已存策略(走 `/api/strategies/{id}/backtest`,預設參數);Optimize 維持內建策略限定。 | dogfood:選策略庫策略 → Run → 權益曲線 + 指標正確顯示。 |
 
+## UX 大改版(PR #37)
+
+> 前端體驗全面翻修:即時線圖、回測重做、導覽中文化、策略室→回測→工作流串接。分支 `feat/ux-overhaul-charts-backtest`。
+
+| # | 主題 | 完成內容 | 驗證 |
+| --- | --- | --- | --- |
+| UX.1 | 介面體驗翻修 | 共用 `PriceChart`(輪詢即時/增量/十字準星/買賣點/均線疊圖)+ 語言層(`lib/labels.ts`+`<Term>`);市場頁即時看盤(ticker 列、AI 訊號疊圖、台股離線標示、URL 持久化);回測重做(操作引導兩段式、**日期區間回測**、K 線疊買賣點、指標分級+解讀、統一結果分頁);導覽中英副標+策略庫入樹+首頁三步引導+全站中文化;策略室→回測→工作流串接。後端新增 `get_ohlcv_range`(ccxt 分頁/CSV 篩選,fail-loud)+ 4+1 回測端點與 markets OHLCV 的 `start`/`end`。 | 後端 **238 tests 綠**;前端 `tsc`+`next build` 綠;端到端視覺驗證(Playwright);多階段 code review 抓到並修掉跨檔 token bug、overlay runtime crash、以及策略庫策略日期區間被靜默忽略的 fail-loud bug。 |
+
 ## 設計原則落實(對照 `CLAUDE.md`)
 - **Simplicity First**:先做 crypto+紙上一條完整切片,再水平擴充。
 - **Surgical Changes**:重構策略 registry 時只動相關處。
