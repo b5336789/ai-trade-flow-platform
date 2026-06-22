@@ -16,6 +16,7 @@
     "@xyflow/react": "^12.3.0",
     "geist": "^1.7.2",
     "lightweight-charts": "^4.2.0",
+    "lucide-react": "^0.460.0",
     "mermaid": "^11.15.0",
     "next": "^14.2.5",
     "react": "^18.3.1",
