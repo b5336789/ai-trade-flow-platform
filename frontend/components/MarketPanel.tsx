@@ -8,7 +8,7 @@ import { setMarket } from "@/lib/useMarket";
 import { PriceChart } from "@/components/PriceChart";
 import { deriveStats, barsPer24h } from "@/lib/market-stats";
 import { L } from "@/lib/labels";
-import type { ChartMarker } from "@/lib/chart-helpers";
+import type { ChartMarker, IndicatorConfig, OscillatorConfig } from "@/lib/chart-helpers";
 
 const SIGNAL_COLORS: Record<string, string> = {
   buy: "text-up",
@@ -22,7 +22,8 @@ const COMMON_SYMBOLS: Record<string, string[]> = {
   tw_stock: ["2330", "2317", "2454", "0050"],
   us_stock: ["AAPL", "MSFT", "NVDA", "TSLA", "SPY"],
 };
-const TIMEFRAMES = ["15m", "1h", "4h", "1d"];
+const TIMEFRAMES = ["1m", "5m", "15m", "1h", "4h", "1d", "1w"];
+const BAR_COUNTS = [200, 500, 1000];
 
 const fmt = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 4 });
 const signed = (n: number) => `${n >= 0 ? "+" : ""}${n.toFixed(2)}`;
@@ -38,6 +39,16 @@ export function MarketPanel() {
   const [aiSignal, setAiSignal] = useState<Signal | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
+  const [bars, setBars] = useState(200);
+  const [chartType, setChartType] = useState<"candles" | "line" | "area">("candles");
+  const [logScale, setLogScale] = useState(false);
+  const [showVolume, setShowVolume] = useState(true);
+  // 指標開關
+  const [maOn, setMaOn] = useState(true);   // 預設開 MA20/MA50
+  const [emaOn, setEmaOn] = useState(false);
+  const [bollOn, setBollOn] = useState(false);
+  const [rsiOn, setRsiOn] = useState(false);
+  const [macdOn, setMacdOn] = useState(false);
 
   useEffect(() => { setMarket(market); }, [market]);
 
@@ -50,8 +61,8 @@ export function MarketPanel() {
 
   // 歷史 K 線(給圖初始資料 + 推導 24h 統計)。
   const candles = useQuery({
-    queryKey: ["ohlcv", symbol, timeframe, market],
-    queryFn: () => api.ohlcv(symbol, timeframe, 200, market),
+    queryKey: ["ohlcv", symbol, timeframe, market, bars],
+    queryFn: () => api.ohlcv(symbol, timeframe, bars, market),
     retry: false,
   });
 
@@ -81,6 +92,19 @@ export function MarketPanel() {
       text: `AI ${aiSignal.action} ${(aiSignal.confidence * 100).toFixed(0)}%`,
     }];
   })();
+
+  const indicators: IndicatorConfig[] = [
+    ...(maOn ? [
+      { id: "ma20", type: "sma" as const, period: 20, color: "--text-muted" },
+      { id: "ma50", type: "sma" as const, period: 50, color: "--text-faint" },
+    ] : []),
+    ...(emaOn ? [{ id: "ema20", type: "ema" as const, period: 20, color: "--warning" }] : []),
+    ...(bollOn ? [{ id: "bb", type: "bollinger" as const, period: 20, color: "--border-strong" }] : []),
+  ];
+  const oscillators: OscillatorConfig[] = [
+    ...(rsiOn ? [{ id: "rsi", type: "rsi" as const, period: 14 }] : []),
+    ...(macdOn ? [{ id: "macd", type: "macd" as const }] : []),
+  ];
 
   async function askAi() {
     setAiLoading(true);
@@ -151,6 +175,37 @@ export function MarketPanel() {
         )}
       </div>
 
+      <div className="mb-3 flex flex-wrap items-center gap-1.5 text-[12px]">
+        <select value={chartType} onChange={(e) => setChartType(e.target.value as typeof chartType)}
+          className="rounded-md bg-surface-2 px-2 py-1">
+          <option value="candles">{L.market.candlesType}</option>
+          <option value="line">{L.market.lineType}</option>
+          <option value="area">{L.market.areaType}</option>
+        </select>
+        <select value={bars} onChange={(e) => setBars(Number(e.target.value))}
+          className="rounded-md bg-surface-2 px-2 py-1">
+          {BAR_COUNTS.map((b) => <option key={b} value={b}>{b} {L.backtest.barsSuffix}</option>)}
+        </select>
+        <span className="ml-1 text-faint">{L.market.indicators}:</span>
+        {([
+          ["MA", maOn, setMaOn], ["EMA", emaOn, setEmaOn], ["BOLL", bollOn, setBollOn],
+          ["RSI", rsiOn, setRsiOn], ["MACD", macdOn, setMacdOn],
+        ] as const).map(([name, on, set]) => (
+          <button key={name} onClick={() => set((v) => !v)}
+            className={`rounded-md border px-2 py-1 ${on ? "border-accent/40 bg-accent-dim text-text" : "border-border bg-surface-2 text-muted hover:text-text"}`}>
+            {name}
+          </button>
+        ))}
+        <button onClick={() => setLogScale((v) => !v)}
+          className={`rounded-md border px-2 py-1 ${logScale ? "border-accent/40 bg-accent-dim text-text" : "border-border bg-surface-2 text-muted hover:text-text"}`}>
+          {L.market.logScale}
+        </button>
+        <button onClick={() => setShowVolume((v) => !v)}
+          className={`rounded-md border px-2 py-1 ${showVolume ? "border-accent/40 bg-accent-dim text-text" : "border-border bg-surface-2 text-muted hover:text-text"}`}>
+          {L.market.volumeLabel}
+        </button>
+      </div>
+
       {stats && (
         <div className="mb-3 flex flex-wrap items-baseline gap-x-5 gap-y-1 text-sm">
           <span className="num text-xl font-semibold text-text">
@@ -168,7 +223,17 @@ export function MarketPanel() {
         <p className="mb-2 text-sm text-error">{L.market.chartError}: {(candles.error as Error).message}</p>
       )}
       {candles.data && candles.data.length > 0 ? (
-        <PriceChart candles={candles.data} live={live} markers={aiMarkers} height={360} />
+        <PriceChart
+          candles={candles.data}
+          live={live}
+          markers={aiMarkers}
+          height={360}
+          chartType={chartType}
+          logScale={logScale}
+          volume={showVolume}
+          indicators={indicators}
+          oscillators={oscillators}
+        />
       ) : (
         !candles.isError && <p className="text-sm text-faint">{L.market.loadingCandles}</p>
       )}
