@@ -106,7 +106,8 @@ export function DesignChat({ priorSpec, onDesigned }: DesignChatProps) {
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
+            // Don't submit on the Enter that confirms an IME candidate (e.g. 注音/拼音).
+            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
               e.preventDefault();
               submit(draft);
             }
