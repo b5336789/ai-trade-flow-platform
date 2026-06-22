@@ -112,19 +112,22 @@ here). The tree mirrors the two-room IA so users always see where they are.
 
 ```
 AI Trade Flow.
-├─ 策略室  Strategy Lab
-│  ├─ 與 AI 設計策略   Design with AI
-│  └─ 策略庫           Strategy Library
-│     ├─ RSI Reversion
-│     ├─ MA Cross
+├─ 🧪 策略室
+│  ├─ 與 AI 設計策略
+│  └─ 策略庫
 │     └─ … (saved strategies)
-├─ 交易室  Trading Room
-│  ├─ 模擬回測         Backtest
-│  └─ 實際下單         Live   ← live items carry the --live dot
-├─ 市場    Market   (crypto · 台股 · 美股)
-├─ 投組    Portfolio
-└─ 通知    Notifications
+├─ 🔀 交易室
+│  ├─ 模擬回測
+│  └─ 工作流
+├─ 📈 市場
+├─ 👛 投組
+└─ 🔧 工具
+   ├─ 排程
+   ├─ 通知
+   └─ 匯入
 ```
+
+label 僅中文;每項以 lucide icon 前綴(策略室=FlaskConical、交易室=Network、市場=CandlestickChart、投組=Wallet、工具=Wrench;leaf 各有對應 icon)。AI leaf 的 icon 用 `--accent`,其餘用 `--text-faint`,active/live 色彩規則不變。
 
 - **Sidebar width:** `--nav-w 240px` (expanded), `--nav-w-rail 64px` (icon rail).
 - **Tree mechanics:** parent rows expand/collapse (chevron, 120ms); children indent
@@ -249,3 +252,4 @@ stock imagery. Accent is cyan and earns its place; it is not decoration.
 | 2026-06-19 | RWD: pinned tree → icon rail → off-canvas drawer | One layout can't serve desktop terminals and phones; sidebar drives the mode at xl/md breakpoints, tables scroll-x rather than reflow. |
 | 2026-06-19 | Workflow builder: palette + canvas + inspector, color-per-category nodes | Maps to React Flow; category colors (data/strategy/logic/order/output) make graphs scannable; cyan reserved for strategy/AI keeps the AI-accent rule intact. |
 | 2026-06-20 | `/docs` 改為獨立亮色閱讀 Portal（`[data-surface="docs"]` scope） | 文件中心與交易終端機分流:長文閱讀需亮底/寬 measure;僅作用於 docs scope,主 App 維持深色終端機風。使用者核准的範圍內偏離。 |
+| 2026-06-22 | 選單改純中文 label + lucide icon(移除英文 subtitle) | 中英並陳視覺雜訊大;icon + 中文更貼近專業終端機。使用者核准的偏離。 |

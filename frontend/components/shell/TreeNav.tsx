@@ -21,45 +21,37 @@ export function TreeNav({ onNavigate }: { onNavigate?: () => void }) {
 
 function TreeRow({ item, pathname, onNavigate }: { item: NavItem; pathname: string; onNavigate?: () => void }) {
   const active = isActive(pathname, item.href);
-  const dot = item.ai ? "bg-accent" : "bg-faint";
+  const Icon = item.icon;
   return (
     <div>
       <Link
         href={item.href ?? "#"}
         onClick={onNavigate}
-        className={`flex items-center gap-2 rounded-md border-l-2 px-3 py-2 ${
+        className={`flex items-center gap-2.5 rounded-md border-l-2 px-3 py-2 ${
           active ? "border-accent bg-accent-dim text-text" : "border-transparent text-muted hover:bg-surface-2"
         }`}
       >
-        <span className={`h-1.5 w-1.5 rounded-sm ${dot}`} />
-        <span className="nav-label flex min-w-0 flex-col leading-tight">
-          <span className="font-display font-semibold">{item.label}</span>
-          {item.subtitle && (
-            <span className="text-[11px] font-normal text-faint">{item.subtitle}</span>
-          )}
-        </span>
+        {Icon && <Icon size={16} strokeWidth={1.75} className={item.ai ? "text-accent" : "text-faint"} aria-hidden />}
+        <span className="nav-label font-display font-semibold leading-tight">{item.label}</span>
       </Link>
       {item.children && (
         <div className="ml-3 border-l border-border pl-1">
           {item.children.map((leaf) => {
             const la = isActive(pathname, leaf.href);
             const isLibrary = leaf.href === "/strategy-lab#library";
+            const LeafIcon = leaf.icon;
             return (
               <div key={leaf.href}>
                 <Link
                   href={leaf.href}
                   onClick={onNavigate}
-                  className={`flex items-center gap-2 rounded-md border-l-2 px-3 py-2 text-[13px] ${
+                  className={`flex items-center gap-2.5 rounded-md border-l-2 px-3 py-2 text-[13px] ${
                     la ? `${leaf.live ? "border-live text-live" : "border-accent text-text"} bg-accent-dim`
                        : "border-transparent text-muted hover:bg-surface-2"
                   }`}
                 >
-                  <span className="nav-label flex min-w-0 flex-col leading-tight">
-                    <span>{leaf.label}</span>
-                    {leaf.subtitle && (
-                      <span className="text-[11px] text-faint">{leaf.subtitle}</span>
-                    )}
-                  </span>
+                  {LeafIcon && <LeafIcon size={15} strokeWidth={1.75} className={leaf.live ? "text-live" : "text-faint"} aria-hidden />}
+                  <span className="nav-label leading-tight">{leaf.label}</span>
                 </Link>
                 {isLibrary && <StrategyLibraryTree onNavigate={onNavigate} />}
               </div>
