@@ -213,3 +213,38 @@ def test_walk_forward_respects_date_range(monkeypatch):
     )
     assert resp.status_code == 200, resp.text
     assert resp.json()["n_folds"] == 2
+
+
+def _stub_markets_range_broker(monkeypatch, closes):
+    monkeypatch.setattr("app.api.markets.get_data_broker", lambda market: _RangeStubBroker(closes))
+
+
+def test_markets_ohlcv_reversed_range_is_422(monkeypatch):
+    """GET /api/markets/ohlcv with start after end must return 422."""
+    _stub_markets_range_broker(monkeypatch, [100.0] * 60)
+    resp = client.get(
+        "/api/markets/ohlcv",
+        params={
+            "symbol": "BTC/USDT",
+            "start": "2024-02-01T00:00:00Z",
+            "end": "2024-01-01T00:00:00Z",
+        },
+    )
+    assert resp.status_code == 422, resp.text
+
+
+def test_markets_ohlcv_date_range_returns_windowed_candles(monkeypatch):
+    """GET /api/markets/ohlcv with valid start+end uses get_ohlcv_range (windowed result)."""
+    _stub_markets_range_broker(monkeypatch, [100.0 + i for i in range(60)])
+    # request [2024-01-05, 2024-01-25]: 21 candles in that window
+    resp = client.get(
+        "/api/markets/ohlcv",
+        params={
+            "symbol": "BTC/USDT",
+            "start": "2024-01-05T00:00:00Z",
+            "end": "2024-01-25T00:00:00Z",
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    candles = resp.json()
+    assert len(candles) == 21

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
@@ -50,9 +52,18 @@ def get_ohlcv(
     market: MarketKind = MarketKind.crypto,
     timeframe: str = "1h",
     limit: int = Query(100, ge=1, le=1000),
+    start: datetime | None = Query(default=None),
+    end: datetime | None = Query(default=None),
 ) -> list[Candle]:
     try:
-        return get_data_broker(market).get_ohlcv(symbol, timeframe, limit)
+        broker = get_data_broker(market)
+        if start is not None and end is not None:
+            if start >= end:
+                raise ValueError("start must be before end")
+            return broker.get_ohlcv_range(symbol, timeframe, start, end)
+        return broker.get_ohlcv(symbol, timeframe, limit)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
     except NotImplementedError as exc:
         raise HTTPException(status_code=501, detail=str(exc))
     except Exception as exc:

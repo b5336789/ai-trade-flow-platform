@@ -91,8 +91,10 @@ class CcxtBroker(Broker):
     def get_ohlcv_range(
         self, symbol: str, timeframe: str, start: datetime, end: datetime
     ) -> list[Candle]:
-        start_ms = int(start.timestamp() * 1000)
-        end_ms = int(end.timestamp() * 1000)
+        _start = start if start.tzinfo else start.replace(tzinfo=timezone.utc)
+        _end = end if end.tzinfo else end.replace(tzinfo=timezone.utc)
+        start_ms = int(_start.timestamp() * 1000)
+        end_ms = int(_end.timestamp() * 1000)
         step = _TIMEFRAME_MS.get(timeframe, 3_600_000)
         out: list[Candle] = []
         since = start_ms
