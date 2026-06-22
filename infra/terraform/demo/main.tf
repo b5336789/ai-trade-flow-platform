@@ -103,3 +103,70 @@ resource "aws_eip_association" "demo" {
   instance_id   = aws_instance.demo.id
   allocation_id = aws_eip.demo.id
 }
+
+# IAM role assumed by EventBridge Scheduler to start/stop this instance
+data "aws_iam_policy_document" "scheduler_assume" {
+  statement {
+    actions = ["sts:AssumeRole"]
+    principals {
+      type        = "Service"
+      identifiers = ["scheduler.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "scheduler" {
+  name               = "${local.name}-scheduler"
+  assume_role_policy = data.aws_iam_policy_document.scheduler_assume.json
+  tags               = local.common_tags
+}
+
+resource "aws_iam_role_policy" "scheduler" {
+  name = "${local.name}-scheduler-ec2"
+  role = aws_iam_role.scheduler.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = ["ec2:StartInstances", "ec2:StopInstances"]
+        Resource = aws_instance.demo.arn
+      },
+    ]
+  })
+}
+
+resource "aws_scheduler_schedule" "start" {
+  name = "${local.name}-start"
+
+  flexible_time_window {
+    mode = "OFF"
+  }
+
+  schedule_expression          = var.start_cron
+  schedule_expression_timezone = var.schedule_timezone
+
+  target {
+    arn      = "arn:aws:scheduler:::aws-sdk:ec2:startInstances"
+    role_arn = aws_iam_role.scheduler.arn
+    input    = jsonencode({ InstanceIds = [aws_instance.demo.id] })
+  }
+}
+
+resource "aws_scheduler_schedule" "stop" {
+  name = "${local.name}-stop"
+
+  flexible_time_window {
+    mode = "OFF"
+  }
+
+  schedule_expression          = var.stop_cron
+  schedule_expression_timezone = var.schedule_timezone
+
+  target {
+    arn      = "arn:aws:scheduler:::aws-sdk:ec2:stopInstances"
+    role_arn = aws_iam_role.scheduler.arn
+    input    = jsonencode({ InstanceIds = [aws_instance.demo.id] })
+  }
+}
