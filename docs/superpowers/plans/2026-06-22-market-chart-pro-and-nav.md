@@ -536,6 +536,36 @@ useEffect(() => {
 ```
 同步把 markers effect、live update effect、crosshair effect 內所有 `candleSeriesRef` 改成 `mainSeriesRef`。
 
+- [ ] **Step 2b: 修既有 live 更新 bug(時間戳排序守衛)**
+
+現況 bug:live 輪詢以 `api.ohlcv(…, 2)` 取最後兩根,對「倒數第二根」呼叫 `cs.update()` 時,其時間早於序列最後一根,lightweight-charts 丟 `Cannot update oldest data` 並 crash 整頁(已於瀏覽器重現)。修法:live 更新只套用「時間 ≥ 初始資料最後一根」的列(`update()` 只能改最後一根或附加更新的根,不能改更舊的)。把 live 更新 effect 改為:
+```tsx
+useEffect(() => {
+  const cs = mainSeriesRef.current;
+  const rows = liveQuery.data;
+  if (!cs || !rows || !rows.length) return;
+  const up = cssVar("--up", "#34D399"), down = cssVar("--down", "#F87171");
+  // setData 已建立到「初始最後一根」的時間;update() 不能套用更舊的根(否則 throw "Cannot update oldest data")。
+  const lastInitial = candles.length
+    ? (Math.floor(new Date(candles[candles.length - 1].timestamp).getTime() / 1000) as UTCTimestamp)
+    : (0 as UTCTimestamp);
+  for (const c of rows) {
+    const t = Math.floor(new Date(c.timestamp).getTime() / 1000) as UTCTimestamp;
+    if (t < lastInitial) continue; // 跳過比初始最後一根更舊的列
+    cs.update({ time: t, open: c.open, high: c.high, low: c.low, close: c.close });
+    if (volumeSeriesRef.current) {
+      volumeSeriesRef.current.update({ time: t, value: c.volume, color: c.close >= c.open ? up : down });
+    }
+  }
+  const newClose = rows[rows.length - 1].close;
+  setLastPrice((prev) => {
+    if (prev != null && newClose !== prev) setFlash(newClose > prev ? "up" : "down");
+    return newClose;
+  });
+}, [liveQuery.data, candles]);
+```
+注意:line/area 主序列的 `update({open,high,low,close})` 在 lightweight-charts v4 對非 candlestick 序列無效——但 live 僅 crypto 啟用且預設 candlestick;若 `chartType` 非 candles 時跳過 live update(在迴圈前加 `if (chartType !== "candles") return;`,並把 `chartType` 加入依賴)。
+
 - [ ] **Step 3: 型別檢查**
 
 Run(於 `frontend/`): `npx tsc --noEmit`
