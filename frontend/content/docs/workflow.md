@@ -69,5 +69,43 @@ sequenceDiagram
     J->>DB: 寫 RunLog + 更新 Schedule.last_status
 ```
 
+## 工作流歷史回測(Workflow Backtest)
+
+除了即時 / 紙上交易,工作流也可以以**歷史 K 線逐根重放**的方式執行,一次對圖中所有資產做**多資產共用現金組合回測**。
+
+### 運作方式
+引擎以 `BacktestContext` 取代一般 `RunContext`:
+- `data_source` 節點:傳回截至當根為止的歷史切片(無前視偏差)。
+- `order` 節點:記錄下單意圖,**不觸碰任何 broker**。
+- `risk_exit` 節點:讀取模擬持倉。
+
+每根 K 線執行完整圖後,各 `order` 節點所對應資產的訊號送入 `PortfolioSim`:
+- **Equal-weight** 配置:現金平均分配給當下所有 active-long 的資產。
+- **Next-bar-open 成交**:與單資產回測相同,無前視偏差。
+- **交易成本**:與 `trading/costs.py` 的 `CostModel` 相同,預設開啟。
+
+### 驗證規則(fail loud)
+- 圖中需至少一個 `order` 節點。
+- 每個 `order` 節點必須能解析到唯一一個 symbol。
+- 所有 `data_source` 節點必須使用相同 `timeframe`。
+- 歷史資料至少需 2 根對齊的 K 線。
+
+### AI 節點限制
+`ai_signal` 節點在回測中**每根 K 線都會呼叫 LLM**,故設有**最大 bar 數上限(預設 200 根)**;超過上限會 fail loud,避免大量 API 呼叫。
+
+### 前端(交易室 workflow builder)
+工作流編輯器右上角有 **Backtest** 按鈕:點擊後對當前圖執行歷史回測並顯示**權益曲線**。曲線上每個有訊號的時間點會出現可點擊的**買/賣標記(買/賣)**,點擊標記開啟側邊抽屜,呈現**逐節點衍生過程(node-by-node trace)**。頁面下方另有跑過的**回測歷史清單**可供重載。
+
+## 執行記錄(Unified Run History)
+
+所有工作流執行——無論是即時/紙上交易或歷史回測——皆以 `WorkflowRun` 型別持久化至 DB,每筆產生的訊號另存為 `WorkflowSignal`(含 `trace_json`:各節點的輸入輸出紀錄)。
+
+| 記錄型別 | 說明 |
+| --- | --- |
+| `WorkflowRun` | 執行元資料:`run_id`、`kind`(`backtest`/`live`/`paper`)、`status`、`started_at`、`symbols`、回測指標摘要 |
+| `WorkflowSignal` | 每個訊號:所屬 `run_id`、`symbol`、`action`、`confidence`、`bar_time`、`trace_json` |
+
+讀取端點見 [api-reference.md](./api-reference.md) 的 Workflow Run History 段。
+
 ## API
 建立/執行/排程見 [api-reference.md](./api-reference.md) 的 Workflows 與 Schedules 段。

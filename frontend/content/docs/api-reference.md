@@ -27,7 +27,10 @@ Query:`symbol`(必填)、`market`(預設 `crypto`)。
 → `Ticker { symbol, price, timestamp }`
 
 ### `GET /api/markets/ohlcv`
-Query:`symbol`、`market=crypto`、`timeframe=1h`、`limit=100`(1–1000)。
+Query:`symbol`、`market=crypto`、`timeframe=1h`、`limit=100`(1–1000)、`start`(選填, ISO datetime)、`end`(選填, ISO datetime)。
+- `start` 與 `end` 同時提供 → 呼叫 `get_ohlcv_range`,依時間區間取K棒(忽略 `limit`)。
+- 僅提供其中一個或兩者都不提供 → 沿用 `limit` 路徑。
+- `start >= end` → `422`。
 → `Candle[] { timestamp, open, high, low, close, volume }`
 
 ### `POST /api/markets/import`
@@ -70,8 +73,15 @@ Body:`{ symbol, market?, timeframe?, limit?, model? }`。
 ### `POST /api/workflows`
 Body:`{ name, graph: WorkflowGraph }`。→ `Workflow`
 
-### `GET /api/workflows` / `GET /api/workflows/{id}` / `PUT /api/workflows/{id}`
-標準 CRUD。
+### `GET /api/workflows`
+→ `Workflow[]`(最新在前)。
+
+### `GET /api/workflows/{id}`
+→ `Workflow { id, name, graph, created_at, updated_at }`。找不到回 `404`。
+可用於深層連結或從 DB 還原工作流編輯器狀態。
+
+### `PUT /api/workflows/{id}`
+Body:`{ name, graph: WorkflowGraph }`。→ `Workflow`。找不到回 `404`。
 
 ### `POST /api/workflows/run`
 Body:`WorkflowGraph`(臨時執行,不儲存)。→ `RunResult`
@@ -88,23 +98,83 @@ Body:`WorkflowGraph`(臨時執行,不儲存)。→ `RunResult`
 ```
 節點型別:`data_source` | `strategy` | `ai_signal` | `order` | `logger`。
 
+## Workflow Run History
+
+所有工作流執行(即時/紙上/回測)均自動持久化為 `WorkflowRun`,每筆訊號另存為 `WorkflowSignal`(含逐節點 `trace_json`)。
+
+### `GET /api/workflows/runs`
+Query:`kind`(可選,`backtest`/`live`/`paper`)、`limit`(預設 20)。
+→ `WorkflowRun[]`(最新在前)
+`WorkflowRun { id, run_id, workflow_id, kind, status, symbols, metrics_json, equity_curve_json, trades_json, created_at }`
+
+### `GET /api/workflows/runs/{id}`
+→ 單筆 `WorkflowRun`(含完整欄位)。找不到回 `404`。
+
+### `GET /api/workflows/runs/{id}/signals`
+Query:`symbol`(可選,篩選單一資產)。
+→ `WorkflowSignal[]`
+`WorkflowSignal { id, run_id, order_node_id, symbol, timestamp, bar_index, action, confidence, price, trace_json, created_at }`
+`trace_json` 為 JSON 陣列,內含各節點 id → 輸出摘要的鍵值對,可用於前端重現訊號推導過程。
+
 ## Backtest
 
 ### `GET /api/backtest/strategies`
 → `{ "strategies": ["ma_cross","rsi","macd","bollinger"] }`
 
+以下回測端點均支援日期區間取資料(透過共用的 `_fetch_candles`):`start` 與 `end`(ISO datetime)同時提供時呼叫 `get_ohlcv_range`,否則沿用 `limit` 路徑。`start >= end` → `422`。
+
 ### `POST /api/backtest`
-Body:`{ symbol, market?, timeframe?, limit?, strategy, params?, starting_cash?, position_fraction? }`
+Body:`{ symbol, market?, timeframe?, limit?, strategy, params?, starting_cash?, position_fraction?, start?, end? }`
 → `BacktestResult { starting_cash, final_equity, total_return_pct, buy_hold_return_pct, num_trades, wins, win_rate, max_drawdown_pct, trades[], equity_curve[] }`
 
 ### `POST /api/backtest/compare`
-Body:`{ symbol, ..., strategies? }`(預設全部)。
+Body:`{ symbol, ..., strategies?, start?, end? }`(策略預設全部)。
 → `CompareRow[]`(依報酬排名),`{ strategy, total_return_pct, buy_hold_return_pct, num_trades, win_rate, max_drawdown_pct, error }`
 
 ### `POST /api/backtest/optimize`
-Body:`{ symbol, ..., strategy, param_grid: {fast:[5,10], slow:[20,30]}, metric?, max_combinations? }`
+Body:`{ symbol, ..., strategy, param_grid: {fast:[5,10], slow:[20,30]}, metric?, max_combinations?, split?, oos_fraction?, rank_metric?, start?, end? }`
 → `OptimizeRow[]`(依 metric 排名),`{ params, total_return_pct, num_trades, win_rate, max_drawdown_pct, error }`
 組合數超過 `max_combinations`(預設 200)回 `422`。
+
+### `POST /api/backtest/walk-forward`
+滾動/錨定式走步驗證(anchored walk-forward):依 in-sample 窗口選出最佳參數,再於後續 out-of-sample 窗口評分;不提供原始報酬排名以防過擬合。
+Body:`{ symbol, market?, timeframe?, limit?, strategy, param_grid, n_folds?(預設 4, 2–20), metric?(預設 sharpe), anchored?(預設 true), max_combinations?, start?, end? }`
+→ `WalkForwardReport`(含各 fold 的 IS/OOS 績效)。輸入有誤回 `422`。
+
+### `POST /api/strategies/{sid}/backtest`
+對策略庫中已儲存的策略(StrategyDef)執行回測,支援參數覆蓋。
+Body:`{ symbol, market?, timeframe?, limit?, param_overrides?, starting_cash?, position_fraction?, start?, end? }`
+→ `BacktestResult`。策略不存在回 `404`;資料不足或參數無效回 `422`。
+
+### `POST /api/backtest/workflow`
+對一張 `WorkflowGraph` 執行多資產共用現金的歷史組合回測(逐根 K 線重放)。
+
+Body:
+```json
+{
+  "graph": { "nodes": [...], "edges": [...] },
+  "workflow_id": "optional-uuid",
+  "market": "crypto",
+  "timeframe": "1h",
+  "limit": 500,
+  "starting_cash": 100000
+}
+```
+`graph` 與 `workflow_id` 擇一(提供 `workflow_id` 時從 DB 讀取圖)。`market`、`timeframe`、`limit`、`starting_cash` 均有預設值。
+
+→
+```json
+{
+  "run_id": "uuid",
+  "symbols": ["BTC/USDT", "ETH/USDT"],
+  "result": { "...BacktestResult 欄位..." },
+  "signals": [
+    { "symbol": "BTC/USDT", "timestamp": "2024-01-02T01:00:00Z",
+      "action": "buy", "confidence": 0.82, "trace_json": [...] }
+  ]
+}
+```
+驗證失敗(圖無 order 節點 / symbol 不唯一 / timeframe 不一致 / 資料不足 / AI 節點超過 bar 上限)回 `422`。
 
 ## Schedules(自動執行)
 

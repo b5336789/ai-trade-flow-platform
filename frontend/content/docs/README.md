@@ -21,6 +21,7 @@
 | [`architecture.md`](./architecture.md) | 系統架構、元件圖、資料流、核心設計決策(含 Mermaid 圖) |
 | [`backend.md`](./backend.md) | 後端模組逐一說明(brokers / strategies / trading / ai / workflow / scheduler / backtest) |
 | [`api-reference.md`](./api-reference.md) | 所有 HTTP API 端點:路徑、參數、回應、錯誤碼 |
+| [`frontend.md`](./frontend.md) | 前端兩室 IA、共用即時線圖 PriceChart、市場看盤、回測介面、策略室→回測→工作流串接、語言層 |
 | [`strategies.md`](./strategies.md) | 技術指標與 4 種策略(MA交叉 / RSI / MACD / 布林通道) |
 | [`workflow.md`](./workflow.md) | 工作流引擎:節點型別、圖執行、排程自動化 |
 | [`backtesting.md`](./backtesting.md) | 回測引擎(含交易成本)、多策略比較、參數最佳化 |

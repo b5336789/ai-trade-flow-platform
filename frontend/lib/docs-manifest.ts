@@ -33,6 +33,13 @@ export const DOCS: DocEntry[] = [
     summary: "所有 REST 端點:行情、AI 訊號、回測、工作流、排程、通知、帳本。",
   },
   {
+    slug: "frontend",
+    title: "前端 / UI",
+    category: "架構",
+    file: "frontend.md",
+    summary: "兩室 IA、共用即時線圖 PriceChart、市場看盤、回測介面、策略室→回測→工作流串接、語言層。",
+  },
+  {
     slug: "strategies",
     title: "策略與指標",
     category: "功能",
