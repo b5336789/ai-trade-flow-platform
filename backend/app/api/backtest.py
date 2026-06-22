@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlmodel import Session
@@ -19,6 +21,15 @@ from app.workflow.run_store import persist_workflow_run, resolve_order_symbol
 from app.workflow.schema import NodeType, WorkflowGraph
 
 router = APIRouter(prefix="/api/backtest", tags=["backtest"])
+
+
+def _fetch_candles(broker, symbol, timeframe, limit, start, end):
+    """Range fetch when both start+end are given (C2), else the legacy limit path. Fails loud."""
+    if start is not None and end is not None:
+        if start >= end:
+            raise ValueError("start must be before end")
+        return broker.get_ohlcv_range(symbol, timeframe, start, end)
+    return broker.get_ohlcv(symbol, timeframe, limit)
 
 
 class WorkflowBacktestRequest(BaseModel):
@@ -92,6 +103,8 @@ class BacktestRequest(BaseModel):
     params: dict = Field(default_factory=dict)
     starting_cash: float = 100_000.0
     position_fraction: float = 1.0
+    start: datetime | None = None  # C2: when start+end both set, fetch by range instead of limit
+    end: datetime | None = None
 
 
 @router.get("/strategies")
@@ -107,6 +120,8 @@ class CompareRequest(BaseModel):
     strategies: list[str] = Field(default_factory=lambda: list(STRATEGIES))
     starting_cash: float = 100_000.0
     position_fraction: float = 1.0
+    start: datetime | None = None
+    end: datetime | None = None
 
 
 class CompareRow(BaseModel):
@@ -123,7 +138,11 @@ class CompareRow(BaseModel):
 def compare(req: CompareRequest) -> list[CompareRow]:
     """Run several strategies over the same history and rank them by return (fetch once)."""
     try:
-        candles = get_data_broker(req.market).get_ohlcv(req.symbol, req.timeframe, req.limit)
+        candles = _fetch_candles(
+            get_data_broker(req.market), req.symbol, req.timeframe, req.limit, req.start, req.end
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
     except NotImplementedError as exc:
         raise HTTPException(status_code=501, detail=str(exc))
     except Exception as exc:
@@ -183,6 +202,8 @@ class OptimizeRequest(BaseModel):
     split: bool = False
     oos_fraction: float = Field(default=0.3, gt=0.0, lt=1.0)
     rank_metric: str = "oos_sharpe"
+    start: datetime | None = None
+    end: datetime | None = None
 
 
 @router.post("/optimize", response_model=list[OptimizeRow])
@@ -194,7 +215,9 @@ def optimize(req: OptimizeRequest) -> list[OptimizeRow]:
     which is the OOS-selected combo.
     """
     try:
-        candles = get_data_broker(req.market).get_ohlcv(req.symbol, req.timeframe, req.limit)
+        candles = _fetch_candles(
+            get_data_broker(req.market), req.symbol, req.timeframe, req.limit, req.start, req.end
+        )
         return grid_search(
             candles,
             req.strategy,
@@ -228,6 +251,8 @@ class WalkForwardRequest(BaseModel):
     metric: str = "sharpe"
     anchored: bool = True
     max_combinations: int = Field(default=200, ge=1, le=500)
+    start: datetime | None = None
+    end: datetime | None = None
 
 
 @router.post("/walk-forward", response_model=WalkForwardReport)
@@ -239,7 +264,9 @@ def walk_forward_endpoint(req: WalkForwardRequest) -> WalkForwardReport:
     (the overfitting trap). Fails loud on bad inputs.
     """
     try:
-        candles = get_data_broker(req.market).get_ohlcv(req.symbol, req.timeframe, req.limit)
+        candles = _fetch_candles(
+            get_data_broker(req.market), req.symbol, req.timeframe, req.limit, req.start, req.end
+        )
         return walk_forward(
             candles,
             req.strategy,
@@ -265,7 +292,9 @@ def walk_forward_endpoint(req: WalkForwardRequest) -> WalkForwardReport:
 def backtest(req: BacktestRequest) -> BacktestResult:
     try:
         strategy = build_strategy(req.strategy, req.params)
-        candles = get_data_broker(req.market).get_ohlcv(req.symbol, req.timeframe, req.limit)
+        candles = _fetch_candles(
+            get_data_broker(req.market), req.symbol, req.timeframe, req.limit, req.start, req.end
+        )
         return run_backtest(
             candles,
             strategy,

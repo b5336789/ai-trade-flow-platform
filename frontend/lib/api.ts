@@ -15,6 +15,12 @@ export interface Candle {
   volume: number;
 }
 
+export interface Ticker {
+  symbol: string;
+  price: number;
+  timestamp: string;
+}
+
 export type SignalAction = "buy" | "sell" | "hold";
 
 export interface Signal {
@@ -168,6 +174,8 @@ export interface BacktestRequest {
   market?: string;
   timeframe?: string;
   limit?: number;
+  start?: string;
+  end?: string;
   strategy: string;
   params?: Record<string, unknown>;
   starting_cash?: number;
@@ -189,6 +197,8 @@ export interface CompareRequest {
   market?: string;
   timeframe?: string;
   limit?: number;
+  start?: string;
+  end?: string;
   strategies?: string[];
   starting_cash?: number;
   position_fraction?: number;
@@ -216,6 +226,8 @@ export interface OptimizeRequest {
   market?: string;
   timeframe?: string;
   limit?: number;
+  start?: string;
+  end?: string;
   strategy: string;
   param_grid: Record<string, number[]>;
   metric?: string;
@@ -230,6 +242,8 @@ export interface WalkForwardRequest {
   market?: string;
   timeframe?: string;
   limit?: number;
+  start?: string;
+  end?: string;
   strategy: string;
   param_grid: Record<string, number[]>;
   n_folds?: number;
@@ -312,6 +326,8 @@ export interface SavedBacktestRequest {
   market?: string;
   timeframe?: string;
   limit?: number;
+  start?: string;
+  end?: string;
   param_overrides?: Record<string, number>;
   starting_cash?: number;
   position_fraction?: number;
@@ -375,9 +391,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   config: () => request<AppConfig>("/api/config"),
-  ohlcv: (symbol: string, timeframe = "1h", limit = 100, market = "crypto") =>
-    request<Candle[]>(
-      `/api/markets/ohlcv?symbol=${encodeURIComponent(symbol)}&timeframe=${timeframe}&limit=${limit}&market=${market}`,
+  ohlcv: (symbol: string, timeframe = "1h", limit = 100, market = "crypto", start?: string, end?: string) => {
+    let url = `/api/markets/ohlcv?symbol=${encodeURIComponent(symbol)}&timeframe=${timeframe}&limit=${limit}&market=${market}`;
+    if (start && end) url += `&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`;
+    return request<Candle[]>(url);
+  },
+  ticker: (symbol: string, market = "crypto") =>
+    request<Ticker>(
+      `/api/markets/ticker?symbol=${encodeURIComponent(symbol)}&market=${market}`,
     ),
   aiSignal: (symbol: string, market = "crypto", timeframe = "1h", limit = 100) =>
     request<Signal>("/api/ai/signal", {
@@ -407,6 +428,7 @@ export const api = {
     }),
   createWorkflow: (name: string, graph: WorkflowGraph) =>
     request<Workflow>("/api/workflows", { method: "POST", body: JSON.stringify({ name, graph }) }),
+  getWorkflow: (id: number) => request<Workflow>(`/api/workflows/${id}`),
   listWorkflows: () => request<Workflow[]>("/api/workflows"),
   listSchedules: () => request<Schedule[]>("/api/schedules"),
   createSchedule: (workflow_id: number, interval_seconds: number) =>

@@ -2,6 +2,7 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { L } from "@/lib/labels";
 
 const DOT: Record<string, string> = {
   info: "bg-sky-400",
@@ -27,12 +28,12 @@ export function NotificationsPanel() {
   return (
     <section className="rounded-lg border border-border bg-surface-1 p-4">
       <div className="mb-3 flex items-center gap-2">
-        <h2 className="font-display text-lg font-semibold">Notifications</h2>
+        <h2 className="font-display text-lg font-semibold">{L.notifications.title}</h2>
         <button
           onClick={test}
           className="ml-auto rounded-md bg-surface-2 px-2 py-1 text-xs hover:bg-surface-3"
         >
-          Test
+          {L.notifications.test}
         </button>
       </div>
 
@@ -54,7 +55,7 @@ export function NotificationsPanel() {
           ))}
         </ul>
       ) : (
-        <p className="text-xs text-faint">No notifications yet. Orders and signals appear here.</p>
+        <p className="text-xs text-faint">{L.notifications.empty}</p>
       )}
     </section>
   );

@@ -1,11 +1,14 @@
 """Strategy library: AI design, CRUD, and per-strategy backtest."""
 from __future__ import annotations
 
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlmodel import Session
 
 from app.ai.strategy_agent import design_strategy
+from app.api.backtest import _fetch_candles
 from app.backtest.engine import BacktestResult, run_backtest
 from app.brokers.registry import get_data_broker
 from app.db import get_session
@@ -118,6 +121,8 @@ class StrategyBacktestRequest(BaseModel):
     param_overrides: dict = Field(default_factory=dict)
     starting_cash: float = 100_000.0
     position_fraction: float = 1.0
+    start: datetime | None = None
+    end: datetime | None = None
 
 
 @router.post("/{sid}/backtest", response_model=BacktestResult)
@@ -129,7 +134,7 @@ def backtest_one(sid: int, req: StrategyBacktestRequest,
         raise HTTPException(status_code=404, detail=str(exc))
     try:
         strategy = SpecStrategy(spec, req.param_overrides)
-        candles = get_data_broker(req.market).get_ohlcv(req.symbol, req.timeframe, req.limit)
+        candles = _fetch_candles(get_data_broker(req.market), req.symbol, req.timeframe, req.limit, req.start, req.end)
         return run_backtest(candles, strategy, starting_cash=req.starting_cash,
                             position_fraction=req.position_fraction)
     except ValueError as exc:

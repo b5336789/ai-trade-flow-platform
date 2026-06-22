@@ -3,6 +3,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, type DesignResponse, type SpecParamDef, type StrategySpec } from "@/lib/api";
+import { L } from "@/lib/labels";
 
 interface GeneratedStrategyProps {
   design: DesignResponse | null;
@@ -114,6 +115,14 @@ export function GeneratedStrategy({ design, onSpecChange, onSaved }: GeneratedSt
           >
             {save.isPending ? "儲存中…" : "存入策略庫"}
           </button>
+          <button
+            type="button"
+            disabled
+            title={L.linking.sendToBacktestHint}
+            className="rounded-md border border-border bg-surface-2 px-4 py-2 text-[13px] text-faint opacity-50"
+          >
+            {L.linking.sendToBacktest} →
+          </button>
         </div>
         <input
           value={description}
@@ -124,7 +133,7 @@ export function GeneratedStrategy({ design, onSpecChange, onSaved }: GeneratedSt
         {save.isError && (
           <p className="text-[12px] text-error">⚠ {(save.error as Error).message}</p>
         )}
-        {save.isSuccess && <p className="text-[12px] text-up">✓ 已存入策略庫</p>}
+        {save.isSuccess && <p className="text-[12px] text-up">✓ 已存入策略庫 · 到下方策略庫點「拿去回測」</p>}
       </div>
     </section>
   );

@@ -7,6 +7,7 @@ implementing this interface + registering in ``registry.py`` — no caller chang
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from datetime import datetime
 
 from app.schemas import (
     Balance,
@@ -35,6 +36,14 @@ class Broker(ABC):
 
     @abstractmethod
     def get_ohlcv(self, symbol: str, timeframe: str = "1h", limit: int = 100) -> list[Candle]: ...
+
+    def get_ohlcv_range(
+        self, symbol: str, timeframe: str, start: datetime, end: datetime
+    ) -> list[Candle]:
+        """Fetch candles whose timestamp falls in [start, end]. Subclasses override; default fails loud."""
+        raise NotImplementedError(
+            f"{type(self).__name__} does not support date-range OHLCV; use get_ohlcv(limit=...)"
+        )
 
     # --- trading ---
     @abstractmethod
