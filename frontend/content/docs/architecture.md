@@ -6,16 +6,30 @@
 作為「紙上交易 vs 真實交易」以及「不同市場(crypto / 台股 / 美股)」的**單一接縫**。
 策略與 LLM 都輸出同一個 `Signal` 型別,因此工作流引擎可一視同仁地組合它們。
 
+前端採**兩室 IA**(策略室 / 交易室)+ 左側樹狀導覽。`MarketPanel` 與 `BacktestPanel`
+共用同一個即時線圖元件 `PriceChart`(輪詢即時、買賣點、均線疊圖);策略室 → 回測 →
+工作流以 URL query 串接。詳見 [`frontend.md`](./frontend.md)。
+
 ```mermaid
 flowchart TB
-    subgraph FE[前端 Next.js]
-        DASH[儀表板 /]
-        MAN[使用說明書 /manual]
-        DASH --> MK[MarketPanel<br/>K線+AI訊號]
-        DASH --> WB[WorkflowBuilder<br/>React Flow]
-        DASH --> SC[SchedulesPanel]
-        DASH --> BTP[BacktestPanel<br/>回測/比較/最佳化]
-        DASH --> PF[PortfolioPanel]
+    subgraph FE[前端 Next.js — 兩室 IA + 樹狀導覽]
+        NAV[樹狀導覽 + 首頁三步引導]
+        subgraph SL[策略室 Strategy Lab]
+            DC[AI 設計對話]
+            LIB[策略庫]
+        end
+        subgraph TR[交易室 Trading Room]
+            BTP[BacktestPanel<br/>日期區間/比較/最佳化/樣本外]
+            WB[WorkflowBuilder<br/>React Flow]
+        end
+        MK[MarketPanel<br/>即時看盤]
+        SC[SchedulesPanel]
+        PF[PortfolioPanel]
+        PC[共用 PriceChart<br/>即時/買賣點/均線]
+        MK -.用.-> PC
+        BTP -.用.-> PC
+        LIB -->|拿去回測| BTP
+        BTP -->|建立工作流| WB
     end
 
     subgraph BE[後端 FastAPI]
@@ -29,6 +43,7 @@ flowchart TB
         WFE --> EXEC[下單執行 + 風控]
         EXEC --> REG[Broker registry]
         BTE --> STRAT
+        BTE --> RANGE[get_ohlcv_range<br/>日期區間取數]
         AISIG --> CLAUDE[(Claude API)]
         REG --> PAPER[PaperBroker]
         REG --> CCXT[CcxtBroker]
@@ -37,10 +52,10 @@ flowchart TB
         WFE --> DB
     end
 
-    MK -->|HTTP/JSON| API
-    WB --> API
+    SL -->|HTTP/JSON| API
+    TR --> API
+    MK --> API
     SC --> API
-    BTP --> API
     PF --> API
 ```
 
