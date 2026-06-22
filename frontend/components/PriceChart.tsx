@@ -2,6 +2,7 @@
 import { createChart, ColorType, PriceScaleMode, type IChartApi, type ISeriesApi, type UTCTimestamp } from "lightweight-charts";
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Maximize2 } from "lucide-react";
 import { api, type Candle } from "@/lib/api";
 import {
   toCandlestickData, toVolumeData, markerToSeries,
@@ -21,6 +22,7 @@ export interface PriceChartProps {
   onCrosshairMove?: (p: OHLCV | null) => void;
   chartType?: "candles" | "line" | "area";
   logScale?: boolean;
+  showLegend?: boolean;
 }
 
 function cssVar(name: string, fallback: string): string {
@@ -29,14 +31,23 @@ function cssVar(name: string, fallback: string): string {
 
 export function PriceChart({
   candles, height = 360, markers, overlays, indicators, oscillators = [], volume = true, live, onCrosshairMove,
-  chartType = "candles", logScale = false,
+  chartType = "candles", logScale = false, showLegend = true,
 }: PriceChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   // 主序列 ref(可能是 candlestick / line / area)
   const mainSeriesRef = useRef<ISeriesApi<"Candlestick" | "Line" | "Area"> | null>(null);
   const volumeSeriesRef = useRef<ISeriesApi<"Histogram"> | null>(null);
   const oscRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const [legend, setLegend] = useState<OHLCV | null>(null);
+
+  const toggleFullscreen = () => {
+    const el = wrapRef.current;
+    if (!el) return;
+    if (document.fullscreenElement) document.exitFullscreen();
+    else el.requestFullscreen?.();
+  };
 
   // 建圖一次。candles 變動只 setData,不重建(避免閃爍/丟縮放)。
   useEffect(() => {
@@ -75,18 +86,23 @@ export function PriceChart({
       volumeSeriesRef.current = vol;
     }
 
-    // 十字準星 → 回拋當前根 OHLCV
-    if (onCrosshairMove) {
-      chart.subscribeCrosshairMove((param) => {
-        const bar = param.seriesData.get(main) as
-          | { open: number; high: number; low: number; close: number } | undefined;
-        const v = volumeSeriesRef.current
-          ? (param.seriesData.get(volumeSeriesRef.current) as { value: number } | undefined)
-          : undefined;
-        if (!bar || param.time == null) { onCrosshairMove(null); return; }
-        onCrosshairMove({ time: param.time as number, ...bar, volume: v?.value ?? 0 });
-      });
-    }
+    // 十字準星 → 更新內部 legend 並回拋 OHLCV(即使外部沒給 onCrosshairMove 也訂閱)
+    chart.subscribeCrosshairMove((param) => {
+      const bar = param.seriesData.get(main) as
+        | { open: number; high: number; low: number; close: number; value?: number } | undefined;
+      const v = volumeSeriesRef.current
+        ? (param.seriesData.get(volumeSeriesRef.current) as { value: number } | undefined)
+        : undefined;
+      if (!bar || param.time == null) { setLegend(null); onCrosshairMove?.(null); return; }
+      const ohlcv: OHLCV = {
+        time: param.time as number,
+        open: bar.open ?? bar.value ?? 0, high: bar.high ?? bar.value ?? 0,
+        low: bar.low ?? bar.value ?? 0, close: bar.close ?? bar.value ?? 0,
+        volume: v?.value ?? 0,
+      };
+      setLegend(ohlcv);
+      onCrosshairMove?.(ohlcv);
+    });
 
     const ro = new ResizeObserver(() => chart.applyOptions({ width: el.clientWidth }));
     ro.observe(el);
@@ -290,16 +306,32 @@ export function PriceChart({
     );
   }
   return (
-    <div className="relative w-full">
+    <div ref={wrapRef} className="relative w-full bg-bg">
+      {showLegend && legend && (
+        <div className="num pointer-events-none absolute left-2 top-2 z-10 flex gap-2 rounded-md border border-border bg-surface-2/90 px-2 py-1 text-[11px]">
+          <span className="text-faint">O <span className="text-text">{legend.open}</span></span>
+          <span className="text-faint">H <span className="text-text">{legend.high}</span></span>
+          <span className="text-faint">L <span className="text-text">{legend.low}</span></span>
+          <span className="text-faint">C <span className={legend.close >= legend.open ? "text-up" : "text-down"}>{legend.close}</span></span>
+          <span className="text-faint">Vol <span className="text-text">{legend.volume.toLocaleString()}</span></span>
+        </div>
+      )}
       {live && lastPrice != null && (
         <div
-          className={`num absolute right-2 top-2 z-10 rounded-md border border-border bg-surface-2 px-2 py-0.5 text-xs transition-colors ${
+          className={`num absolute right-10 top-2 z-10 rounded-md border border-border bg-surface-2 px-2 py-0.5 text-xs transition-colors ${
             flash === "up" ? "text-up" : flash === "down" ? "text-down" : "text-text"
           }`}
         >
           {lastPrice.toFixed(2)}
         </div>
       )}
+      <button
+        onClick={toggleFullscreen}
+        className="absolute right-2 top-2 z-20 rounded-md border border-border bg-surface-2 p-1 text-muted hover:text-text"
+        aria-label="全螢幕"
+      >
+        <Maximize2 size={14} />
+      </button>
       <div ref={containerRef} className="w-full" />
       {(oscillators ?? []).map((o) => (
         <div key={o.id} className="relative mt-1">
