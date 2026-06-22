@@ -1,0 +1,98 @@
+name: Deploy Demo
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Terraform action to run"
+        type: choice
+        required: true
+        default: plan
+        options:
+          - plan
+          - apply
+          - destroy
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: demo-deploy
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ap-east-2
+  TF_VAR_aws_region: ap-east-2
+
+jobs:
+  demo:
+    name: "Demo ${{ github.event.inputs.action }}"
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.15.6
+          terraform_wrapper: false
+
+      - name: Validate required secrets
+        env:
+          API_TOKEN: ${{ secrets.API_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "$API_TOKEN" ]; then
+            printf '%s\n' 'API_TOKEN secret is required for the demo deploy' >&2
+            exit 1
+          fi
+
+      - name: Terraform init
+        working-directory: infra/terraform/demo
+        run: |
+          set -euo pipefail
+          terraform init -input=false \
+            -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
+            -backend-config="region=${{ env.AWS_REGION }}" \
+            -backend-config="dynamodb_table=${{ secrets.TF_LOCK_TABLE }}"
+
+      - name: "Terraform ${{ github.event.inputs.action }}"
+        working-directory: infra/terraform/demo
+        env:
+          TF_VAR_anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          TF_VAR_api_token: ${{ secrets.API_TOKEN }}
+        run: |
+          set -euo pipefail
+          case "${{ github.event.inputs.action }}" in
+            plan)
+              terraform plan -input=false
+              ;;
+            apply)
+              terraform apply -input=false -auto-approve
+              ;;
+            destroy)
+              terraform destroy -input=false -auto-approve
+              ;;
+            *)
+              printf 'unknown action: %s\n' "${{ github.event.inputs.action }}" >&2
+              exit 1
+              ;;
+          esac
+
+      - name: Print URLs
+        if: ${{ github.event.inputs.action == 'apply' }}
+        working-directory: infra/terraform/demo
+        run: |
+          set -euo pipefail
+          printf 'Demo URL: %s\n' "$(terraform output -raw demo_url)"
+          printf 'Health:   %s\n' "$(terraform output -raw api_health_url)"
+          printf 'SSM:      %s\n' "$(terraform output -raw ssm_command)"
