@@ -1,5 +1,5 @@
 "use client";
-import { createChart, ColorType, type IChartApi, type ISeriesApi, type UTCTimestamp } from "lightweight-charts";
+import { createChart, ColorType, PriceScaleMode, type IChartApi, type ISeriesApi, type UTCTimestamp } from "lightweight-charts";
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api, type Candle } from "@/lib/api";
@@ -16,6 +16,8 @@ export interface PriceChartProps {
   volume?: boolean;
   live?: LiveConfig | null;
   onCrosshairMove?: (p: OHLCV | null) => void;
+  chartType?: "candles" | "line" | "area";
+  logScale?: boolean;
 }
 
 function cssVar(name: string, fallback: string): string {
@@ -36,10 +38,12 @@ function sma(values: number[], period: number): (number | null)[] {
 
 export function PriceChart({
   candles, height = 360, markers, overlays, volume = true, live, onCrosshairMove,
+  chartType = "candles", logScale = false,
 }: PriceChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
-  const candleSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
+  // 主序列 ref(可能是 candlestick / line / area)
+  const mainSeriesRef = useRef<ISeriesApi<"Candlestick" | "Line" | "Area"> | null>(null);
   const volumeSeriesRef = useRef<ISeriesApi<"Histogram"> | null>(null);
 
   // 建圖一次。candles 變動只 setData,不重建(避免閃爍/丟縮放)。
@@ -58,12 +62,20 @@ export function PriceChart({
       width: el.clientWidth, height,
       timeScale: { timeVisible: true },
       crosshair: { mode: 1 },
+      rightPriceScale: { mode: logScale ? PriceScaleMode.Logarithmic : PriceScaleMode.Normal },
     });
-    const candleSeries = chart.addCandlestickSeries({
-      upColor: up, downColor: down, borderVisible: false, wickUpColor: up, wickDownColor: down,
-    });
+    let main: ISeriesApi<"Candlestick" | "Line" | "Area">;
+    if (chartType === "line") {
+      main = chart.addLineSeries({ color: up, lineWidth: 2 });
+    } else if (chartType === "area") {
+      main = chart.addAreaSeries({ lineColor: up, topColor: up, bottomColor: "rgba(0,0,0,0)", lineWidth: 2 });
+    } else {
+      main = chart.addCandlestickSeries({
+        upColor: up, downColor: down, borderVisible: false, wickUpColor: up, wickDownColor: down,
+      });
+    }
+    mainSeriesRef.current = main;
     chartRef.current = chart;
-    candleSeriesRef.current = candleSeries;
 
     if (volume) {
       const vol = chart.addHistogramSeries({ priceFormat: { type: "volume" }, priceScaleId: "" });
@@ -74,7 +86,7 @@ export function PriceChart({
     // 十字準星 → 回拋當前根 OHLCV
     if (onCrosshairMove) {
       chart.subscribeCrosshairMove((param) => {
-        const bar = param.seriesData.get(candleSeries) as
+        const bar = param.seriesData.get(main) as
           | { open: number; high: number; low: number; close: number } | undefined;
         const v = volumeSeriesRef.current
           ? (param.seriesData.get(volumeSeriesRef.current) as { value: number } | undefined)
@@ -86,23 +98,31 @@ export function PriceChart({
 
     const ro = new ResizeObserver(() => chart.applyOptions({ width: el.clientWidth }));
     ro.observe(el);
-    return () => { ro.disconnect(); chart.remove(); chartRef.current = null; candleSeriesRef.current = null; volumeSeriesRef.current = null; };
-  // 僅在 height/volume/crosshair 身份改變時重建;candles 不在依賴內。
-  }, [height, volume, onCrosshairMove]);
+    return () => { ro.disconnect(); chart.remove(); chartRef.current = null; mainSeriesRef.current = null; volumeSeriesRef.current = null; };
+  // 類型/座標改變需重建;candles 不在依賴內。
+  }, [height, volume, onCrosshairMove, chartType, logScale]);
 
   // 資料更新:setData(整段)。增量 update 由 live 模式負責(Task 5)。
   useEffect(() => {
-    const cs = candleSeriesRef.current, chart = chartRef.current;
+    const cs = mainSeriesRef.current, chart = chartRef.current;
     if (!cs || !chart) return;
     const up = cssVar("--up", "#34D399"), down = cssVar("--down", "#F87171");
-    cs.setData(toCandlestickData(candles));
+    if (chartType === "candles") {
+      (cs as ISeriesApi<"Candlestick">).setData(toCandlestickData(candles));
+    } else {
+      const line = candles.map((c) => ({
+        time: Math.floor(new Date(c.timestamp).getTime() / 1000) as UTCTimestamp,
+        value: c.close,
+      }));
+      (cs as ISeriesApi<"Line" | "Area">).setData(line);
+    }
     if (volumeSeriesRef.current) volumeSeriesRef.current.setData(toVolumeData(candles, up, down));
     chart.timeScale().fitContent();
-  }, [candles]);
+  }, [candles, chartType]);
 
   // 標記
   useEffect(() => {
-    const cs = candleSeriesRef.current;
+    const cs = mainSeriesRef.current;
     if (!cs) return;
     const up = cssVar("--up", "#34D399"), down = cssVar("--down", "#F87171");
     cs.setMarkers((markers ?? []).map((m) => markerToSeries(m, up, down)));
@@ -145,12 +165,19 @@ export function PriceChart({
   });
 
   useEffect(() => {
-    const cs = candleSeriesRef.current;
+    const cs = mainSeriesRef.current;
     const rows = liveQuery.data;
     if (!cs || !rows || !rows.length) return;
     const up = cssVar("--up", "#34D399"), down = cssVar("--down", "#F87171");
+    // line/area 序列的 update({open,high,low,close}) 無效;live 僅 crypto 且預設 candles。
+    if (chartType !== "candles") return;
+    // setData 已建立到「初始最後一根」的時間;update() 不能套用更舊的根(否則 throw "Cannot update oldest data")。
+    const lastInitial = candles.length
+      ? (Math.floor(new Date(candles[candles.length - 1].timestamp).getTime() / 1000) as UTCTimestamp)
+      : (0 as UTCTimestamp);
     for (const c of rows) {
       const t = Math.floor(new Date(c.timestamp).getTime() / 1000) as UTCTimestamp;
+      if (t < lastInitial) continue; // 跳過比初始最後一根更舊的列
       cs.update({ time: t, open: c.open, high: c.high, low: c.low, close: c.close });
       if (volumeSeriesRef.current) {
         volumeSeriesRef.current.update({ time: t, value: c.volume, color: c.close >= c.open ? up : down });
@@ -161,7 +188,7 @@ export function PriceChart({
       if (prev != null && newClose !== prev) setFlash(newClose > prev ? "up" : "down");
       return newClose;
     });
-  }, [liveQuery.data]);
+  }, [liveQuery.data, candles, chartType]);
 
   useEffect(() => {
     if (!flash) return;
