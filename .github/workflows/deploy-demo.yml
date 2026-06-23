@@ -12,6 +12,11 @@ on:
           - plan
           - apply
           - destroy
+      replace_instance:
+        description: "On apply, recreate the EC2 instance (re-runs cloud-init; picks up .env/secret changes). EIP/IP unchanged."
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
@@ -77,7 +82,11 @@ jobs:
               terraform plan -input=false
               ;;
             apply)
-              terraform apply -input=false -auto-approve
+              replace_arg=""
+              if [ "${{ github.event.inputs.replace_instance }}" = "true" ]; then
+                replace_arg="-replace=aws_instance.demo"
+              fi
+              terraform apply -input=false -auto-approve $replace_arg
               ;;
             destroy)
               terraform destroy -input=false -auto-approve
