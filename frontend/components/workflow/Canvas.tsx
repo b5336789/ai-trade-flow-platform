@@ -11,17 +11,25 @@ import {
   type Node,
   type ReactFlowInstance,
 } from "@xyflow/react";
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { NodeType } from "@/lib/api";
 import { CATEGORY_COLOR, CATEGORY_LABEL, NODE_CATALOG, type NodeCategory } from "./nodeCatalog";
 import { TradeNode } from "./TradeNode";
 import type { TradeNodeData, useWorkflowState } from "./useWorkflowState";
+import { useTheme } from "@/app/providers";
 
 const CATS: NodeCategory[] = ["data", "strategy", "logic", "order", "output"];
 
 export function Canvas({ wf, onInit }: { wf: ReturnType<typeof useWorkflowState>; onInit?: (i: ReactFlowInstance) => void }) {
   const nodeTypes = useMemo(() => ({ trade: TradeNode }), []);
   const { screenToFlowPosition } = useReactFlow();
+  const { resolved } = useTheme();
+  // React Flow writes colorMode into the .react-flow className. SSR can't know the
+  // resolved theme, so render the default ("light") until mounted to avoid a
+  // hydration mismatch (which React 18 resolves by KEEPING the server class —
+  // leaving the canvas stuck on the wrong theme).
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   const onDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -55,6 +63,7 @@ export function Canvas({ wf, onInit }: { wf: ReturnType<typeof useWorkflowState>
         nodes={wf.nodes}
         edges={wf.edges}
         nodeTypes={nodeTypes}
+        colorMode={mounted ? resolved : "light"}
         onNodesChange={wf.onNodesChange}
         onEdgesChange={wf.onEdgesChange}
         onConnect={wf.onConnect}

@@ -3,6 +3,7 @@
 import { createChart, ColorType, LineStyle, type UTCTimestamp, type MouseEventParams } from "lightweight-charts";
 import { useEffect, useRef } from "react";
 import type { WorkflowRunDTO, WorkflowSignalDTO } from "@/lib/api";
+import { useTheme } from "@/app/providers";
 
 export function WorkflowBacktestChart({
   run,
@@ -17,6 +18,7 @@ export function WorkflowBacktestChart({
   // Fix 2: store callback in a ref so chart effect doesn't re-mount on every parent render
   const onSelectRef = useRef(onSelectSignal);
   useEffect(() => { onSelectRef.current = onSelectSignal; }, [onSelectSignal]);
+  const { resolved } = useTheme();
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -24,10 +26,10 @@ export function WorkflowBacktestChart({
     const v = (n: string, f: string) => css.getPropertyValue(n).trim() || f;
     const up = v("--up", "#34D399");
     const down = v("--down", "#F87171");
-    const neutral = v("--text-muted", "#8A9099");
+    const neutral = v("--muted", "#8A9099");
     const bg = v("--bg", "#0A0B0D");
     const gridColor = v("--border", "#1f1f1f");
-    const textColor = v("--text-muted", "#8A9099");
+    const textColor = v("--muted", "#8A9099");
 
     const points = run.equity_curve_json ?? [];
     const isUp = points.length >= 2 ? points[points.length - 1].equity >= points[0].equity : true;
@@ -121,7 +123,7 @@ export function WorkflowBacktestChart({
       chart.unsubscribeClick(clickHandler as Parameters<typeof chart.unsubscribeClick>[0]);
       chart.remove();
     };
-  }, [run, signals]);
+  }, [run, signals, resolved]);
 
   return <div ref={containerRef} className="w-full" />;
 }

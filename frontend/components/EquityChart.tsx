@@ -3,9 +3,11 @@
 import { createChart, ColorType, LineStyle, type UTCTimestamp } from "lightweight-charts";
 import { useEffect, useRef } from "react";
 import type { EquityPoint } from "@/lib/api";
+import { useTheme } from "@/app/providers";
 
 export function EquityChart({ points, height = 280 }: { points: EquityPoint[]; height?: number }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const { resolved } = useTheme();
 
   useEffect(() => {
     if (!containerRef.current || points.length < 2) return;
@@ -46,7 +48,7 @@ export function EquityChart({ points, height = 280 }: { points: EquityPoint[]; h
       window.removeEventListener("resize", onResize);
       chart.remove();
     };
-  }, [points, height]);
+  }, [points, height, resolved]);
 
   if (points.length < 2) return null;
   return <div ref={containerRef} className="w-full" />;

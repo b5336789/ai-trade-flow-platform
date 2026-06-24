@@ -19,8 +19,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html
       lang="en"
+      suppressHydrationWarning
       className={`${GeistSans.variable} ${GeistMono.variable} ${display.variable} ${code.variable} ${cjk.variable}`}
     >
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "(function(){try{var p=localStorage.getItem('theme');var m=window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';document.documentElement.dataset.theme=(!p||p==='system')?m:p;}catch(e){document.documentElement.dataset.theme='dark';}})();",
+          }}
+        />
+      </head>
       <body>
         <Providers>{children}</Providers>
       </body>
