@@ -53,6 +53,23 @@ def test_api_rejects_non_bearer_scheme(client, monkeypatch):
     assert resp.status_code == 401
 
 
+def test_non_ascii_token_rejected_not_crash(monkeypatch):
+    """A non-ASCII bearer token must raise 401, not crash.
+
+    The constant-time check compares UTF-8 bytes; a str-level ``hmac.compare_digest`` would raise
+    TypeError on non-ASCII input. Asserted at the dependency level because the HTTP transport
+    rejects non-ASCII header bytes before they ever reach the app.
+    """
+    from fastapi import HTTPException
+
+    from app.api.deps import require_api_token
+
+    monkeypatch.setattr(settings, "api_token", "secret-token")
+    with pytest.raises(HTTPException) as exc:
+        require_api_token(authorization="Bearer ☃-not-the-token")
+    assert exc.value.status_code == 401
+
+
 def test_empty_token_leaves_api_open(client, monkeypatch):
     """Empty api_token => auth DISABLED so local dev + existing tests work without a token."""
     monkeypatch.setattr(settings, "api_token", "")

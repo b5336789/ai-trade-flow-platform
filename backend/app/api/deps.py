@@ -11,6 +11,7 @@ on every unauthenticated request. Real deployments MUST set ``API_TOKEN``.
 
 from __future__ import annotations
 
+import hmac
 import logging
 
 from fastapi import Header, HTTPException, status
@@ -43,5 +44,9 @@ def require_api_token(authorization: str | None = Header(default=None)) -> None:
         raise _UNAUTHORIZED
 
     scheme, _, token = authorization.partition(" ")
-    if scheme.lower() != "bearer" or token != settings.api_token:
+    # Constant-time compare so a wrong token can't be recovered byte-by-byte via response timing.
+    # Compare bytes (not str) so a non-ASCII token can't raise TypeError -> 500 instead of 401.
+    if scheme.lower() != "bearer" or not hmac.compare_digest(
+        token.encode("utf-8"), settings.api_token.encode("utf-8")
+    ):
         raise _UNAUTHORIZED
