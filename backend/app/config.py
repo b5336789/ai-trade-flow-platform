@@ -108,6 +108,14 @@ class Settings(BaseSettings):
     # Notifications (optional outbound webhook, e.g. Slack/Discord incoming webhook URL)
     notify_webhook_url: str = ""
 
+    @field_validator("notify_webhook_url", mode="before")
+    @classmethod
+    def _normalize_notify_webhook_url(cls, value: object) -> object:
+        """Treat the deploy sentinel as unset so notification webhooks stay disabled cleanly."""
+        if value == "__disabled__":
+            return ""
+        return value
+
     # Paper trading
     paper_starting_cash: float = 100_000.0
     paper_quote_asset: str = "USDT"

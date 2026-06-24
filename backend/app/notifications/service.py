@@ -6,11 +6,15 @@ POST must never break trading — but the in-app record is always written.
 
 from __future__ import annotations
 
+import logging
+
 import httpx
 from sqlmodel import Session
 
 from app.config import settings
 from app.models import Notification
+
+logger = logging.getLogger(__name__)
 
 
 def record_notification(
@@ -52,5 +56,20 @@ def notify(
     meta: dict | None = None,
 ) -> Notification:
     notification = record_notification(session, title, message, level, meta)
+    log_level = (
+        logging.ERROR
+        if level == "error"
+        else logging.WARNING
+        if level == "warning"
+        else logging.INFO
+    )
+    logger.log(
+        log_level,
+        "notification_event title=%r level=%s message=%r meta=%r",
+        title,
+        level,
+        message,
+        meta or {},
+    )
     dispatch_webhook(title, message, level, meta)
     return notification

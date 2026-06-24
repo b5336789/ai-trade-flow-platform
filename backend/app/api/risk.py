@@ -7,7 +7,7 @@ the configured base currency (TWD).
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlmodel import Session
 
@@ -15,6 +15,7 @@ from app.brokers.registry import get_broker
 from app.config import settings
 from app.db import get_session
 from app.marketdata.fx import FxConverter, quote_currency_for
+from app.notifications.service import notify
 from app.schemas import MarketKind
 from app.trading import runtime_state
 from app.trading.portfolio import build_portfolio
@@ -35,6 +36,10 @@ class RiskStatus(BaseModel):
     exposure_base: float
     equity_base: float
     day_start_equity_base: float
+
+
+class KillSwitchRequest(BaseModel):
+    engaged: bool
 
 
 @router.get("/status", response_model=RiskStatus)
@@ -67,14 +72,44 @@ def risk_status(
 
 
 @router.post("/kill-switch")
-def set_kill_switch(engaged: bool, session: Session = Depends(get_session)) -> dict[str, bool]:
-    """Engage (``engaged=true``) or disengage the persisted runtime kill switch."""
-    runtime_state.set_kill_switch(session, engaged)
-    return {"kill_switch": engaged}
+def set_kill_switch(
+    payload: KillSwitchRequest | None = Body(default=None),
+    engaged: bool | None = Query(default=None),
+    session: Session = Depends(get_session),
+) -> dict[str, bool]:
+    """Engage/disengage the persisted runtime kill switch.
+
+    Accepts the documented JSON body (``{"engaged": true}``) and keeps the old query-param
+    shape for operator scripts that already use ``?engaged=true``.
+    """
+    if payload is None and engaged is None:
+        raise HTTPException(status_code=422, detail="engaged is required")
+    next_state = payload.engaged if payload is not None else bool(engaged)
+    title = "Kill switch engaged" if next_state else "Kill switch released"
+    runtime_state.set_kill_switch(session, next_state)
+    notify(
+        session,
+        title=title,
+        message=(
+            "New entries are blocked; exits remain allowed."
+            if next_state
+            else "New entries may pass configured risk gates again."
+        ),
+        level="warning" if next_state else "info",
+        meta={"gate": "kill_switch", "engaged": next_state},
+    )
+    return {"kill_switch": next_state}
 
 
 @router.post("/resume")
 def resume(session: Session = Depends(get_session)) -> dict[str, bool]:
     """Manually clear the ``halted`` flag to resume entries after a daily-loss breach."""
     runtime_state.set_halted(session, False)
+    notify(
+        session,
+        title="Trading resumed after halt",
+        message="The halted flag was cleared; new entries may pass configured risk gates again.",
+        level="info",
+        meta={"gate": "halted", "halted": False},
+    )
     return {"halted": False}

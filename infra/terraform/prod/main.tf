@@ -262,6 +262,13 @@ resource "aws_secretsmanager_secret" "anthropic_api_key" {
   tags = local.common_tags
 }
 
+resource "aws_secretsmanager_secret" "notify_webhook_url" {
+  name                    = "${local.name_prefix}/notify-webhook-url"
+  recovery_window_in_days = 0
+
+  tags = local.common_tags
+}
+
 resource "aws_lb" "app" {
   name               = "${local.name_prefix}-alb"
   internal           = false
@@ -390,6 +397,7 @@ resource "aws_iam_role_policy" "ecs_read_secrets" {
           aws_secretsmanager_secret.database_url.arn,
           aws_secretsmanager_secret.api_token.arn,
           aws_secretsmanager_secret.anthropic_api_key.arn,
+          aws_secretsmanager_secret.notify_webhook_url.arn,
         ]
       },
     ]
@@ -432,6 +440,7 @@ resource "aws_ecs_task_definition" "backend" {
         { name = "DATABASE_URL", valueFrom = aws_secretsmanager_secret.database_url.arn },
         { name = "API_TOKEN", valueFrom = aws_secretsmanager_secret.api_token.arn },
         { name = "ANTHROPIC_API_KEY", valueFrom = aws_secretsmanager_secret.anthropic_api_key.arn },
+        { name = "NOTIFY_WEBHOOK_URL", valueFrom = aws_secretsmanager_secret.notify_webhook_url.arn },
       ]
       logConfiguration = {
         logDriver = "awslogs"
@@ -538,4 +547,201 @@ resource "aws_ecs_service" "frontend" {
   depends_on = [aws_lb_listener.http]
 
   tags = local.common_tags
+}
+
+resource "aws_sns_topic" "ops_alerts" {
+  name = "${local.name_prefix}-ops-alerts"
+
+  tags = local.common_tags
+}
+
+resource "aws_sns_topic_subscription" "ops_alert_email" {
+  count     = var.alarm_email == "" ? 0 : 1
+  topic_arn = aws_sns_topic.ops_alerts.arn
+  protocol  = "email"
+  endpoint  = var.alarm_email
+}
+
+resource "aws_sns_topic_policy" "ops_alerts" {
+  arn = aws_sns_topic.ops_alerts.arn
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "AllowEventBridgePublish"
+        Effect = "Allow"
+        Principal = {
+          Service = "events.amazonaws.com"
+        }
+        Action   = "sns:Publish"
+        Resource = aws_sns_topic.ops_alerts.arn
+      },
+    ]
+  })
+}
+
+resource "aws_cloudwatch_metric_alarm" "alb_5xx" {
+  alarm_name          = "${local.name_prefix}-alb-5xx"
+  alarm_description   = "ALB generated 5xx responses. Check listener rules, target health, and application logs."
+  namespace           = "AWS/ApplicationELB"
+  metric_name         = "HTTPCode_ELB_5XX_Count"
+  statistic           = "Sum"
+  period              = 60
+  evaluation_periods  = 5
+  threshold           = 5
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.ops_alerts.arn]
+  ok_actions          = [aws_sns_topic.ops_alerts.arn]
+
+  dimensions = {
+    LoadBalancer = aws_lb.app.arn_suffix
+  }
+
+  tags = local.common_tags
+}
+
+resource "aws_cloudwatch_metric_alarm" "backend_target_5xx" {
+  alarm_name          = "${local.name_prefix}-backend-target-5xx"
+  alarm_description   = "Backend target emitted 5xx responses. Check ECS backend logs and database connectivity."
+  namespace           = "AWS/ApplicationELB"
+  metric_name         = "HTTPCode_Target_5XX_Count"
+  statistic           = "Sum"
+  period              = 60
+  evaluation_periods  = 5
+  threshold           = 5
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.ops_alerts.arn]
+  ok_actions          = [aws_sns_topic.ops_alerts.arn]
+
+  dimensions = {
+    LoadBalancer = aws_lb.app.arn_suffix
+    TargetGroup  = aws_lb_target_group.backend.arn_suffix
+  }
+
+  tags = local.common_tags
+}
+
+resource "aws_cloudwatch_metric_alarm" "backend_unhealthy_targets" {
+  alarm_name          = "${local.name_prefix}-backend-unhealthy-targets"
+  alarm_description   = "At least one backend target is unhealthy."
+  namespace           = "AWS/ApplicationELB"
+  metric_name         = "UnHealthyHostCount"
+  statistic           = "Average"
+  period              = 60
+  evaluation_periods  = 3
+  threshold           = 1
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.ops_alerts.arn]
+  ok_actions          = [aws_sns_topic.ops_alerts.arn]
+
+  dimensions = {
+    LoadBalancer = aws_lb.app.arn_suffix
+    TargetGroup  = aws_lb_target_group.backend.arn_suffix
+  }
+
+  tags = local.common_tags
+}
+
+resource "aws_cloudwatch_metric_alarm" "frontend_unhealthy_targets" {
+  alarm_name          = "${local.name_prefix}-frontend-unhealthy-targets"
+  alarm_description   = "At least one frontend target is unhealthy."
+  namespace           = "AWS/ApplicationELB"
+  metric_name         = "UnHealthyHostCount"
+  statistic           = "Average"
+  period              = 60
+  evaluation_periods  = 3
+  threshold           = 1
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.ops_alerts.arn]
+  ok_actions          = [aws_sns_topic.ops_alerts.arn]
+
+  dimensions = {
+    LoadBalancer = aws_lb.app.arn_suffix
+    TargetGroup  = aws_lb_target_group.frontend.arn_suffix
+  }
+
+  tags = local.common_tags
+}
+
+resource "aws_cloudwatch_log_metric_filter" "risk_halt" {
+  name           = "${local.name_prefix}-risk-halt"
+  log_group_name = aws_cloudwatch_log_group.backend.name
+  pattern        = "\"notification_event\" \"max_daily_loss\""
+
+  metric_transformation {
+    name      = "RiskHaltEvents"
+    namespace = local.name_prefix
+    value     = "1"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "risk_halt" {
+  alarm_name          = "${local.name_prefix}-risk-halt"
+  alarm_description   = "A max_daily_loss risk halt was emitted by the backend."
+  namespace           = local.name_prefix
+  metric_name         = aws_cloudwatch_log_metric_filter.risk_halt.metric_transformation[0].name
+  statistic           = "Sum"
+  period              = 60
+  evaluation_periods  = 1
+  threshold           = 1
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.ops_alerts.arn]
+
+  tags = local.common_tags
+}
+
+resource "aws_cloudwatch_log_metric_filter" "kill_switch" {
+  name           = "${local.name_prefix}-kill-switch"
+  log_group_name = aws_cloudwatch_log_group.backend.name
+  pattern        = "\"notification_event\" \"kill_switch\""
+
+  metric_transformation {
+    name      = "KillSwitchEvents"
+    namespace = local.name_prefix
+    value     = "1"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "kill_switch" {
+  alarm_name          = "${local.name_prefix}-kill-switch"
+  alarm_description   = "The backend emitted a kill-switch operator event."
+  namespace           = local.name_prefix
+  metric_name         = aws_cloudwatch_log_metric_filter.kill_switch.metric_transformation[0].name
+  statistic           = "Sum"
+  period              = 60
+  evaluation_periods  = 1
+  threshold           = 1
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.ops_alerts.arn]
+
+  tags = local.common_tags
+}
+
+resource "aws_cloudwatch_event_rule" "ecs_task_stopped" {
+  name        = "${local.name_prefix}-ecs-task-stopped"
+  description = "Alert when an ECS task in the production cluster stops."
+
+  event_pattern = jsonencode({
+    source      = ["aws.ecs"]
+    detail-type = ["ECS Task State Change"]
+    detail = {
+      clusterArn = [aws_ecs_cluster.main.arn]
+      lastStatus = ["STOPPED"]
+    }
+  })
+
+  tags = local.common_tags
+}
+
+resource "aws_cloudwatch_event_target" "ecs_task_stopped" {
+  rule      = aws_cloudwatch_event_rule.ecs_task_stopped.name
+  target_id = "ops-alerts"
+  arn       = aws_sns_topic.ops_alerts.arn
 }

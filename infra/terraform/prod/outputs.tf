@@ -37,3 +37,13 @@ output "anthropic_api_key_secret_name" {
   description = "Secrets Manager secret name for the Anthropic API key."
   value       = aws_secretsmanager_secret.anthropic_api_key.name
 }
+
+output "notify_webhook_url_secret_name" {
+  description = "Secrets Manager secret name for the outbound notification webhook URL."
+  value       = aws_secretsmanager_secret.notify_webhook_url.name
+}
+
+output "ops_alerts_topic_arn" {
+  description = "SNS topic ARN for production operational alarms."
+  value       = aws_sns_topic.ops_alerts.arn
+}
