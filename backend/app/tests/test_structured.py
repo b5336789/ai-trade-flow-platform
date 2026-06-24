@@ -14,36 +14,40 @@ class Out(BaseModel):
     value: str
 
 
-def test_anthropic_branch_returns_parsed(monkeypatch):
+def test_anthropic_branch_uses_instructor(monkeypatch):
     monkeypatch.setattr(structured.settings, "ai_provider", "anthropic")
     captured = {}
 
     class FakeMessages:
-        def parse(self, **kwargs):
+        def create(self, **kwargs):
             captured.update(kwargs)
-            return SimpleNamespace(parsed_output=Out(value="ok"))
+            return Out(value="ok")
 
-    monkeypatch.setattr(structured, "get_claude_client",
+    monkeypatch.setattr(structured, "_get_anthropic_client",
                         lambda: SimpleNamespace(messages=FakeMessages()))
 
-    out = structured_completion(system="S", content="C", output_model=Out)
+    out = structured_completion(system="S", content="C", output_model=Out, max_retries=4)
     assert out == Out(value="ok")
-    assert captured["thinking"] == {"type": "adaptive"}
-    assert captured["output_format"] is Out
+    # Instructor JSON mode: client-side response_model + retries (handles the
+    # recursive StrategySpec schema that Anthropic's native output_format rejects).
+    assert captured["response_model"] is Out
+    assert captured["max_retries"] == 4
+    assert captured["system"] == "S"
+    assert captured["messages"] == [{"role": "user", "content": "C"}]
 
 
-def test_anthropic_none_fails_loud(monkeypatch):
-    monkeypatch.setattr(structured.settings, "ai_provider", "anthropic")
+def test_anthropic_client_uses_json_mode(monkeypatch):
+    """Anthropic path must use Instructor ANTHROPIC_JSON (not native output_format),
+    because StrategySpec's condition tree is self-referencing and the native
+    structured-output validator rejects recursive schemas. No network at build."""
+    import anthropic
+    import instructor
 
-    class FakeMessages:
-        def parse(self, **kwargs):
-            return SimpleNamespace(parsed_output=None)
-
+    monkeypatch.setattr(structured, "_anthropic_client", None)
     monkeypatch.setattr(structured, "get_claude_client",
-                        lambda: SimpleNamespace(messages=FakeMessages()))
-
-    with pytest.raises(RuntimeError):
-        structured_completion(system="S", content="C", output_model=Out)
+                        lambda: anthropic.Anthropic(api_key="test-key"))
+    client = structured._get_anthropic_client()
+    assert client.mode == instructor.Mode.JSON
 
 
 def test_lmstudio_branch_uses_instructor(monkeypatch):
