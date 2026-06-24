@@ -3,6 +3,7 @@
 import { createChart, ColorType, LineStyle, type UTCTimestamp, type MouseEventParams } from "lightweight-charts";
 import { useEffect, useRef } from "react";
 import type { WorkflowRunDTO, WorkflowSignalDTO } from "@/lib/api";
+import { useTheme } from "@/app/providers";
 
 export function WorkflowBacktestChart({
   run,
@@ -17,6 +18,7 @@ export function WorkflowBacktestChart({
   // Fix 2: store callback in a ref so chart effect doesn't re-mount on every parent render
   const onSelectRef = useRef(onSelectSignal);
   useEffect(() => { onSelectRef.current = onSelectSignal; }, [onSelectSignal]);
+  const { resolved } = useTheme();
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -121,7 +123,7 @@ export function WorkflowBacktestChart({
       chart.unsubscribeClick(clickHandler as Parameters<typeof chart.unsubscribeClick>[0]);
       chart.remove();
     };
-  }, [run, signals]);
+  }, [run, signals, resolved]);
 
   return <div ref={containerRef} className="w-full" />;
 }

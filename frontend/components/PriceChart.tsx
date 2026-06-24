@@ -9,6 +9,7 @@ import {
   sma, ema, bollinger, rsi, macd,
   type ChartMarker, type Overlay, type LiveConfig, type OHLCV, type IndicatorConfig, type OscillatorConfig,
 } from "@/lib/chart-helpers";
+import { useTheme } from "@/app/providers";
 
 export interface PriceChartProps {
   candles: Candle[];
@@ -41,6 +42,7 @@ export function PriceChart({
   const volumeSeriesRef = useRef<ISeriesApi<"Histogram"> | null>(null);
   const oscRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const [legend, setLegend] = useState<OHLCV | null>(null);
+  const { resolved } = useTheme();
 
   const toggleFullscreen = () => {
     const el = wrapRef.current;
@@ -108,7 +110,7 @@ export function PriceChart({
     ro.observe(el);
     return () => { ro.disconnect(); chart.remove(); chartRef.current = null; mainSeriesRef.current = null; volumeSeriesRef.current = null; };
   // 類型/座標改變需重建;candles 不在依賴內。
-  }, [height, volume, onCrosshairMove, chartType, logScale]);
+  }, [height, volume, onCrosshairMove, chartType, logScale, resolved]);
 
   // 資料更新:setData(整段)。增量 update 由 live 模式負責(Task 5)。
   useEffect(() => {
@@ -126,7 +128,7 @@ export function PriceChart({
     }
     if (volumeSeriesRef.current) volumeSeriesRef.current.setData(toVolumeData(candles, up, down));
     chart.timeScale().fitContent();
-  }, [candles, chartType]);
+  }, [candles, chartType, resolved]);
 
   // 標記
   useEffect(() => {
@@ -134,7 +136,7 @@ export function PriceChart({
     if (!cs) return;
     const up = cssVar("--up", "#34D399"), down = cssVar("--down", "#F87171");
     cs.setMarkers((markers ?? []).map((m) => markerToSeries(m, up, down)));
-  }, [markers]);
+  }, [markers, resolved]);
 
   // 疊加均線(含 Bollinger);同時涵蓋舊 overlays → 轉等效 indicator(DRY)。
   useEffect(() => {
@@ -174,7 +176,7 @@ export function PriceChart({
       if (chartRef.current !== chart) return; // chart 已 dispose 時不可 removeSeries
       series.forEach((s) => chart.removeSeries(s));
     };
-  }, [overlays, indicators, candles]);
+  }, [overlays, indicators, candles, resolved]);
 
   // ── 副圖:RSI / MACD(獨立 chart 實例,時間軸雙向同步)──────────────
   useEffect(() => {
@@ -252,7 +254,7 @@ export function PriceChart({
         c.remove();
       });
     };
-  }, [oscillators, candles]);
+  }, [oscillators, candles, resolved]);
 
   // ── Live 輪詢(live 非 null 時啟用)──────────────────────────────
   const [lastPrice, setLastPrice] = useState<number | null>(null);
