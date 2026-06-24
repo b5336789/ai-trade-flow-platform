@@ -71,12 +71,42 @@ class Settings(BaseSettings):
             return [origin.strip() for origin in value.split(",") if origin.strip()]
         return value
 
-    # FX seam (M0.6). All portfolio-level risk is judged in BASE_CURRENCY. ``fx_rates`` maps a
-    # currency code to its value in the base currency (e.g. "USD:31.5" => 1 USD = 31.5 TWD).
-    # Env form is a comma-separated "CCY:rate" string (NoDecode + validator below), e.g.
-    # "USD:31.5,USDT:31.5,TWD:1.0". M1.1 will replace these statics with a live provider.
+    # FX seam. All portfolio-level risk is judged in BASE_CURRENCY. ``fx_provider=static`` uses
+    # the explicit ``fx_rates`` map; ``fx_provider=open_er_api`` fetches live USD/TWD-backed rates
+    # through Open ExchangeRate-API with the TTL below. The static map remains the safe local-dev
+    # provider and can be enabled as an explicit fallback for provider outages.
     base_currency: str = "TWD"
+    fx_provider: str = "static"
+    fx_rate_cache_ttl_seconds: int = 3600
+    fx_live_currencies: Annotated[list[str], NoDecode] = ["USD", "USDT"]
+    fx_static_fallback_enabled: bool = False
+    fx_open_er_api_base_url: str = "https://open.er-api.com/v6/latest"
     fx_rates: Annotated[dict[str, float], NoDecode] = {"TWD": 1.0, "USD": 31.5, "USDT": 31.5}
+
+    @field_validator("fx_provider")
+    @classmethod
+    def _validate_fx_provider(cls, value: str) -> str:
+        provider = value.lower()
+        if provider not in {"static", "open_er_api"}:
+            raise ValueError("FX_PROVIDER must be one of: static, open_er_api")
+        return provider
+
+    @field_validator("fx_rate_cache_ttl_seconds")
+    @classmethod
+    def _validate_fx_cache_ttl(cls, value: int) -> int:
+        if value <= 0:
+            raise ValueError("FX_RATE_CACHE_TTL_SECONDS must be positive")
+        return value
+
+    @field_validator("fx_live_currencies", mode="before")
+    @classmethod
+    def _split_fx_live_currencies(cls, value: object) -> object:
+        """Allow a comma-separated live-currency string from the env var."""
+        if isinstance(value, str):
+            return [currency.strip().upper() for currency in value.split(",") if currency.strip()]
+        if isinstance(value, list):
+            return [str(currency).upper() for currency in value]
+        return value
 
     @field_validator("fx_rates", mode="before")
     @classmethod
@@ -92,8 +122,10 @@ class Settings(BaseSettings):
                 ccy = ccy.strip()
                 if not ccy or not rate.strip():
                     raise ValueError(f"invalid FX_RATES entry '{pair}'; expected 'CCY:rate'")
-                parsed[ccy] = float(rate)
+                parsed[ccy.upper()] = float(rate)
             return parsed
+        if isinstance(value, dict):
+            return {str(ccy).upper(): float(rate) for ccy, rate in value.items()}
         return value
 
     # Portfolio-level risk (M0.6), all in BASE_CURRENCY (TWD). See trading/risk.py PortfolioGuard.
