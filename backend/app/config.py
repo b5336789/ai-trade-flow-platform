@@ -31,6 +31,11 @@ class Settings(BaseSettings):
     ai_base_url: str = "http://localhost:1234/v1"
     ai_local_api_key: str = "lm-studio"
 
+    # OpenRouter (cloud demo, OpenAI-compatible). Used when AI_PROVIDER=openrouter.
+    # AI_MODEL=openrouter/free routes to a free model and filters for structured-output support.
+    openrouter_api_key: str = ""
+    openrouter_base_url: str = "https://openrouter.ai/api/v1"
+
     # Structured-output retries when the model returns malformed/invalid JSON (lmstudio path).
     # Local models need more attempts than Claude; bump via AI_MAX_RETRIES if validation keeps failing.
     ai_max_retries: int = 5
