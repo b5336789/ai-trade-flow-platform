@@ -94,7 +94,6 @@ resource "aws_instance" "demo" {
   user_data = templatefile("${path.module}/user-data.sh.tftpl", {
     repo_url           = var.repo_url
     branch             = var.branch
-    anthropic_api_key  = var.anthropic_api_key
     openrouter_api_key = var.openrouter_api_key
     api_token          = var.api_token
     domain             = var.domain_name
