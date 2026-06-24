@@ -32,9 +32,9 @@ git checkout ${branch}
 # and CORS use https://<domain>.
 cat > /opt/app/.env <<ENV
 TRADING_MODE=paper
-AI_PROVIDER=anthropic
-AI_MODEL=claude-opus-4-8
-ANTHROPIC_API_KEY=${anthropic_api_key}
+AI_PROVIDER=openrouter
+AI_MODEL=openrouter/free
+OPENROUTER_API_KEY=${openrouter_api_key}
 API_TOKEN=${api_token}
 NEXT_PUBLIC_API_TOKEN=${api_token}
 NEXT_PUBLIC_API_BASE_URL=https://${domain}

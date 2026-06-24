@@ -1,5 +1,6 @@
 # Copy to terraform.tfvars (gitignored) and fill in. NEVER commit terraform.tfvars.
 anthropic_api_key = "sk-ant-..."
+openrouter_api_key = "sk-or-..."  # OpenRouter API key; cloud demo uses the free model router
 api_token         = "pick-a-long-random-string"
 
 # Optional overrides:

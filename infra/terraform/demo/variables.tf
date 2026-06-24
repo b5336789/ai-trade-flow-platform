@@ -30,7 +30,14 @@ variable "instance_type" {
 
 variable "anthropic_api_key" {
   type        = string
-  description = "Anthropic API key for AI nodes. Written to the instance .env."
+  description = "Anthropic API key for AI nodes. Optional: the demo uses OpenRouter, so this may be empty."
+  sensitive   = true
+  default     = ""
+}
+
+variable "openrouter_api_key" {
+  type        = string
+  description = "OpenRouter API key for AI nodes (cloud demo uses the free model router). Written to the instance .env."
   sensitive   = true
 }
 
