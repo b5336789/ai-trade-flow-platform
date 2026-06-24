@@ -88,3 +88,48 @@ def test_lmstudio_client_uses_json_schema_mode(monkeypatch):
     monkeypatch.setattr(structured, "_lmstudio_client", None)
     client = structured._get_lmstudio_client()
     assert client.mode == instructor.Mode.JSON_SCHEMA
+
+
+def test_openrouter_branch_uses_instructor(monkeypatch):
+    monkeypatch.setattr(structured.settings, "ai_provider", "openrouter")
+    captured = {}
+
+    class FakeCompletions:
+        def create(self, **kwargs):
+            captured.update(kwargs)
+            return Out(value="router")
+
+    fake_client = SimpleNamespace(
+        chat=SimpleNamespace(completions=FakeCompletions())
+    )
+    monkeypatch.setattr(structured, "_get_openrouter_client", lambda: fake_client)
+
+    out = structured_completion(system="S", content="C", output_model=Out, max_retries=2)
+    assert out == Out(value="router")
+    assert captured["response_model"] is Out
+    assert captured["max_retries"] == 2
+    # OpenAI-style: system prompt is the first message
+    assert captured["messages"][0] == {"role": "system", "content": "S"}
+    assert captured["messages"][1] == {"role": "user", "content": "C"}
+
+
+def test_openrouter_client_uses_json_mode_and_base_url(monkeypatch):
+    """OpenRouter client is built against the configured base URL in Instructor JSON
+    mode (prompt-based + client validation) for max free-model compatibility with the
+    recursive StrategySpec. Construction needs no network."""
+    import instructor
+
+    monkeypatch.setattr(structured, "_openrouter_client", None)
+    monkeypatch.setattr(structured.settings, "openrouter_api_key", "or-test-key")
+    monkeypatch.setattr(structured.settings, "openrouter_base_url",
+                        "https://openrouter.ai/api/v1")
+    client = structured._get_openrouter_client()
+    assert client.mode == instructor.Mode.JSON
+    assert str(client.client.base_url).rstrip("/") == "https://openrouter.ai/api/v1"
+
+
+def test_openrouter_missing_key_fails_loud(monkeypatch):
+    monkeypatch.setattr(structured, "_openrouter_client", None)
+    monkeypatch.setattr(structured.settings, "openrouter_api_key", "")
+    with pytest.raises(RuntimeError):
+        structured._get_openrouter_client()

@@ -1,11 +1,11 @@
 """Provider-agnostic structured completion.
 
-Routes a (system, content, output_model) request to either Claude or a local
-LM Studio model (both via Instructor, JSON mode), selected by
-``settings.ai_provider``. Fail loud: a missing key, unreachable endpoint,
-unparseable output, or unknown provider raises — never silently degrade.
+Routes a (system, content, output_model) request to Claude, a local LM Studio
+model, or OpenRouter (cloud free models) (all via Instructor, JSON mode),
+selected by ``settings.ai_provider``. Fail loud: a missing key, unreachable
+endpoint, unparseable output, or unknown provider raises — never silently degrade.
 
-Both providers go through Instructor's JSON mode (client-side schema +
+All providers go through Instructor's JSON mode (client-side schema +
 validation) rather than the provider's native structured-output validator:
 ``StrategySpec`` has a self-referencing condition tree (Combinator -> Combinator)
 and Anthropic's native ``messages.parse``/``output_format`` rejects recursive
@@ -24,6 +24,7 @@ T = TypeVar("T", bound=BaseModel)
 
 _lmstudio_client = None
 _anthropic_client = None
+_openrouter_client = None
 
 
 def _get_anthropic_client():
@@ -60,6 +61,32 @@ def _get_lmstudio_client():
     return _lmstudio_client
 
 
+def _get_openrouter_client():
+    """Lazily build + cache the Instructor-wrapped OpenAI client for OpenRouter.
+
+    OpenRouter is OpenAI-compatible. JSON mode (not JSON_SCHEMA): the free model
+    router serves arbitrary models, and prompt-based JSON + client-side validation +
+    retries handles the recursive StrategySpec most reliably. Fail loud on a missing key.
+    """
+    if not settings.openrouter_api_key:
+        raise RuntimeError(
+            "OPENROUTER_API_KEY is not set — AI nodes require it when AI_PROVIDER=openrouter"
+        )
+    global _openrouter_client
+    if _openrouter_client is None:
+        import instructor
+        from openai import OpenAI
+
+        _openrouter_client = instructor.from_openai(
+            OpenAI(
+                base_url=settings.openrouter_base_url,
+                api_key=settings.openrouter_api_key,
+            ),
+            mode=instructor.Mode.JSON,
+        )
+    return _openrouter_client
+
+
 def structured_completion(
     *,
     system: str,
@@ -88,6 +115,19 @@ def structured_completion(
 
     if provider == "lmstudio":
         client = _get_lmstudio_client()
+        return client.chat.completions.create(
+            model=model,
+            max_tokens=max_tokens,
+            max_retries=max_retries,
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": content},
+            ],
+            response_model=output_model,
+        )
+
+    if provider == "openrouter":
+        client = _get_openrouter_client()
         return client.chat.completions.create(
             model=model,
             max_tokens=max_tokens,
