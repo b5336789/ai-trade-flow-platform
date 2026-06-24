@@ -33,7 +33,9 @@ function resolve(pref: ThemePreference): ResolvedTheme {
 
 function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [preference, setPref] = useState<ThemePreference>("system");
-  const [resolved, setResolved] = useState<ResolvedTheme>("dark");
+  const [resolved, setResolved] = useState<ResolvedTheme>(() =>
+    typeof document !== "undefined" && document.documentElement.dataset.theme === "light" ? "light" : "dark",
+  );
 
   // Sync React state to whatever the no-flash inline script already applied.
   useEffect(() => {

@@ -26,10 +26,10 @@ export function WorkflowBacktestChart({
     const v = (n: string, f: string) => css.getPropertyValue(n).trim() || f;
     const up = v("--up", "#34D399");
     const down = v("--down", "#F87171");
-    const neutral = v("--text-muted", "#8A9099");
+    const neutral = v("--muted", "#8A9099");
     const bg = v("--bg", "#0A0B0D");
     const gridColor = v("--border", "#1f1f1f");
-    const textColor = v("--text-muted", "#8A9099");
+    const textColor = v("--muted", "#8A9099");
 
     const points = run.equity_curve_json ?? [];
     const isUp = points.length >= 2 ? points[points.length - 1].equity >= points[0].equity : true;
