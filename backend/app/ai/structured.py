@@ -38,7 +38,7 @@ def _get_anthropic_client():
         import instructor
 
         _anthropic_client = instructor.from_anthropic(
-            get_claude_client(), mode=instructor.Mode.ANTHROPIC_JSON
+            get_claude_client(), mode=instructor.Mode.JSON
         )
     return _anthropic_client
 
