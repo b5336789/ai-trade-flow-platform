@@ -114,7 +114,8 @@ Never hardcode green-as-gain.
 
 - **Shell:** left **tree-menu sidebar** (primary nav) + main content area. A slim top
   bar stays for context controls (market color, theme, live/paper). Content max-width
-  `1440px`, 22px gutters.
+  `1440px`, 22px gutters. The theme control is the `ThemeToggle` component (system/light/dark) in the top
+  bar and the docs header.
 - **策略室 grid:** `1.1fr 1.2fr` (chat | generated strategy), library grid
   `repeat(auto-fill, minmax(210px, 1fr))`. Collapses to 1 column < 980px.
 - **交易室 grid:** full-width canvas, then `2fr 1fr` (results | portfolio).

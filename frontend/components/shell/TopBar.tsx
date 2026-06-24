@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { ThemeToggle } from "@/components/shell/ThemeToggle";
 
 export function TopBar({ open, onMenu }: { open: boolean; onMenu: () => void }) {
   return (
@@ -15,12 +16,15 @@ export function TopBar({ open, onMenu }: { open: boolean; onMenu: () => void }) 
       <Link href="/" aria-label="首頁" className="font-display text-sm font-bold md:hidden">
         AI Trade Flow<span className="text-accent">.</span>
       </Link>
-      <Link
-        href="/docs"
-        className="ml-auto rounded-md border border-border bg-surface-2 px-3 py-1.5 text-[13px] text-muted hover:border-accent hover:text-text"
-      >
-        文件中心 ↗
-      </Link>
+      <div className="ml-auto flex items-center gap-3">
+        <ThemeToggle />
+        <Link
+          href="/docs"
+          className="rounded-md border border-border bg-surface-2 px-3 py-1.5 text-[13px] text-muted hover:border-accent hover:text-text"
+        >
+          文件中心 ↗
+        </Link>
+      </div>
     </header>
   );
 }
