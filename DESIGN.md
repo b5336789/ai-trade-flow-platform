@@ -76,6 +76,22 @@ Dark-first. CSS custom properties are the contract — never hardcode hex in com
 - **Status (distinct from price):** `--warning #FBBF24`, `--error #EF4444`,
   `--live #FB7185` (live-trading danger), info = accent.
 
+### Theme modes (dark / light / system)
+
+The palette is keyed by `data-theme` on `<html>`: dark is the default (`:root`),
+light is an override (`[data-theme="light"]`). First visit follows the OS via
+`prefers-color-scheme`; the user's choice (`system`/`light`/`dark`) persists in
+`localStorage` and is set before paint by an inline script in `app/layout.tsx`.
+The `/docs` handbook follows the theme (it no longer forces a light palette).
+
+**App-light palette** (tuned for AA contrast on a light terminal):
+- Backgrounds: `--bg #FBFBFA` → `--surface-1 #FFFFFF` → `--surface-2 #F4F5F6` → `--surface-3 #ECEEF0`.
+- Borders: `--border rgba(15,18,22,.10)`, `--border-strong rgba(15,18,22,.18)`.
+- Text: `--text #1A1D21`, `--muted #5B616B`, `--faint #8A9099`.
+- Accent darkens to `--accent #0E8FA8` (bright `#22D3EE` fails contrast on white) — still AI-reserved.
+- Price/status deepen for legibility: `--up #0E9F6E`, `--down #E02424`, `--warning #B45309`, `--error #DC2626`, `--live #E11D6E`.
+- 台股 inversion in light: `--up #E02424` (red=up), `--down #0E9F6E`.
+
 ### Market-aware directional color (key decision)
 
 Price up/down are **tokens, not constants**, because conventions differ by market:

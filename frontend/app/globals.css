@@ -3,6 +3,13 @@
 @tailwind utilities;
 
 :root {
+  /* font CSS vars are bound to the geist package + next/font in layout.tsx */
+  --font-ui: var(--font-geist-sans); --font-mono: var(--font-geist-mono);
+}
+
+/* ── DARK (default) ─────────────────────────────────────────────── */
+:root,
+[data-theme="dark"] {
   color-scheme: dark;
   --bg: #0A0B0D; --surface-1: #111317; --surface-2: #16181D; --surface-3: #1E2127;
   --border: rgba(255,255,255,0.08); --border-strong: rgba(255,255,255,0.14);
@@ -11,17 +18,23 @@
   --up: #34D399; --down: #F87171;
   --warning: #FBBF24; --error: #EF4444; --live: #FB7185;
   --c-data: #8A9099; --c-strat: #22D3EE; --c-logic: #FBBF24; --c-order: #34D399; --c-out: #A78BFA;
-  /* font CSS vars are bound to the geist package + next/font in layout.tsx */
-  --font-ui: var(--font-geist-sans); --font-mono: var(--font-geist-mono);
 }
-[data-market="tw"] { --up: #F05252; --down: #31C48D; }
-[data-surface="docs"] {
+
+/* ── LIGHT (dedicated app palette, tuned for AA contrast on light) ── */
+[data-theme="light"] {
   color-scheme: light;
   --bg: #FBFBFA; --surface-1: #FFFFFF; --surface-2: #F4F5F6; --surface-3: #ECEEF0;
   --border: rgba(15,18,22,0.10); --border-strong: rgba(15,18,22,0.18);
   --text: #1A1D21; --muted: #5B616B; --faint: #8A9099;
   --accent: #0E8FA8; --accent-dim: rgba(14,143,168,0.12);
+  --up: #0E9F6E; --down: #E02424;
+  --warning: #B45309; --error: #DC2626; --live: #E11D6E;
+  --c-data: #5B616B; --c-strat: #0E8FA8; --c-logic: #B45309; --c-order: #0E9F6E; --c-out: #7C5CFF;
 }
+
+/* market inversion — per theme so red=up contrast holds on each background */
+[data-market="tw"]                     { --up: #F05252; --down: #31C48D; }
+[data-theme="light"][data-market="tw"] { --up: #E02424; --down: #0E9F6E; }
 
 body { @apply bg-bg text-text font-ui; }
 
