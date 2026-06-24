@@ -1,5 +1,10 @@
 output "demo_url" {
-  description = "Open this in a browser to use the demo."
+  description = "Primary HTTPS URL (Caddy + Let's Encrypt at the domain)."
+  value       = "https://${var.domain_name}"
+}
+
+output "demo_url_ip" {
+  description = "Direct IP fallback (HTTP) for debugging before the TLS cert is issued."
   value       = "http://${aws_eip.demo.public_ip}:3000"
 }
 

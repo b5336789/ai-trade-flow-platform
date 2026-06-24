@@ -10,6 +10,18 @@ variable "aws_region" {
   default     = "ap-east-2"
 }
 
+variable "domain_name" {
+  type        = string
+  description = "Public FQDN for the demo (Caddy serves HTTPS here; Route 53 A record -> EIP)."
+  default     = "ai-trade-platform.bwtseng.com"
+}
+
+variable "route53_zone_name" {
+  type        = string
+  description = "Existing Route 53 hosted zone for the parent domain."
+  default     = "bwtseng.com"
+}
+
 variable "instance_type" {
   type        = string
   description = "EC2 instance type (arm64). t4g.small=2GB; t4g.medium=4GB if builds OOM."
