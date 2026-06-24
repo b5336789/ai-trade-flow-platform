@@ -46,6 +46,22 @@ resource "aws_security_group" "demo" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  ingress {
+    description = "HTTP (Caddy / ACME challenge)"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description = "HTTPS (Caddy)"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   egress {
     description = "Allow all outbound"
     from_port   = 0
@@ -80,7 +96,7 @@ resource "aws_instance" "demo" {
     branch            = var.branch
     anthropic_api_key = var.anthropic_api_key
     api_token         = var.api_token
-    eip               = aws_eip.demo.public_ip
+    domain            = var.domain_name
   })
 
   tags = merge(local.common_tags, { Name = "${local.name}-ec2" })
@@ -89,6 +105,20 @@ resource "aws_instance" "demo" {
 resource "aws_eip_association" "demo" {
   instance_id   = aws_instance.demo.id
   allocation_id = aws_eip.demo.id
+}
+
+# DNS: point the demo subdomain at the stable EIP (Route 53 hosted zone for the
+# parent domain must already exist). Caddy uses this to obtain a TLS cert.
+data "aws_route53_zone" "main" {
+  name = var.route53_zone_name
+}
+
+resource "aws_route53_record" "demo" {
+  zone_id = data.aws_route53_zone.main.zone_id
+  name    = var.domain_name
+  type    = "A"
+  ttl     = 300
+  records = [aws_eip.demo.public_ip]
 }
 
 # SSM Session Manager access (replaces SSH; needs no inbound port).

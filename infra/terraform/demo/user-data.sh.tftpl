@@ -27,7 +27,9 @@ fi
 cd /opt/app
 git checkout ${branch}
 
-# Environment for docker compose (env_file: .env)
+# Environment for docker compose (env_file: .env). Frontend + API are served
+# same-origin behind Caddy over HTTPS at the domain, so NEXT_PUBLIC_API_BASE_URL
+# and CORS use https://<domain>.
 cat > /opt/app/.env <<ENV
 TRADING_MODE=paper
 AI_PROVIDER=anthropic
@@ -35,9 +37,19 @@ AI_MODEL=claude-opus-4-8
 ANTHROPIC_API_KEY=${anthropic_api_key}
 API_TOKEN=${api_token}
 NEXT_PUBLIC_API_TOKEN=${api_token}
-NEXT_PUBLIC_API_BASE_URL=http://${eip}:8000
-API_CORS_ORIGINS=http://${eip}:3000
+NEXT_PUBLIC_API_BASE_URL=https://${domain}
+API_CORS_ORIGINS=https://${domain}
 ENV
+
+# Caddy reverse proxy + auto-HTTPS. /api and /health -> backend, else -> frontend.
+# Caddy gets a Let's Encrypt cert once the Route 53 A record (domain -> EIP) resolves.
+cat > /opt/app/Caddyfile <<CADDY
+${domain} {
+    @api path /api/* /health
+    reverse_proxy @api backend:8000
+    reverse_proxy frontend:3000
+}
+CADDY
 
 # systemd unit: bring containers up on EVERY boot (user-data only runs once).
 cat > /etc/systemd/system/atf-demo.service <<UNIT
