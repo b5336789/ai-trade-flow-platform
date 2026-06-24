@@ -13,7 +13,7 @@ variable "aws_region" {
 variable "instance_type" {
   type        = string
   description = "EC2 instance type (arm64). t4g.small=2GB; t4g.medium=4GB if builds OOM."
-  default     = "t4g.small"
+  default     = "t4g.medium"
 }
 
 variable "anthropic_api_key" {
