@@ -5,13 +5,13 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
 from app.config import settings
 from app.db import get_session
-from app.models import RunLog, Workflow, WorkflowRun, WorkflowSignal
+from app.models import RunLog, Schedule, Workflow, WorkflowRun, WorkflowSignal
 from app.schemas import SignalAction
 from app.workflow.engine import run_workflow
 from app.workflow.nodes import RunContext
@@ -26,9 +26,13 @@ class WorkflowCreate(BaseModel):
     graph: WorkflowGraph
 
 
+def _dump_graph(graph: WorkflowGraph) -> dict:
+    return graph.model_dump(mode="json", exclude_none=True)
+
+
 @router.post("", response_model=Workflow)
 def create_workflow(payload: WorkflowCreate, session: Session = Depends(get_session)) -> Workflow:
-    wf = Workflow(name=payload.name, graph=payload.graph.model_dump(mode="json"))
+    wf = Workflow(name=payload.name, graph=_dump_graph(payload.graph))
     session.add(wf)
     session.commit()
     session.refresh(wf)
@@ -80,12 +84,27 @@ def update_workflow(
     if wf is None:
         raise HTTPException(status_code=404, detail="workflow not found")
     wf.name = payload.name
-    wf.graph = payload.graph.model_dump(mode="json")
+    wf.graph = _dump_graph(payload.graph)
     wf.updated_at = datetime.now(timezone.utc)
     session.add(wf)
     session.commit()
     session.refresh(wf)
     return wf
+
+
+@router.delete("/{workflow_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_workflow(workflow_id: int, session: Session = Depends(get_session)) -> None:
+    wf = session.get(Workflow, workflow_id)
+    if wf is None:
+        raise HTTPException(status_code=404, detail="workflow not found")
+    schedule = session.exec(select(Schedule).where(Schedule.workflow_id == workflow_id)).first()
+    if schedule is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="workflow is referenced by a schedule; delete the schedule first",
+        )
+    session.delete(wf)
+    session.commit()
 
 
 def _persist_live_run(session, graph, workflow_id, ctx, result):

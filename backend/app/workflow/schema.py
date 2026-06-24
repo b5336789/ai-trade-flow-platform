@@ -19,10 +19,16 @@ class NodeType(str, enum.Enum):
     branch = "branch"            # gate a Signal by a condition (pass through or hold)
 
 
+class NodePosition(BaseModel):
+    x: float
+    y: float
+
+
 class NodeConfig(BaseModel):
     id: str
     type: NodeType
     params: dict = Field(default_factory=dict)
+    position: NodePosition | None = None
 
 
 class Edge(BaseModel):
