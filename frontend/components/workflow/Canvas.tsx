@@ -16,12 +16,14 @@ import type { NodeType } from "@/lib/api";
 import { CATEGORY_COLOR, CATEGORY_LABEL, NODE_CATALOG, type NodeCategory } from "./nodeCatalog";
 import { TradeNode } from "./TradeNode";
 import type { TradeNodeData, useWorkflowState } from "./useWorkflowState";
+import { useTheme } from "@/app/providers";
 
 const CATS: NodeCategory[] = ["data", "strategy", "logic", "order", "output"];
 
 export function Canvas({ wf, onInit }: { wf: ReturnType<typeof useWorkflowState>; onInit?: (i: ReactFlowInstance) => void }) {
   const nodeTypes = useMemo(() => ({ trade: TradeNode }), []);
   const { screenToFlowPosition } = useReactFlow();
+  const { resolved } = useTheme();
 
   const onDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -55,6 +57,7 @@ export function Canvas({ wf, onInit }: { wf: ReturnType<typeof useWorkflowState>
         nodes={wf.nodes}
         edges={wf.edges}
         nodeTypes={nodeTypes}
+        colorMode={resolved}
         onNodesChange={wf.onNodesChange}
         onEdgesChange={wf.onEdgesChange}
         onConnect={wf.onConnect}
