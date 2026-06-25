@@ -90,8 +90,7 @@ jobs:
             -target=aws_ecr_repository.backend \
             -target=aws_ecr_repository.frontend \
             -target=aws_secretsmanager_secret.api_token \
-            -target=aws_secretsmanager_secret.anthropic_api_key \
-            -target=aws_secretsmanager_secret.notify_webhook_url
+            -target=aws_secretsmanager_secret.anthropic_api_key
 
       - name: Capture bootstrap outputs
         id: bootstrap
@@ -103,7 +102,6 @@ jobs:
             printf 'frontend_repo=%s\n' "$(terraform output -raw frontend_ecr_repository_url)"
             printf 'api_token_secret_name=%s\n' "$(terraform output -raw api_token_secret_name)"
             printf 'anthropic_api_key_secret_name=%s\n' "$(terraform output -raw anthropic_api_key_secret_name)"
-            printf 'notify_webhook_url_secret_name=%s\n' "$(terraform output -raw notify_webhook_url_secret_name)"
           } >> "$GITHUB_OUTPUT"
 
       - name: Login to ECR
@@ -113,7 +111,6 @@ jobs:
         env:
           API_TOKEN: ${{ steps.validate_tokens.outputs.api_token }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          NOTIFY_WEBHOOK_URL: ${{ secrets.NOTIFY_WEBHOOK_URL }}
         run: |
           set -euo pipefail
           aws secretsmanager put-secret-value \
@@ -131,18 +128,6 @@ jobs:
           aws secretsmanager put-secret-value \
             --secret-id "${{ steps.bootstrap.outputs.anthropic_api_key_secret_name }}" \
             --secret-string "$anthropic_secret_value"
-
-          notify_webhook_value="$NOTIFY_WEBHOOK_URL"
-          if [ -n "$NOTIFY_WEBHOOK_URL" ]; then
-            :
-          else
-            notify_webhook_value="__disabled__"
-            printf '%s\n' 'NOTIFY_WEBHOOK_URL not set; outbound webhook notifications stay disabled'
-          fi
-
-          aws secretsmanager put-secret-value \
-            --secret-id "${{ steps.bootstrap.outputs.notify_webhook_url_secret_name }}" \
-            --secret-string "$notify_webhook_value"
 
       - name: Build and push backend image
         id: backend_image

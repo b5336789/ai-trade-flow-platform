@@ -27,8 +27,6 @@
 | [`backtesting.md`](./backtesting.md) | 回測引擎(含交易成本)、多策略比較、參數最佳化 |
 | [`configuration.md`](./configuration.md) | 環境變數、交易模式、安全閘門、交易成本設定 |
 | [`testing.md`](./testing.md) | 測試套件總覽與如何執行 |
-| [`go-live-checklist.md`](./go-live-checklist.md) | 真實交易前的人工檢查清單 |
-| [`production-ops-runbook.md`](./production-ops-runbook.md) | ECS/Terraform 重新上線、監控告警、kill-switch/halt、cutover 與 migration runbook |
 
 ## 快速導覽
 

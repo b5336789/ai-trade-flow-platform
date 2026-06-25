@@ -28,11 +28,6 @@ def test_dispatch_webhook_noop_without_url(monkeypatch):
     assert service.dispatch_webhook("t", "m") is False
 
 
-def test_dispatch_webhook_noop_when_disabled_sentinel(monkeypatch):
-    monkeypatch.setattr(service.settings, "notify_webhook_url", "__disabled__")
-    assert service.dispatch_webhook("t", "m") is False
-
-
 def test_dispatch_webhook_posts_when_configured(monkeypatch):
     calls = {}
     monkeypatch.setattr(service.settings, "notify_webhook_url", "http://example.test/hook")
@@ -49,21 +44,6 @@ def test_dispatch_webhook_swallows_errors(monkeypatch):
     monkeypatch.setattr(service.settings, "notify_webhook_url", "http://example.test/hook")
     monkeypatch.setattr(service.httpx, "post", boom)
     assert service.dispatch_webhook("t", "m") is False  # does not raise
-
-
-def test_notify_logs_event_for_cloudwatch(caplog):
-    with Session(engine) as session:
-        service.notify(
-            session,
-            "Max daily loss breached - trading halted",
-            "Entries blocked; exits allowed.",
-            level="error",
-            meta={"gate": "max_daily_loss"},
-        )
-
-    assert "notification_event" in caplog.text
-    assert "Max daily loss breached - trading halted" in caplog.text
-    assert "max_daily_loss" in caplog.text
 
 
 def test_order_fill_creates_notification():

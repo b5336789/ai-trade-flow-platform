@@ -32,12 +32,6 @@ variable "app_secrets_revision" {
   default     = "initial"
 }
 
-variable "alarm_email" {
-  type        = string
-  description = "Optional email address subscribed to production operational alarms. Leave empty to create the SNS topic without email subscription."
-  default     = ""
-}
-
 variable "database_name" {
   type        = string
   description = "RDS database name."

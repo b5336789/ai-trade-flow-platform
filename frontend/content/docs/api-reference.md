@@ -199,21 +199,3 @@ Body:`{ workflow_id, interval_seconds (>=5), enabled? }`。建立排程並註冊
 
 ### `POST /api/notifications/test`
 建立一則測試通知(並嘗試派送 webhook,若有設定 `NOTIFY_WEBHOOK_URL`)。→ `Notification`
-
-## Risk Controls
-
-### `GET /api/risk/status?market=crypto`
-回傳 kill switch / halt / 曝險 / equity / 當日下單數狀態。所有投組級金額以 `BASE_CURRENCY`
-計算。
-
-### `POST /api/risk/kill-switch`
-Body:`{ "engaged": true }` 或 `{ "engaged": false }`。
-設定持久化 runtime kill switch,並建立站內通知 / webhook / CloudWatch log event。
-
-語意:
-- engaged=true:擋新進場,仍允許出清。
-- engaged=false:解除 runtime kill switch,但其他風控閘門仍會照常檢查。
-
-### `POST /api/risk/resume`
-清除 `halted` 旗標,用於處理完單日虧損 halt 後恢復新進場資格。解除後仍受
-`MAX_DAILY_LOSS`、`MAX_TOTAL_EXPOSURE_VALUE`、`MAX_ORDERS_PER_DAY` 和 kill switch 控制。

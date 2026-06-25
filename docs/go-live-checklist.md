@@ -11,8 +11,6 @@
 ## 0. 前置(資料庫 / 環境)
 - [ ] 全新或已遷移的資料庫:M0.5 新增 `OrderRecord.client_order_id`、M0.6 新增 `RuntimeFlag` 表。`init_db()` 的 `create_all` **不會**幫既有舊表加欄位 — 上線用乾淨 DB,或手動 `ALTER TABLE`/重建。
 - [ ] `.env` 由 `.env.example` 複製並填妥,且**未**提交到 git。
-- [ ] `infra/terraform/prod` 已由具備正確 AWS 帳號權限的人員跑完 `terraform plan -out=plan.out`,並保存 `plan.txt` / `plan.json` 供審查。
-- [ ] PR / release note 已說明 blast radius:VPC/NAT/ALB/ECS/RDS/ECR/Secrets Manager/CloudWatch/SNS/EventBridge 會被重建;不把真實 secret 寫進 Terraform state;RDS `prevent_destroy` 保持開啟。
 
 ## 1. 存取安全(M0.7)
 - [ ] `API_TOKEN` 設為**強隨機字串**(留空 = 驗證關閉/全開放,僅限本機開發)。
@@ -34,11 +32,9 @@
 - [ ] `BASE_CURRENCY=TWD`;`FX_RATES` 為近期合理匯率(Phase 0 為靜態值,M1.1 才接即時匯率 — 上線期間請定期人工校正)。
 - [ ] `MAX_TOTAL_EXPOSURE_VALUE`、`MAX_DAILY_LOSS`、`MAX_ORDERS_PER_DAY` 設為你能承受的保守值。
 - [ ] 單筆/單標的 `RiskGuard`(`max_order_value`/`max_position_value`)已設。
-- [ ] **實測 kill switch**:`POST /api/risk/kill-switch {"engaged":true}` → 確認**新進場(buy)被擋**、**出清(sell)仍可成交** → `POST /api/risk/kill-switch {"engaged":false}` 解除。
+- [ ] **實測 kill switch**:`POST /api/risk/kill-switch {engaged:true}` → 確認**新進場(buy)被擋**、**出清(sell)仍可成交** → `POST /api/risk/resume` 解除。
 - [ ] **實測單日虧損 halt**:在 paper 觸發 `MAX_DAILY_LOSS` → 確認自動 halt(擋進場、放行出場)、通知有發出、`POST /api/risk/resume` 可恢復。
 - [ ] `GET /api/risk/status` 顯示的曝險/權益/當日單數符合預期。
-- [ ] CloudWatch/SNS 告警已確認:ALB 5xx、backend/frontend unhealthy target、ECS task stopped、risk halt、kill-switch event。
-- [ ] `NOTIFY_WEBHOOK_URL` 已設定並 dry-run;若未設定,已確認只使用站內通知 + CloudWatch alarm。
 
 ## 5. 金融正確性(M0.2–M0.4)
 - [ ] 回測無前視偏差(成交於次根開盤,M0.2)。
@@ -54,7 +50,6 @@
 - [ ] **小額起步**(遠低於各上限),先觀察數日。
 - [ ] 監看站內通知 / webhook(成交、風控觸發、halt)。
 - [ ] 確認排程的 `max_instances=1`/`coalesce` 與重複下單防護(M0.5 冪等鍵)行為符合預期。
-- [ ] 已照 `docs/production-ops-runbook.md` 完成 testnet→prod cutover dry-run,且最終放行由人類確認。
 
 ---
 

@@ -6,7 +6,6 @@ This project ships an AWS production path on `main`:
 
 - `infra/terraform/bootstrap` bootstraps remote Terraform state (S3), lock table (DynamoDB), and GitHub OIDC deploy role.
 - `infra/terraform/prod` deploys ECS Fargate frontend/backend, ALB, RDS PostgreSQL, ECR repos, logging, and Secrets Manager secret containers.
-- Production monitoring is defined in Terraform: SNS ops alerts, ALB 5xx/unhealthy target alarms, ECS stopped-task EventBridge alerts, and backend log metric alarms for risk halt / kill-switch events.
 - GitHub Actions deploy workflow is `/.github/workflows/deploy.yml`.
 - Region is fixed to `ap-east-2` (Asia Pacific, Taipei). Enable this opt-in Region in the AWS account before running bootstrap or deploy.
 - Use Terraform `1.15.6` or newer. Older Terraform versions may reject `ap-east-2` during S3 backend initialization.
@@ -52,11 +51,9 @@ Set these as repository or Environment secrets:
 - `API_TOKEN` (required; must be non-empty).
 - `NEXT_PUBLIC_API_TOKEN` (required; must be non-empty and identical to `API_TOKEN`).
 - `ANTHROPIC_API_KEY` (optional).
-- `NOTIFY_WEBHOOK_URL` (optional; Slack/Discord/custom webhook for fills, risk triggers, halt, and kill-switch events).
 
 `API_TOKEN` and `NEXT_PUBLIC_API_TOKEN` are required by the workflow and must match before any Secrets Manager writes.
 `NEXT_PUBLIC_API_TOKEN` is passed into the frontend build as a `NEXT_PUBLIC_*` value, so it is embedded into the browser bundle and visible to end users. It is therefore only a coarse shared API token, not a private server-side secret.
-If `NOTIFY_WEBHOOK_URL` is omitted, the workflow writes a disabled sentinel and outbound webhook delivery stays off; in-app notifications and CloudWatch log metric alarms still work.
 
 ## 4. Deploy
 
@@ -96,39 +93,12 @@ in a browser.
 - `API_TOKEN` and `NEXT_PUBLIC_API_TOKEN` are validated in workflow and must be both set and identical for production deploy.
 - Terraform only creates Secrets Manager secret objects; app secret values are intentionally written outside Terraform state using AWS CLI in the deploy job.
 - If `ANTHROPIC_API_KEY` is omitted, workflow writes `__disabled__` and backend normalizes it to an empty string so Anthropic features are disabled.
-- If `NOTIFY_WEBHOOK_URL` is omitted, workflow writes `__disabled__` and backend normalizes it to an empty string so outbound webhook delivery is disabled.
 
-## 7. Plan review and monitoring
-
-Before any production apply, run a plan from `infra/terraform/prod`, save both text and JSON output, and review the blast radius:
-
-```bash
-terraform plan -out=plan.out \
-  -var="backend_image=<backend-ecr-uri>:<tag>" \
-  -var="frontend_image=<frontend-ecr-uri>:<tag>" \
-  -var="app_secrets_revision=<non-secret-revision>"
-terraform show -no-color plan.out > plan.txt
-terraform show -json plan.out > plan.json
-```
-
-The expected rebuild blast radius after the cost-control destroy is runtime VPC networking, ALB,
-ECS services/task definitions, ECR repositories, log groups, Secrets Manager containers, one private
-RDS PostgreSQL instance, SNS alarms, CloudWatch alarms/log metric filters, and an ECS stopped-task
-EventBridge rule. It should not put real secret values into Terraform state, and RDS has
-`prevent_destroy` enabled.
-
-Terraform output `ops_alerts_topic_arn` identifies the SNS topic. Set `alarm_email` if an email
-subscription should be managed by Terraform; the recipient still has to confirm the subscription.
-Risk halt and kill-switch alarms depend on backend `notification_event` log lines, so keep backend
-CloudWatch logs enabled.
-
-## 8. Current limits / follow-ups
+## 7. Current limits / follow-ups
 
 - Deployment exposes HTTP only through ALB DNS (`http://...`).
 - `bwtseng.com` is registered; Route 53 DNS records and ACM HTTPS are pending follow-up.
 - `TRADING_MODE` is pinned to `paper` in `prod` task definition.
-- Database schema is currently initialized via SQLModel `create_all` at startup; Alembic-based migrations are not yet wired. Use a clean DB for first launch or add Alembic before preserving production data.
+- Database schema is currently initialized via SQLModel `create_all` at startup; Alembic-based migrations are not yet wired.
 - RDS `prevent_destroy` is enabled, so Terraform plans that destroy DB must be handled carefully.
 - Terraform lockfiles (`.terraform.lock.hcl`) are committed for reproducible runs.
-
-See also: [`docs/production-ops-runbook.md`](../production-ops-runbook.md).

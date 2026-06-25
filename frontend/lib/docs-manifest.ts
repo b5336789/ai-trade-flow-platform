@@ -82,13 +82,6 @@ export const DOCS: DocEntry[] = [
     summary: "切換真實交易前必須逐項確認的金融正確性與風控閘門。",
   },
   {
-    slug: "production-ops-runbook",
-    title: "Production Ops Runbook",
-    category: "營運",
-    file: "production-ops-runbook.md",
-    summary: "ECS/Terraform 重新上線、監控告警、kill-switch/halt、cutover 與 migration 操作手冊。",
-  },
-  {
     slug: "overview",
     title: "專案總覽",
     category: "概覽",
