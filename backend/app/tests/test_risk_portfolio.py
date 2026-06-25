@@ -12,7 +12,13 @@ from sqlmodel import Session, SQLModel, create_engine
 
 from app.brokers import registry
 from app.brokers.paper import PaperBroker
-from app.marketdata.fx import FxConverter, quote_currency_for
+from app.marketdata.fx import (
+    FxConverter,
+    FxRateProviderError,
+    FxRateSnapshot,
+    OpenErApiFxProvider,
+    quote_currency_for,
+)
 from app.schemas import MarketKind, OrderRequest, OrderSide, TradingMode
 from app.tests.helpers import StubBroker
 from app.trading import runtime_state
@@ -85,10 +91,127 @@ class TestFxConverter:
         assert fx.base_currency == "TWD"
         assert fx.to_base(1.0, "USD") == pytest.approx(31.5)
 
+    def test_provider_rates_are_cached_until_ttl(self):
+        now = 1000.0
+        provider = _RecordingFxProvider(
+            FxRateSnapshot(rates={"USD": 32.0, "USDT": 32.0}),
+            FxRateSnapshot(rates={"USD": 33.0, "USDT": 33.0}),
+        )
+        fx = FxConverter(
+            base_currency="TWD",
+            provider=provider,
+            live_currencies={"USD", "USDT"},
+            cache_ttl_seconds=60,
+            time_fn=lambda: now,
+        )
+
+        assert fx.to_base(10.0, "USD") == pytest.approx(320.0)
+        now = 1059.0
+        assert fx.to_base(10.0, "USD") == pytest.approx(320.0)
+        now = 1061.0
+        assert fx.to_base(10.0, "USD") == pytest.approx(330.0)
+        assert provider.calls == [
+            ("TWD", {"USD", "USDT"}),
+            ("TWD", {"USD", "USDT"}),
+        ]
+
+    def test_expired_provider_failure_fails_loud_instead_of_using_stale_rate(self):
+        now = 1000.0
+        provider = _RecordingFxProvider(
+            FxRateSnapshot(rates={"USD": 32.0}),
+            RuntimeError("upstream unavailable"),
+        )
+        fx = FxConverter(
+            base_currency="TWD",
+            provider=provider,
+            live_currencies={"USD"},
+            cache_ttl_seconds=60,
+            time_fn=lambda: now,
+        )
+
+        assert fx.to_base(1.0, "USD") == pytest.approx(32.0)
+        now = 1061.0
+        with pytest.raises(FxRateProviderError, match="FX provider refresh failed"):
+            fx.to_base(1.0, "USD")
+
+    def test_provider_missing_currency_fails_loud(self):
+        provider = _RecordingFxProvider(FxRateSnapshot(rates={"USD": 32.0}))
+        fx = FxConverter(
+            base_currency="TWD",
+            provider=provider,
+            live_currencies={"USD", "USDT"},
+            cache_ttl_seconds=60,
+        )
+
+        with pytest.raises(ValueError, match="missing FX rates.*USDT"):
+            fx.to_base(1.0, "USDT")
+
+    def test_from_settings_uses_live_provider_when_selected(self, monkeypatch):
+        from app.config import Settings
+        import app.config as config_module
+
+        monkeypatch.setattr(
+            config_module,
+            "settings",
+            Settings(_env_file=None, fx_provider="open_er_api", fx_rate_cache_ttl_seconds=123),
+        )
+
+        fx = FxConverter.from_settings()
+        assert isinstance(fx.provider, OpenErApiFxProvider)
+        assert fx.cache_ttl_seconds == 123
+
     def test_market_quote_currency_map(self):
         assert quote_currency_for(MarketKind.crypto) == "USDT"
         assert quote_currency_for(MarketKind.tw_stock) == "TWD"
         assert quote_currency_for(MarketKind.us_stock) == "USD"
+
+
+class _RecordingFxProvider:
+    def __init__(self, *results):
+        self._results = list(results)
+        self.calls: list[tuple[str, set[str]]] = []
+
+    def latest_rates(self, *, base_currency: str, currencies: set[str]) -> FxRateSnapshot:
+        self.calls.append((base_currency, set(currencies)))
+        result = self._results.pop(0)
+        if isinstance(result, Exception):
+            raise result
+        return result
+
+
+class _FakeResponse:
+    def __init__(self, payload: dict, *, status_code: int = 200):
+        self._payload = payload
+        self.status_code = status_code
+
+    def raise_for_status(self) -> None:
+        if self.status_code >= 400:
+            raise RuntimeError(f"HTTP {self.status_code}")
+
+    def json(self) -> dict:
+        return self._payload
+
+
+class _FakeHttpClient:
+    def __init__(self, response: _FakeResponse):
+        self.response = response
+        self.urls: list[str] = []
+
+    def get(self, url: str) -> _FakeResponse:
+        self.urls.append(url)
+        return self.response
+
+
+def test_open_er_api_provider_builds_usd_and_usdt_twd_rates():
+    client = _FakeHttpClient(_FakeResponse({"result": "success", "rates": {"TWD": 32.25}}))
+    provider = OpenErApiFxProvider(client=client)
+
+    snapshot = provider.latest_rates(base_currency="TWD", currencies={"USD", "USDT"})
+
+    assert snapshot.rates["TWD"] == 1.0
+    assert snapshot.rates["USD"] == pytest.approx(32.25)
+    assert snapshot.rates["USDT"] == pytest.approx(32.25)
+    assert client.urls == ["https://open.er-api.com/v6/latest/USD"]
 
 
 # --- PortfolioGuard caps reject ENTRIES (buys) ---
