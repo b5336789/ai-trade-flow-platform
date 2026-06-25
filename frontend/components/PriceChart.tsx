@@ -41,6 +41,9 @@ export function PriceChart({
   const mainSeriesRef = useRef<ISeriesApi<"Candlestick" | "Line" | "Area"> | null>(null);
   const volumeSeriesRef = useRef<ISeriesApi<"Histogram"> | null>(null);
   const oscRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  // live update() 的高水位:已套用的最新一根時間。低於此值的 live 列要跳過,
+  // 否則 lightweight-charts 會 throw「Cannot update oldest data」→ Application error。
+  const lastBarTimeRef = useRef<number>(0);
   const [legend, setLegend] = useState<OHLCV | null>(null);
   const { resolved } = useTheme();
 
@@ -128,6 +131,10 @@ export function PriceChart({
     }
     if (volumeSeriesRef.current) volumeSeriesRef.current.setData(toVolumeData(candles, up, down));
     chart.timeScale().fitContent();
+    // setData 重設序列基準 → live 高水位也跟著重設到「目前最後一根」。
+    lastBarTimeRef.current = candles.length
+      ? Math.floor(new Date(candles[candles.length - 1].timestamp).getTime() / 1000)
+      : 0;
   }, [candles, chartType, resolved]);
 
   // 標記
@@ -275,17 +282,16 @@ export function PriceChart({
     const up = cssVar("--up", "#34D399"), down = cssVar("--down", "#F87171");
     // line/area 序列的 update({open,high,low,close}) 無效;live 僅 crypto 且預設 candles。
     if (chartType !== "candles") return;
-    // setData 已建立到「初始最後一根」的時間;update() 不能套用更舊的根(否則 throw "Cannot update oldest data")。
-    const lastInitial = candles.length
-      ? (Math.floor(new Date(candles[candles.length - 1].timestamp).getTime() / 1000) as UTCTimestamp)
-      : (0 as UTCTimestamp);
+    // update() 不能套用比「序列目前最新一根」更舊的根(否則 throw "Cannot update oldest data")。
+    // 比對動態高水位(會隨 live 新根前進),而非靜態的初始最後一根——後者在跨週期換根後會失準。
     for (const c of rows) {
       const t = Math.floor(new Date(c.timestamp).getTime() / 1000) as UTCTimestamp;
-      if (t < lastInitial) continue; // 跳過比初始最後一根更舊的列
+      if (t < lastBarTimeRef.current) continue; // 跳過比目前最新一根更舊的列
       cs.update({ time: t, open: c.open, high: c.high, low: c.low, close: c.close });
       if (volumeSeriesRef.current) {
         volumeSeriesRef.current.update({ time: t, value: c.volume, color: c.close >= c.open ? up : down });
       }
+      lastBarTimeRef.current = t;
     }
     const newClose = rows[rows.length - 1].close;
     setLastPrice((prev) => {
