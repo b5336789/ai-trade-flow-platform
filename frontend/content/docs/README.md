@@ -27,6 +27,7 @@
 | [`backtesting.md`](./backtesting.md) | 回測引擎(含交易成本)、多策略比較、參數最佳化 |
 | [`configuration.md`](./configuration.md) | 環境變數、交易模式、安全閘門、交易成本設定 |
 | [`testing.md`](./testing.md) | 測試套件總覽與如何執行 |
+| [`local-deployment.md`](./local-deployment.md) | 本地 Docker Compose 部署、health check、kill-switch/halt dry-run 與回復流程 |
 
 ## 快速導覽
 

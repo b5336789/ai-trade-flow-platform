@@ -75,6 +75,13 @@ export const DOCS: DocEntry[] = [
     summary: "業務邏輯導向的 pytest 套件:正常路徑、fail-loud、邊界與回歸。",
   },
   {
+    slug: "local-deployment",
+    title: "本地部署 Runbook",
+    category: "營運",
+    file: "local-deployment.md",
+    summary: "本地 Docker Compose 部署、health check、kill-switch/halt dry-run 與回復流程。",
+  },
+  {
     slug: "go-live-checklist",
     title: "上線檢查清單",
     category: "營運",

@@ -126,6 +126,15 @@ docker compose up --build
 # frontend -> http://localhost:3000
 ```
 
+For a production-like local deployment with baked images, health checks, and persistent local SQLite:
+
+```bash
+docker compose -f docker-compose.local.yml up -d --build
+```
+
+See [`docs/local-deployment.md`](./docs/local-deployment.md) for health checks, kill-switch/halt
+dry-run steps, logs, and rollback/reset commands.
+
 ### 3. Run locally (without Docker)
 
 Backend:
