@@ -1,10 +1,10 @@
 "use client";
 
 import { ReactFlowProvider, type ReactFlowInstance } from "@xyflow/react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { api, type RunResult, type WorkflowRunDTO, type WorkflowSignalDTO } from "@/lib/api";
+import { api, type RunResult, type Workflow, type WorkflowGraph, type WorkflowRunDTO, type WorkflowSignalDTO } from "@/lib/api";
 import { SignalTraceDrawer } from "@/components/SignalTraceDrawer";
 import { WorkflowBacktestChart } from "@/components/WorkflowBacktestChart";
 import { WorkflowRunHistory } from "@/components/WorkflowRunHistory";
@@ -16,13 +16,19 @@ import { useWorkflowState } from "./useWorkflowState";
 import { validateGraph } from "./validateGraph";
 
 function BuilderInner() {
+  const qc = useQueryClient();
   const wf = useWorkflowState();
   const config = useQuery({ queryKey: ["config"], queryFn: api.config, retry: false });
+  const workflows = useQuery({ queryKey: ["workflows"], queryFn: api.listWorkflows, retry: false });
   const [rf, setRf] = useState<ReactFlowInstance | null>(null);
   const [name, setName] = useState("My workflow");
+  const [currentWorkflowId, setCurrentWorkflowId] = useState<number | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [result, setResult] = useState<RunResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [savedMsg, setSavedMsg] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   const [running, setRunning] = useState(false);
   const [btRun, setBtRun] = useState<WorkflowRunDTO | null>(null);
   const [btSignals, setBtSignals] = useState<WorkflowSignalDTO[]>([]);
@@ -46,6 +52,7 @@ function BuilderInner() {
       .then((w) => {
         wf.setGraph(w.graph);
         setName(w.name);
+        setCurrentWorkflowId(w.id);
       })
       .catch((e) => setError((e as Error).message));
   }, [searchParams]);
@@ -54,15 +61,94 @@ function BuilderInner() {
   const selectedNode = wf.nodes.find((n) => n.id === wf.selectedId) ?? null;
   const mode = config.data?.trading_mode ?? "paper";
 
+  function graphForSave(): WorkflowGraph | null {
+    const graph = wf.buildGraph();
+    const checked = validateGraph(graph);
+    if (!checked.valid) {
+      setError(`Workflow invalid: ${checked.errors[0]}`);
+      return null;
+    }
+    return graph;
+  }
+
   async function save() {
     setSavedMsg(null); setError(null);
+    const graph = graphForSave();
+    if (!graph) return;
+    setSaving(true);
     try {
-      const w = await api.createWorkflow(name, wf.buildGraph());
-      setSavedMsg(`Saved as #${w.id} — schedule it to run automatically.`);
+      const workflowName = name.trim() || "Untitled workflow";
+      const w = currentWorkflowId
+        ? await api.updateWorkflow(currentWorkflowId, workflowName, graph)
+        : await api.createWorkflow(workflowName, graph);
+      setName(w.name);
+      setCurrentWorkflowId(w.id);
+      setSavedMsg(`Saved #${w.id}.`);
+      qc.invalidateQueries({ queryKey: ["workflows"] });
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveAs() {
+    setSavedMsg(null); setError(null);
+    const graph = graphForSave();
+    if (!graph) return;
+    setSaving(true);
+    try {
+      const workflowName = name.trim() || "Untitled workflow";
+      const w = await api.createWorkflow(workflowName, graph);
+      setName(w.name);
+      setCurrentWorkflowId(w.id);
+      setSavedMsg(`Saved as new workflow #${w.id}.`);
+      qc.invalidateQueries({ queryKey: ["workflows"] });
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function openWorkflow(workflow: Workflow) {
+    setSavedMsg(null); setError(null);
+    try {
+      const loaded = await api.getWorkflow(workflow.id);
+      wf.setGraph(loaded.graph);
+      setName(loaded.name);
+      setCurrentWorkflowId(loaded.id);
+      setPickerOpen(false);
+      setSavedMsg(`Loaded #${loaded.id}.`);
     } catch (e) {
       setError((e as Error).message);
     }
   }
+
+  async function deleteWorkflow(id: number, workflowName?: string) {
+    if (!window.confirm(`Delete workflow #${id}${workflowName ? ` ${workflowName}` : ""}?`)) return;
+    setSavedMsg(null); setError(null); setDeletingId(id);
+    try {
+      await api.deleteWorkflow(id);
+      if (currentWorkflowId === id) {
+        setCurrentWorkflowId(null);
+        setSavedMsg(`Deleted #${id}. Current canvas is now an unsaved draft.`);
+      } else {
+        setSavedMsg(`Deleted #${id}.`);
+      }
+      qc.invalidateQueries({ queryKey: ["workflows"] });
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  async function deleteCurrentWorkflow() {
+    if (!currentWorkflowId) return;
+    await deleteWorkflow(currentWorkflowId, name);
+  }
+
   async function run() {
     setRunning(true); setError(null); setResult(null);
     try {
@@ -116,12 +202,72 @@ function BuilderInner() {
         onFit={() => rf?.fitView()}
         name={name}
         onName={setName}
+        currentWorkflowId={currentWorkflowId}
+        onOpen={() => setPickerOpen((open) => !open)}
         onSave={save}
+        onSaveAs={saveAs}
+        onDeleteCurrent={deleteCurrentWorkflow}
+        saving={saving}
         onRun={run}
         running={running}
         onBacktest={handleBacktest}
         backtesting={backtesting}
       />
+      {pickerOpen && (
+        <div className="border-b border-border bg-surface-1 px-3 py-3">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <p className="text-xs font-medium text-muted">Saved workflows</p>
+            <button
+              onClick={() => workflows.refetch()}
+              className="rounded-md bg-surface-2 px-2 py-1 text-xs hover:bg-surface-3"
+            >
+              Refresh
+            </button>
+          </div>
+          {workflows.isLoading && <p className="text-xs text-faint">Loading workflows...</p>}
+          {workflows.error && <p className="text-xs text-error">{(workflows.error as Error).message}</p>}
+          {workflows.data && workflows.data.length > 0 ? (
+            <div className="max-h-52 overflow-auto rounded-md border border-border">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-surface-2 text-faint">
+                  <tr>
+                    <th className="px-2 py-1">ID</th>
+                    <th className="px-2 py-1">Name</th>
+                    <th className="px-2 py-1">Updated</th>
+                    <th className="px-2 py-1" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {workflows.data.map((w) => (
+                    <tr key={w.id} className="border-t border-border">
+                      <td className="px-2 py-1 text-muted">#{w.id}</td>
+                      <td className="px-2 py-1 text-text">{w.name}</td>
+                      <td className="px-2 py-1 text-faint">{new Date(w.updated_at).toLocaleString()}</td>
+                      <td className="px-2 py-1 text-right">
+                        <button
+                          onClick={() => openWorkflow(w)}
+                          className="mr-2 rounded-sm bg-accent px-2 py-0.5 font-medium text-bg hover:brightness-110"
+                        >
+                          Open
+                        </button>
+                        <button
+                          onClick={() => deleteWorkflow(w.id, w.name)}
+                          disabled={deletingId === w.id}
+                          className="rounded-sm px-2 py-0.5 text-error hover:bg-error/10 disabled:opacity-40"
+                        >
+                          {deletingId === w.id ? "Deleting" : "Delete"}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            !workflows.isLoading && <p className="text-xs text-faint">No saved workflows yet.</p>
+          )}
+        </div>
+      )}
       {savedMsg && <p className="px-3 py-1 text-sm text-up">{savedMsg}</p>}
       <div className="relative flex h-[520px]">
         {/* Palette: full on xl, icon strip on md, hidden on mobile */}

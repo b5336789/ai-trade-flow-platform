@@ -82,6 +82,7 @@ export interface GraphNode {
   id: string;
   type: NodeType;
   params: Record<string, unknown>;
+  position?: { x: number; y: number } | null;
 }
 
 export interface GraphEdge {
@@ -386,6 +387,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     }
     throw new Error(detail);
   }
+  if (res.status === 204) {
+    return undefined as T;
+  }
   return res.json() as Promise<T>;
 }
 
@@ -428,8 +432,11 @@ export const api = {
     }),
   createWorkflow: (name: string, graph: WorkflowGraph) =>
     request<Workflow>("/api/workflows", { method: "POST", body: JSON.stringify({ name, graph }) }),
+  updateWorkflow: (id: number, name: string, graph: WorkflowGraph) =>
+    request<Workflow>(`/api/workflows/${id}`, { method: "PUT", body: JSON.stringify({ name, graph }) }),
   getWorkflow: (id: number) => request<Workflow>(`/api/workflows/${id}`),
   listWorkflows: () => request<Workflow[]>("/api/workflows"),
+  deleteWorkflow: (id: number) => request<void>(`/api/workflows/${id}`, { method: "DELETE" }),
   listSchedules: () => request<Schedule[]>("/api/schedules"),
   createSchedule: (workflow_id: number, interval_seconds: number) =>
     request<Schedule>("/api/schedules", {

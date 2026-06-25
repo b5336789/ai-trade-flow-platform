@@ -141,14 +141,21 @@ export function useWorkflowState() {
   }, [nodes, edges]);
 
   const buildGraph = useCallback((): WorkflowGraph => ({
-    nodes: nodes.map((n) => ({ id: n.id, type: (n.data as TradeNodeData).nodeType, params: (n.data as TradeNodeData).params })),
+    nodes: nodes.map((n) => ({
+      id: n.id,
+      type: (n.data as TradeNodeData).nodeType,
+      params: (n.data as TradeNodeData).params,
+      position: { x: n.position.x, y: n.position.y },
+    })),
     edges: edges.map((e) => ({ source: e.source, target: e.target })),
   }), [nodes, edges]);
 
   const setGraph = useCallback((g: WorkflowGraph) => {
     snapshot();
     setNodes(g.nodes.map((n, i) => ({
-      id: n.id, type: "trade", position: { x: (i % 4) * 240, y: Math.floor(i / 4) * 160 + 80 },
+      id: n.id,
+      type: "trade",
+      position: n.position ?? { x: (i % 4) * 240, y: Math.floor(i / 4) * 160 + 80 },
       data: { nodeType: n.type, params: n.params },
     })));
     setEdges(g.edges.map((e, i) => ({ id: `e${i}`, source: e.source, target: e.target })));

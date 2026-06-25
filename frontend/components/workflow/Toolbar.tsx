@@ -1,10 +1,12 @@
 "use client";
 
+import { Copy, FolderOpen, Save, Trash2 } from "lucide-react";
 import type { ValidationResult } from "./validateGraph";
 
 export function Toolbar({
   mode, valid, nodeCount, edgeCount, canUndo, canRedo,
-  onUndo, onRedo, onZoomIn, onZoomOut, onFit, name, onName, onSave, onRun, running,
+  onUndo, onRedo, onZoomIn, onZoomOut, onFit, name, onName, currentWorkflowId,
+  onOpen, onSave, onSaveAs, onDeleteCurrent, saving, onRun, running,
   onBacktest, backtesting,
 }: {
   mode: string;
@@ -20,7 +22,12 @@ export function Toolbar({
   onFit: () => void;
   name: string;
   onName: (v: string) => void;
+  currentWorkflowId: number | null;
+  onOpen: () => void;
   onSave: () => void;
+  onSaveAs: () => void;
+  onDeleteCurrent: () => void;
+  saving: boolean;
   onRun: () => void;
   running: boolean;
   onBacktest: () => void;
@@ -28,6 +35,7 @@ export function Toolbar({
 }) {
   const live = mode === "live";
   const btn = "rounded-md bg-surface-2 px-2 py-1 text-xs hover:bg-surface-3 disabled:opacity-40";
+  const actionBtn = "inline-flex items-center gap-1 rounded-md bg-surface-2 px-3 py-1 text-sm hover:bg-surface-3 disabled:opacity-40";
   return (
     <div className="flex flex-wrap items-center gap-2 border-b border-border bg-surface-1 px-3 py-2">
       <h2 className="font-display text-sm font-semibold">Workflow Builder.</h2>
@@ -52,7 +60,30 @@ export function Toolbar({
         placeholder="workflow name"
         className="ml-auto rounded-md bg-surface-2 px-2 py-1 text-sm"
       />
-      <button onClick={onSave} className="rounded-md bg-surface-2 px-3 py-1 text-sm hover:bg-surface-3">💾 儲存</button>
+      <span className="rounded-sm bg-surface-3 px-2 py-1 text-xs text-muted">
+        {currentWorkflowId ? `#${currentWorkflowId}` : "新檔"}
+      </span>
+      <button onClick={onOpen} className={actionBtn} title="開啟 workflow">
+        <FolderOpen size={14} />
+        開啟
+      </button>
+      <button onClick={onSave} disabled={saving} className={actionBtn} title="儲存目前 workflow">
+        <Save size={14} />
+        {saving ? "儲存中" : "儲存"}
+      </button>
+      <button onClick={onSaveAs} disabled={saving} className={actionBtn} title="另存新檔">
+        <Copy size={14} />
+        另存
+      </button>
+      <button
+        onClick={onDeleteCurrent}
+        disabled={!currentWorkflowId || saving}
+        className="inline-flex items-center gap-1 rounded-md bg-surface-2 px-3 py-1 text-sm text-error hover:bg-surface-3 disabled:opacity-40"
+        title="刪除目前 workflow"
+      >
+        <Trash2 size={14} />
+        刪除
+      </button>
       <button
         onClick={onRun}
         disabled={running}
