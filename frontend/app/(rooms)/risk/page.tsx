@@ -1,4 +1,5 @@
 "use client";
+import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "@/lib/api";
@@ -29,6 +30,8 @@ function Bar({ label, used, max, unit }: { label: string; used: number; max: num
 export default function RiskPage() {
   const { market } = useActiveMarket();
   const qc = useQueryClient();
+  const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
   const status = useQuery({
     queryKey: ["risk-status", market],
     queryFn: () => api.riskStatus(market),
@@ -47,13 +50,29 @@ export default function RiskPage() {
   const toggleKill = async () => {
     const next = !s.kill_switch_runtime;
     if (next && !confirm("確定要啟動 kill switch?所有新進場單將被擋下(平倉仍允許)。")) return;
-    await api.setKillSwitch(next);
-    qc.invalidateQueries({ queryKey: ["risk-status"] });
+    setBusy(true);
+    setActionError(null);
+    try {
+      await api.setKillSwitch(next);
+      qc.invalidateQueries({ queryKey: ["risk-status"] });
+    } catch (e) {
+      setActionError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
   };
   const resume = async () => {
     if (!confirm("確定要解除 halted、恢復進場?")) return;
-    await api.resumeRisk();
-    qc.invalidateQueries({ queryKey: ["risk-status"] });
+    setBusy(true);
+    setActionError(null);
+    try {
+      await api.resumeRisk();
+      qc.invalidateQueries({ queryKey: ["risk-status"] });
+    } catch (e) {
+      setActionError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -87,7 +106,7 @@ export default function RiskPage() {
         </div>
         <div className="rounded-md border border-border bg-surface-1 p-3">
           <div className="text-xs text-faint">狀態</div>
-          <div className={`text-lg font-semibold ${s.kill_switch || s.halted ? "text-error" : "text-up"}`}>
+          <div className={`text-lg font-semibold ${s.kill_switch || s.halted ? "text-error" : "text-text"}`}>
             {s.kill_switch ? "KILL" : s.halted ? "HALTED" : "OK"}
           </div>
         </div>
@@ -102,7 +121,8 @@ export default function RiskPage() {
       <div className="flex flex-wrap gap-3">
         <button
           onClick={toggleKill}
-          className={`rounded-md border px-4 py-2 text-sm font-medium ${
+          disabled={busy}
+          className={`rounded-md border px-4 py-2 text-sm font-medium disabled:opacity-50 ${
             s.kill_switch_runtime
               ? "border-border bg-surface-2 text-text hover:bg-surface-3"
               : "border-error/40 bg-error/15 text-error hover:bg-error/25"
@@ -113,7 +133,8 @@ export default function RiskPage() {
         {s.halted && (
           <button
             onClick={resume}
-            className="rounded-md border border-warning/40 bg-warning/15 px-4 py-2 text-sm font-medium text-warning hover:bg-warning/25"
+            disabled={busy}
+            className="rounded-md border border-warning/40 bg-warning/15 px-4 py-2 text-sm font-medium text-warning hover:bg-warning/25 disabled:opacity-50"
           >
             恢復進場(清除 halted)
           </button>
@@ -124,6 +145,7 @@ export default function RiskPage() {
           </span>
         )}
       </div>
+      {actionError && <p className="text-sm text-error">操作失敗：{actionError}</p>}
     </section>
   );
 }
