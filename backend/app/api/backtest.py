@@ -131,12 +131,13 @@ class CompareRow(BaseModel):
     num_trades: int
     win_rate: float
     max_drawdown_pct: float
+    sharpe: float
     error: str | None = None
 
 
 @router.post("/compare", response_model=list[CompareRow])
 def compare(req: CompareRequest) -> list[CompareRow]:
-    """Run several strategies over the same history and rank them by return (fetch once)."""
+    """Run several strategies over the same history and rank them by risk-adjusted Sharpe (fetch once)."""
     try:
         candles = _fetch_candles(
             get_data_broker(req.market), req.symbol, req.timeframe, req.limit, req.start, req.end
@@ -167,6 +168,7 @@ def compare(req: CompareRequest) -> list[CompareRow]:
                     num_trades=result.num_trades,
                     win_rate=result.win_rate,
                     max_drawdown_pct=result.max_drawdown_pct,
+                    sharpe=result.sharpe,
                 )
             )
         except Exception as exc:  # one bad strategy shouldn't sink the whole comparison
@@ -178,10 +180,11 @@ def compare(req: CompareRequest) -> list[CompareRow]:
                     num_trades=0,
                     win_rate=0.0,
                     max_drawdown_pct=0.0,
+                    sharpe=0.0,
                     error=f"{type(exc).__name__}: {exc}",
                 )
             )
-    rows.sort(key=lambda r: r.total_return_pct, reverse=True)
+    rows.sort(key=lambda r: r.sharpe, reverse=True)
     return rows
 
 
