@@ -11,6 +11,22 @@ class _Out(BaseModel):
     value: int
 
 
+def test_usage_tokens_zero_anthropic_style():
+    """input_tokens=0 must not fall through to prompt_tokens (genuine zero, not falsy)."""
+    usage = SimpleNamespace(input_tokens=0, output_tokens=5)
+    prompt, completion = structured._usage_tokens(usage)
+    assert prompt == 0
+    assert completion == 5
+
+
+def test_usage_tokens_openai_style():
+    """OpenAI-style usage (prompt_tokens / completion_tokens) is read correctly."""
+    usage = SimpleNamespace(prompt_tokens=9, completion_tokens=4)
+    prompt, completion = structured._usage_tokens(usage)
+    assert prompt == 9
+    assert completion == 4
+
+
 def test_with_meta_returns_tokens_and_latency(monkeypatch):
     out = _Out(value=7)
     completion = SimpleNamespace(usage=SimpleNamespace(input_tokens=11, output_tokens=5))

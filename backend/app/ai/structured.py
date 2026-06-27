@@ -110,8 +110,12 @@ def _usage_tokens(usage) -> tuple[int, int]:
     """Anthropic uses input/output_tokens; OpenAI uses prompt/completion_tokens."""
     if usage is None:
         return 0, 0
-    prompt = getattr(usage, "input_tokens", None) or getattr(usage, "prompt_tokens", 0) or 0
-    completion = getattr(usage, "output_tokens", None) or getattr(usage, "completion_tokens", 0) or 0
+    prompt = getattr(usage, "input_tokens", None)
+    if prompt is None:
+        prompt = getattr(usage, "prompt_tokens", 0)
+    completion = getattr(usage, "output_tokens", None)
+    if completion is None:
+        completion = getattr(usage, "completion_tokens", 0)
     return int(prompt), int(completion)
 
 
@@ -158,46 +162,16 @@ def structured_completion(
     max_retries: int | None = None,
 ) -> T:
     model = model or settings.ai_model
-    # Local models emit malformed JSON more often than Claude; default to the
-    # configured retry budget so structured output survives transient glitches.
     max_retries = settings.ai_max_retries if max_retries is None else max_retries
-    provider = settings.ai_provider
-
-    if provider == "anthropic":
-        client = _get_anthropic_client()
+    client, mode = _client_and_mode(settings.ai_provider)
+    if mode == "messages":
         return client.messages.create(
-            model=model,
-            max_tokens=max_tokens,
-            max_retries=max_retries,
-            system=system,
-            messages=[{"role": "user", "content": content}],
+            model=model, max_tokens=max_tokens, max_retries=max_retries,
+            system=system, messages=[{"role": "user", "content": content}],
             response_model=output_model,
         )
-
-    if provider == "lmstudio":
-        client = _get_lmstudio_client()
-        return client.chat.completions.create(
-            model=model,
-            max_tokens=max_tokens,
-            max_retries=max_retries,
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": content},
-            ],
-            response_model=output_model,
-        )
-
-    if provider == "openrouter":
-        client = _get_openrouter_client()
-        return client.chat.completions.create(
-            model=model,
-            max_tokens=max_tokens,
-            max_retries=max_retries,
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": content},
-            ],
-            response_model=output_model,
-        )
-
-    raise RuntimeError(f"Unknown ai_provider: {provider!r}")
+    return client.chat.completions.create(
+        model=model, max_tokens=max_tokens, max_retries=max_retries,
+        messages=[{"role": "system", "content": system}, {"role": "user", "content": content}],
+        response_model=output_model,
+    )
