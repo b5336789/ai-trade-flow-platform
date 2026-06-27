@@ -180,12 +180,12 @@ def run_workflow_backtest(
             max_dd = max(max_dd, (peak - eq) / peak * 100)
 
     return _assemble_result(
-        sim, equity_curve, starting_cash, timeframe, rf, bars_in_pos, max_dd, symbols, signals, histories
+        sim, equity_curve, starting_cash, timeframe, market, rf, bars_in_pos, max_dd, symbols, signals, histories
     )
 
 
 def _assemble_result(
-    sim, equity_curve, starting_cash, timeframe, rf, bars_in_pos, max_dd, symbols, signals, histories
+    sim, equity_curve, starting_cash, timeframe, market, rf, bars_in_pos, max_dd, symbols, signals, histories
 ) -> WorkflowBacktestResult:
     final_equity = equity_curve[-1].equity if equity_curve else starting_cash
     pnls = [t.pnl for t in sim.trades]
@@ -193,7 +193,7 @@ def _assemble_result(
     loss_pnls = [p for p in pnls if p < 0]
     equities = [starting_cash] + [p.equity for p in equity_curve]
     returns = [equities[k] / equities[k - 1] - 1 for k in range(1, len(equities)) if equities[k - 1] > 0]
-    ppy = metrics.periods_per_year(timeframe)
+    ppy = metrics.periods_per_year(timeframe, market)
     cagr = metrics.cagr(starting_cash, final_equity, len(returns), ppy)
     # buy & hold of an equal-weight basket of all symbols, first->last close
     bh = 0.0

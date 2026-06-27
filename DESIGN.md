@@ -29,6 +29,8 @@ as **Python code**, which is saved to the **Strategy Library** for reuse.
   editable value) tuned at use-time.
 - **This is the AI-heavy room** — the electric accent leads here (chat, "AI 生成" badges,
   send button).
+- **(2026-06-27 演進)** 生成策略以 **rules-first** 視圖呈現可讀可編輯的 entry/exit 規則;
+  唯讀 pseudo-Python 降為可選的「檢視原始」。詳見 blueprint §D1 與 Decisions Log。
 
 ### 交易室 — Trading Room
 Where strategies run. Two modes, one drag-and-drop canvas.
@@ -122,29 +124,60 @@ Never hardcode green-as-gain.
 - **Border radius (tight):** `--r-sm 4px`, `--r-md 6px`, `--r-lg 8px`. Sharp reads
   "professional instrument". No bubbly uniform radius.
 
+### Global Context Bar — 跨頁常駐(top bar)
+
+升級原本只有 `ThemeToggle` + 文件連結的 top bar 為**每一頁常駐**的情境列,承載
+paper↔live 信任邊界與全域情境(取代散落在各 panel 的 `setMarket`):
+
+- **單一全域 market 選擇器** — 驅動 `data-market`(一次修掉跨頁 `--up`/`--down` 殘留),
+  切換即帶入該市場預設 symbol。
+- **mode chip** — `paper` 中性;`LIVE` 轉 `--live` + 脈動(本系統唯一刻意動畫)。
+- **權益 / 今日損益** — `.num` tabular,經 `--up`/`--down`(台股反轉)。
+- **風控 chip** — 讀 `/api/risk/status`;`halted`/`kill` 時轉 `--error`,**任一頁不可隱藏**
+  (mobile 收進漢堡仍保留危險圖示)。
+- **連線狀態 · 全域 🔔 Alert Center**(未讀徽章取最高 severity 色)· **主題 · 文件中心**。
+
+色彩鐵律不變:`--accent`(cyan)永不用於危險或裝飾;只有 `--live` 代表真錢,
+只有 `--warning`/`--error` 代表危險,`--up`/`--down` 只代表價格。
+
 ### Navigation — Left Tree Menu
 
 Primary navigation is a collapsible tree in a left sidebar (the room switcher moves
-here). The tree mirrors the two-room IA so users always see where they are.
+here). The tree mirrors the three-room IA(設計 / 驗證 / 營運)so users always see where they are.
 
 ```
 AI Trade Flow.
-├─ 🧪 策略室
+├─ 🧪 策略室 — 設計
 │  ├─ 與 AI 設計策略
-│  └─ 策略庫
-│     └─ … (saved strategies)
-├─ 🔀 交易室
+│  ├─ 策略庫            └ saved strategies · 版本 lineage
+│  └─ 掃描 Scanner      (NEW · 策略點子源頭)
+├─ 🔬 交易室 — 驗證 / 佈署
 │  ├─ 模擬回測
-│  └─ 工作流
+│  ├─ 工作流
+│  └─ 上線審核          (NEW · paper→live Promotion Gate · --live dot)
+├─ 🛰 監控室 — 營運真錢   (NEW ROOM)
+│  ├─ 總覽 / 即時績效
+│  ├─ 下單簿 OMS
+│  ├─ 對帳 Reconciliation
+│  ├─ 風控 Risk Cockpit  (kill-switch · 限額使用率)
+│  ├─ 稽核 Audit
+│  └─ 資料品質
 ├─ 📈 市場
-├─ 👛 投組
+├─ 💼 投組 — 資本真相
+│  ├─ 總覽 / 部位
+│  └─ 損益帳本
 └─ 🔧 工具
+   ├─ 連線 / 帳戶        (NEW · broker credentials)
    ├─ 排程
-   ├─ 通知
-   └─ 匯入
+   ├─ 警示 Alerts        (NEW)
+   ├─ 通知 / Alert Center
+   └─ 資料來源
 ```
 
-label 僅中文;每項以 lucide icon 前綴(策略室=FlaskConical、交易室=Network、市場=CandlestickChart、投組=Wallet、工具=Wrench;leaf 各有對應 icon)。AI leaf 的 icon 用 `--accent`,其餘用 `--text-faint`,active/live 色彩規則不變。
+> 三室為「設計 → 驗證 → 營運」生命週期脊椎;市場 / 投組維持一級 cross-cutting 參考面。
+> 監控室全部 leaf 與 nav 詳規以 `specs/2026-06-27-platform-redesign-blueprint.md` §5.2 為準。
+
+label 僅中文;每項以 lucide icon 前綴(策略室=FlaskConical、交易室=Network、監控室=Gauge、市場=CandlestickChart、投組=Wallet、工具=Wrench;leaf 各有對應 icon)。AI leaf 的 icon 用 `--accent`,其餘用 `--text-faint`,active/live 色彩規則不變。監控室的 `對帳`/`風控` leaf 在 `halted`/`kill` 狀態亮 `--error` dot。
 
 - **Sidebar width:** `--nav-w 240px` (expanded), `--nav-w-rail 64px` (icon rail).
 - **Tree mechanics:** parent rows expand/collapse (chevron, 120ms); children indent
@@ -270,3 +303,6 @@ stock imagery. Accent is cyan and earns its place; it is not decoration.
 | 2026-06-19 | Workflow builder: palette + canvas + inspector, color-per-category nodes | Maps to React Flow; category colors (data/strategy/logic/order/output) make graphs scannable; cyan reserved for strategy/AI keeps the AI-accent rule intact. |
 | 2026-06-20 | `/docs` 改為獨立亮色閱讀 Portal（`[data-surface="docs"]` scope） | 文件中心與交易終端機分流:長文閱讀需亮底/寬 measure;僅作用於 docs scope,主 App 維持深色終端機風。使用者核准的範圍內偏離。 |
 | 2026-06-22 | 選單改純中文 label + lucide icon(移除英文 subtitle) | 中英並陳視覺雜訊大;icon + 中文更貼近專業終端機。使用者核准的偏離。 |
+| 2026-06-27 | 兩室 → 三室:新增「監控室 Operations」一級房間 | 兩室涵蓋「上線前(設計/驗證)」卻漏掉「上線後(對帳/即時風控/下單簿/稽核/資料品質)」;營運真錢需專屬中樞。詳見 `specs/2026-06-27-platform-redesign-blueprint.md` §5。使用者核准。 |
+| 2026-06-27 | 新增跨頁常駐 Global Context Bar | paper↔live 信任邊界不能是頁面內細節;market / mode / 權益 / 風控需任一頁皆不可錯認。落實 Layout 既有 top-bar 要求。使用者核准。 |
+| 2026-06-27 | 策略室生成策略改 rules-first 可編輯視圖 | entry/exit 規則對非工程使用者讀作 code 而非規則且不可編輯;rules-first 讓「理解 / 信任 / 編輯 AI 做了什麼」成立,pseudo-Python 降為可選「檢視原始」。使用者核准。 |

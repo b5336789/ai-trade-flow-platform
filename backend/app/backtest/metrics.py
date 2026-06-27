@@ -15,13 +15,27 @@ from __future__ import annotations
 
 import math
 
+from app.schemas import MarketKind
+
 _SECONDS_PER_YEAR = 365.25 * 24 * 3600
 _UNIT_SECONDS = {"m": 60, "h": 3600, "d": 86400, "w": 604800}
-_EPS = 1e-12  # dispersions below this are treated as zero (float noise, not real signal)
+_TRADING_DAYS_PER_YEAR = 252.0
+_TRADING_WEEKS_PER_YEAR = 52.0
+# Regular cash-session length per equity market (seconds): TW 09:00-13:30 = 4.5h; US 09:30-16:00 = 6.5h.
+_STOCK_SESSION_SECONDS = {
+    MarketKind.tw_stock: 4.5 * 3600,
+    MarketKind.us_stock: 6.5 * 3600,
+}
+_EPS = 1e-12  # keep existing constant below this block
 
 
-def periods_per_year(timeframe: str) -> float:
-    """Bars per year for a ccxt-style timeframe (e.g. ``"1h"`` -> 8766.0, ``"1d"`` -> 365.25)."""
+def periods_per_year(timeframe: str, market: MarketKind = MarketKind.crypto) -> float:
+    """Bars per year for a ccxt-style timeframe.
+
+    Crypto (24/7) uses the calendar-second basis (``"1h"`` -> 8766, ``"1d"`` -> 365.25).
+    Equities use a TRADING calendar — 252 trading days/year, intraday scaled by the cash session
+    length — so daily stock Sharpe/vol are not inflated ~1.2x by counting 365 days.
+    """
     tf = timeframe.strip().lower()
     num = ""
     i = 0
@@ -31,8 +45,16 @@ def periods_per_year(timeframe: str) -> float:
     unit = tf[i:]
     if not num or unit not in _UNIT_SECONDS:
         raise ValueError(f"unsupported timeframe for annualisation: {timeframe!r}")
-    seconds = int(num) * _UNIT_SECONDS[unit]
-    return _SECONDS_PER_YEAR / seconds
+    n = int(num)
+    session = _STOCK_SESSION_SECONDS.get(market)
+    if session is None:  # crypto / 24-7 — unchanged calendar-second basis
+        return _SECONDS_PER_YEAR / (n * _UNIT_SECONDS[unit])
+    if unit == "d":
+        return _TRADING_DAYS_PER_YEAR / n
+    if unit == "w":
+        return _TRADING_WEEKS_PER_YEAR / n
+    bars_per_session = session / (n * _UNIT_SECONDS[unit])  # intraday
+    return _TRADING_DAYS_PER_YEAR * bars_per_session
 
 
 def _mean(xs: list[float]) -> float:

@@ -10,6 +10,7 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 from app.backtest import metrics
+from app.backtest.honesty import BacktestAssumptions, assess, representative_cost_bps
 from app.config import settings
 from app.schemas import Candle, MarketKind, OrderSide, SignalAction
 from app.strategies.base import Strategy
@@ -56,6 +57,7 @@ class BacktestResult(BaseModel):
     turnover: float = 0.0  # total traded notional / starting cash
     trades: list[Trade] = Field(default_factory=list)
     equity_curve: list[EquityPoint] = Field(default_factory=list)
+    assumptions: BacktestAssumptions | None = None
 
 
 def run_backtest(
@@ -171,7 +173,7 @@ def run_backtest(
     # Per-bar returns (prepend starting cash so the first bar's return is captured), then annualise.
     equities = [starting_cash] + [p.equity for p in equity_curve]
     returns = [equities[k] / equities[k - 1] - 1 for k in range(1, len(equities)) if equities[k - 1] > 0]
-    ppy = metrics.periods_per_year(timeframe)
+    ppy = metrics.periods_per_year(timeframe, market)
     cagr = metrics.cagr(starting_cash, final_equity, len(returns), ppy)
 
     return BacktestResult(
@@ -194,6 +196,14 @@ def run_backtest(
         exposure_pct=(bars_in_position / len(equity_curve) * 100) if equity_curve else 0.0,
         max_consecutive_losses=metrics.max_consecutive_losses(pnls),
         turnover=(traded_value / starting_cash) if starting_cash > 0 else 0.0,
+        assumptions=assess(
+            slippage_bps=costs.slippage_bps,
+            cost_taker_bps=representative_cost_bps(market, settings),
+            bars=len(candles),
+            num_trades=len(trades),
+            timeframe=timeframe,
+            market=market.value,
+        ),
         trades=trades,
         equity_curve=equity_curve,
     )

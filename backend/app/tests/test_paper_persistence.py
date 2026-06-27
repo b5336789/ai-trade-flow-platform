@@ -13,6 +13,13 @@ from app.trading.paper_store import PaperStore
 MARKET = MarketKind.us_stock
 
 
+@pytest.fixture(autouse=True)
+def _no_slippage(monkeypatch):
+    """Mechanic tests assert fee-only fills; pin slippage off (default is now 5 bps)."""
+    from app.config import settings
+    monkeypatch.setattr(settings, "cost_slippage_bps", 0.0)
+
+
 @pytest.fixture()
 def store():
     s = PaperStore(MARKET)

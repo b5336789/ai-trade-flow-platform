@@ -21,6 +21,8 @@ import { MetricCard } from "@/components/MetricCard";
 import { PriceChart } from "@/components/PriceChart";
 import { tradesToMarkers, type Overlay } from "@/lib/chart-helpers";
 import type { Candle } from "@/lib/api";
+import { HonestyBar } from "@/components/backtest/HonestyBar";
+import { BacktestRunRegistry } from "@/components/backtest/BacktestRunRegistry";
 
 const SAVED_PREFIX = "saved:";
 const TIMEFRAMES = ["1m", "5m", "15m", "1h", "4h", "1d"];
@@ -391,6 +393,11 @@ export function BacktestPanel() {
 
       {error && <p className="text-sm text-error">Backtest error: {error}</p>}
 
+      <div className="mt-4 border-t border-border pt-3">
+        <p className="mb-1 text-[11px] font-medium text-muted">回測紀錄</p>
+        <BacktestRunRegistry />
+      </div>
+
       {(result || comparison || optimization || walkforward) && (
         <div className="space-y-3">
           <div className="flex gap-2 border-b border-border text-sm">
@@ -421,6 +428,7 @@ export function BacktestPanel() {
                   {seeding ? L.linking.buildingWorkflow : `${L.linking.buildWorkflow} →`}
                 </button>
               </div>
+              <HonestyBar assumptions={result.assumptions} />
               <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
                 <MetricCard
                   termKey="total_return"
@@ -531,43 +539,48 @@ export function BacktestPanel() {
             </div>
           )}
 
-          {tab === "compare" && comparison && (
-            <table className="w-full text-left text-xs">
-              <thead className="text-faint">
-                <tr>
-                  <th className="py-1">Strategy</th>
-                  <th>Return</th>
-                  <th>Max DD</th>
-                  <th>Trades</th>
-                  <th>Win%</th>
-                </tr>
-              </thead>
-              <tbody>
-                {comparison.map((r, i) => (
-                  <tr key={r.strategy} className="border-t border-border">
-                    <td className="py-1">
-                      {i === 0 && !r.error ? "🏆 " : ""}
-                      {r.strategy}
-                    </td>
-                    {r.error ? (
-                      <td colSpan={4} className="text-error">
-                        {r.error}
-                      </td>
-                    ) : (
-                      <>
-                        <td className={`num ${r.total_return_pct >= 0 ? "text-up" : "text-down"}`}>
-                          {pct(r.total_return_pct)}
-                        </td>
-                        <td className="num text-down">{pct(-r.max_drawdown_pct)}</td>
-                        <td className="num">{r.num_trades}</td>
-                        <td className="num">{r.win_rate.toFixed(0)}%</td>
-                      </>
-                    )}
+          {tab === "compare" && comparison && (() => {
+            const firstNonErrorIdx = comparison.findIndex((r) => !r.error);
+            return (
+              <table className="w-full text-left text-xs">
+                <thead className="text-faint">
+                  <tr>
+                    <th className="py-1">Strategy</th>
+                    <th>Return</th>
+                    <th>Sharpe</th>
+                    <th>Max DD</th>
+                    <th>Trades</th>
+                    <th>Win%</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+                </thead>
+                <tbody>
+                  {comparison.map((r, i) => (
+                    <tr key={r.strategy} className="border-t border-border">
+                      <td className="py-1">
+                        {i === firstNonErrorIdx && firstNonErrorIdx !== -1 ? "🏆 " : ""}
+                        {r.strategy}
+                      </td>
+                      {r.error ? (
+                        <td colSpan={5} className="text-error">
+                          {r.error}
+                        </td>
+                      ) : (
+                        <>
+                          <td className={`num ${r.total_return_pct >= 0 ? "text-up" : "text-down"}`}>
+                            {pct(r.total_return_pct)}
+                          </td>
+                          <td className="num">{r.sharpe.toFixed(2)}</td>
+                          <td className="num text-down">{pct(-r.max_drawdown_pct)}</td>
+                          <td className="num">{r.num_trades}</td>
+                          <td className="num">{r.win_rate.toFixed(0)}%</td>
+                        </>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            );
+          })()}
 
           {tab === "optimize" && optimization && (
             <table className="w-full text-left text-xs">
