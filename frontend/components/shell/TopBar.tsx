@@ -25,6 +25,9 @@ export function TopBar({ open, onMenu }: { open: boolean; onMenu: () => void }) 
   const s = risk.data;
   const todayPnl = s ? s.equity_base - s.day_start_equity_base : 0;
   const danger = !!s && (s.kill_switch || s.halted);
+  // Risk state couldn't load (e.g. 501 on an unimplemented market). Kill/halt are GLOBAL flags;
+  // never show a falsely-reassuring neutral chip when the true state is unknown.
+  const unknown = risk.isError;
 
   return (
     <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-border bg-bg/85 px-4 py-2.5 backdrop-blur">
@@ -83,11 +86,13 @@ export function TopBar({ open, onMenu }: { open: boolean; onMenu: () => void }) 
           className={`flex items-center gap-1 rounded-md border px-2 py-1 text-xs ${
             danger
               ? "border-error/40 bg-error/15 text-error"
-              : "border-border bg-surface-2 text-muted hover:text-text"
+              : unknown
+                ? "border-warning/40 bg-warning/15 text-warning"
+                : "border-border bg-surface-2 text-muted hover:text-text"
           }`}
         >
           <ShieldAlert size={14} />
-          <span className="hidden sm:inline">{danger ? (s?.kill_switch ? "KILL" : "HALTED") : "風控"}</span>
+          <span className="hidden sm:inline">{danger ? (s.kill_switch ? "KILL" : "HALTED") : unknown ? "風控 ?" : "風控"}</span>
         </Link>
         <ThemeToggle />
         <Link
