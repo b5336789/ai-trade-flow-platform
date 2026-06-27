@@ -171,7 +171,7 @@ def run_backtest(
     # Per-bar returns (prepend starting cash so the first bar's return is captured), then annualise.
     equities = [starting_cash] + [p.equity for p in equity_curve]
     returns = [equities[k] / equities[k - 1] - 1 for k in range(1, len(equities)) if equities[k - 1] > 0]
-    ppy = metrics.periods_per_year(timeframe)
+    ppy = metrics.periods_per_year(timeframe, market)
     cagr = metrics.cagr(starting_cash, final_equity, len(returns), ppy)
 
     return BacktestResult(

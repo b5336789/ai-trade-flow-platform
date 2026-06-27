@@ -7,6 +7,7 @@ import math
 import pytest
 
 from app.backtest import metrics
+from app.schemas import MarketKind
 
 
 def test_periods_per_year_from_timeframe():
@@ -65,3 +66,21 @@ def test_cagr_short_high_growth_sample_is_finite_not_overflow():
     # 4 hourly bars (ppy 8766) with a gain annualises to an astronomical exponent; must stay finite.
     value = metrics.cagr(100.0, 150.0, n_periods=4, ppy=8766.0)
     assert math.isfinite(value)
+
+
+def test_periods_per_year_crypto_unchanged():
+    # default market is crypto (24/7) — existing behaviour preserved.
+    assert metrics.periods_per_year("1h") == pytest.approx(8766.0)
+    assert metrics.periods_per_year("1d", MarketKind.crypto) == pytest.approx(365.25)
+
+
+def test_periods_per_year_stocks_use_trading_calendar():
+    # Daily stock bars: 252 trading days/year, not 365.25.
+    assert metrics.periods_per_year("1d", MarketKind.tw_stock) == pytest.approx(252.0)
+    assert metrics.periods_per_year("1d", MarketKind.us_stock) == pytest.approx(252.0)
+    # Weekly: 52 trading weeks.
+    assert metrics.periods_per_year("1w", MarketKind.us_stock) == pytest.approx(52.0)
+    # Intraday US (6.5h session): 1h -> 252 * 6.5 = 1638 bars/yr.
+    assert metrics.periods_per_year("1h", MarketKind.us_stock) == pytest.approx(1638.0)
+    # Intraday TW (4.5h session): 30m -> 252 * (16200/1800) = 252 * 9 = 2268.
+    assert metrics.periods_per_year("30m", MarketKind.tw_stock) == pytest.approx(2268.0)
