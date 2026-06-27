@@ -4,10 +4,11 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 
 import pytest
+from fastapi import HTTPException
 from sqlmodel import Session, SQLModel, create_engine
 
 import app.api.backtest as bt
-from app.api.backtest import BacktestRequest, backtest, list_backtest_runs
+from app.api.backtest import BacktestRequest, backtest, get_backtest_run, list_backtest_runs
 from app.db import get_session
 from app.schemas import Candle
 
@@ -51,3 +52,12 @@ def test_backtest_persists_and_lists(monkeypatch, session):
     assert runs[0].symbol == "BTC/USDT"
     assert runs[0].strategy == "ma_cross"
     assert runs[0].metrics_json["total_return_pct"] == result.total_return_pct
+    # (a) persisted run carries assumptions
+    assert runs[0].assumptions_json is not None
+    # (b) get-by-id returns full payload including equity_curve_json
+    full = get_backtest_run(runs[0].id, session=session)
+    assert full.equity_curve_json is not None
+    # (c) get-by-id raises 404 for unknown id
+    with pytest.raises(HTTPException) as exc:
+        get_backtest_run(999999, session=session)
+    assert exc.value.status_code == 404

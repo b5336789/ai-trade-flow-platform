@@ -335,7 +335,7 @@ def backtest(req: BacktestRequest, session: Session = Depends(get_session)) -> B
         raise HTTPException(status_code=502, detail=f"{type(exc).__name__}: {exc}")
 
 
-@router.get("/runs", response_model=list[BacktestRun])
+@router.get("/runs", response_model=list[BacktestRun], response_model_exclude={"equity_curve_json", "trades_json"})
 def list_backtest_runs(limit: int = 50, session: Session = Depends(get_session)) -> list[BacktestRun]:
     from sqlmodel import select
 
