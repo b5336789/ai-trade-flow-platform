@@ -13,6 +13,7 @@ schemas ("Circular reference detected"). Instructor JSON mode handles recursion.
 """
 from __future__ import annotations
 
+import time
 from typing import TypeVar
 
 from pydantic import BaseModel
@@ -85,6 +86,66 @@ def _get_openrouter_client():
             mode=instructor.Mode.JSON,
         )
     return _openrouter_client
+
+
+def _client_and_mode(provider: str):
+    """Return (instructor client, "messages"|"chat") for the configured provider."""
+    if provider == "anthropic":
+        return _get_anthropic_client(), "messages"
+    if provider == "lmstudio":
+        return _get_lmstudio_client(), "chat"
+    if provider == "openrouter":
+        return _get_openrouter_client(), "chat"
+    raise RuntimeError(f"Unknown ai_provider: {provider!r}")
+
+
+class CompletionMeta(BaseModel):
+    model: str
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    latency_ms: float = 0.0
+
+
+def _usage_tokens(usage) -> tuple[int, int]:
+    """Anthropic uses input/output_tokens; OpenAI uses prompt/completion_tokens."""
+    if usage is None:
+        return 0, 0
+    prompt = getattr(usage, "input_tokens", None) or getattr(usage, "prompt_tokens", 0) or 0
+    completion = getattr(usage, "output_tokens", None) or getattr(usage, "completion_tokens", 0) or 0
+    return int(prompt), int(completion)
+
+
+def structured_completion_with_meta(
+    *,
+    system: str,
+    content: str,
+    output_model: type[T],
+    model: str | None = None,
+    max_tokens: int = 2048,
+    max_retries: int | None = None,
+) -> tuple[T, CompletionMeta]:
+    model = model or settings.ai_model
+    max_retries = settings.ai_max_retries if max_retries is None else max_retries
+    client, mode = _client_and_mode(settings.ai_provider)
+    start = time.perf_counter()
+    if mode == "messages":
+        obj, completion = client.messages.create_with_completion(
+            model=model, max_tokens=max_tokens, max_retries=max_retries,
+            system=system, messages=[{"role": "user", "content": content}],
+            response_model=output_model,
+        )
+    else:
+        obj, completion = client.chat.completions.create_with_completion(
+            model=model, max_tokens=max_tokens, max_retries=max_retries,
+            messages=[{"role": "system", "content": system}, {"role": "user", "content": content}],
+            response_model=output_model,
+        )
+    latency_ms = (time.perf_counter() - start) * 1000.0
+    prompt_tokens, completion_tokens = _usage_tokens(getattr(completion, "usage", None))
+    return obj, CompletionMeta(
+        model=model, prompt_tokens=prompt_tokens,
+        completion_tokens=completion_tokens, latency_ms=latency_ms,
+    )
 
 
 def structured_completion(
