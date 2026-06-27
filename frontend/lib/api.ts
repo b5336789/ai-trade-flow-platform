@@ -59,6 +59,56 @@ export interface PortfolioView {
   equity: number;
 }
 
+export interface MarketSummary {
+  market: string;
+  available: boolean;
+  quote_currency: string;
+  cash_native: number;
+  positions_value_native: number;
+  equity_native: number;
+  cash_base: number;
+  positions_value_base: number;
+  equity_base: number;
+  num_positions: number;
+  error: string | null;
+}
+
+export interface PortfolioSummary {
+  base_currency: string;
+  total_cash_base: number;
+  total_positions_value_base: number;
+  total_equity_base: number;
+  markets: MarketSummary[];
+}
+
+export interface RealizedDisposal {
+  id: number;
+  market: string;
+  symbol: string;
+  quantity: number;
+  proceeds: number;
+  cost_basis: number;
+  fee: number;
+  tax: number;
+  gross_pnl: number;
+  realized_net: number;
+  closed_at: string;
+}
+
+export interface RealizedPnLReport {
+  count: number;
+  total_proceeds: number;
+  total_cost_basis: number;
+  total_fee: number;
+  total_tax: number;
+  total_gross_pnl: number;
+  total_realized_net: number;
+  base_currency: string;
+  total_realized_net_base: number;
+  total_gross_pnl_base: number;
+  disposals: RealizedDisposal[];
+}
+
 export interface AppConfig {
   trading_mode: string;
   markets: string[];
@@ -463,6 +513,32 @@ export const api = {
     request<{ kill_switch: boolean }>(`/api/risk/kill-switch?engaged=${engaged}`, { method: "POST" }),
   resumeRisk: () => request<{ halted: boolean }>("/api/risk/resume", { method: "POST" }),
   orders: () => request<OrderResult[]>("/api/orders"),
+  portfolioSummary: () => request<PortfolioSummary>("/api/portfolio/summary"),
+  realizedLedger: (params?: { market?: string; symbol?: string; start?: string; end?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.market) q.set("market", params.market);
+    if (params?.symbol) q.set("symbol", params.symbol);
+    if (params?.start) q.set("start", params.start);
+    if (params?.end) q.set("end", params.end);
+    const qs = q.toString();
+    return request<RealizedPnLReport>(`/api/ledger/realized${qs ? `?${qs}` : ""}`);
+  },
+  downloadLedgerCsv: async (params?: { market?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.market) q.set("market", params.market);
+    const qs = q.toString();
+    const headers: Record<string, string> = {};
+    if (API_TOKEN) headers.Authorization = `Bearer ${API_TOKEN}`;
+    const res = await fetch(`${BASE}/api/ledger/realized.csv${qs ? `?${qs}` : ""}`, { headers });
+    if (!res.ok) throw new Error(`CSV download failed: ${res.status}`);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "realized_pnl.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  },
   runWorkflow: (graph: WorkflowGraph) =>
     request<RunResult>("/api/workflows/run", {
       method: "POST",
