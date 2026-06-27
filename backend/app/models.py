@@ -171,6 +171,32 @@ class WorkflowRun(SQLModel, table=True):
     created_at: datetime = Field(default_factory=_now, index=True)
 
 
+class BacktestRun(SQLModel, table=True):
+    """One single-strategy backtest, persisted for auditability + reproducibility.
+
+    Captures the inputs that determine the numbers (strategy/params/range/cost slippage) alongside
+    the metrics, the honesty assumptions, the equity curve and the trades.
+    """
+
+    id: int | None = Field(default=None, primary_key=True)
+    symbol: str = Field(index=True)
+    market: str = ""
+    timeframe: str = ""
+    strategy: str = Field(index=True)
+    params_json: dict = Field(default_factory=dict, sa_column=Column(JSON))
+    starting_cash: float = 0.0
+    position_fraction: float = 1.0
+    slippage_bps: float = 0.0
+    bars: int = 0
+    range_start: str = ""
+    range_end: str = ""
+    metrics_json: dict | None = Field(default=None, sa_column=Column(JSON))
+    assumptions_json: dict | None = Field(default=None, sa_column=Column(JSON))
+    equity_curve_json: list | None = Field(default=None, sa_column=Column(JSON))
+    trades_json: list | None = Field(default=None, sa_column=Column(JSON))
+    created_at: datetime = Field(default_factory=_now, index=True)
+
+
 class WorkflowSignal(SQLModel, table=True):
     """One emitted signal at an order node, with the node-by-node trace that produced it."""
 

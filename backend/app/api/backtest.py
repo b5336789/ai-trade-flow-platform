@@ -14,7 +14,7 @@ from app.backtest.validation import WalkForwardReport, walk_forward
 from app.backtest.workflow_backtest import WorkflowBacktestResult, run_workflow_backtest
 from app.brokers.registry import get_data_broker
 from app.db import get_session
-from app.models import Workflow
+from app.models import BacktestRun, Workflow
 from app.schemas import MarketKind
 from app.strategies.registry import STRATEGIES, build_strategy
 from app.workflow.run_store import persist_workflow_run, resolve_order_symbol
@@ -292,13 +292,13 @@ def walk_forward_endpoint(req: WalkForwardRequest) -> WalkForwardReport:
 
 
 @router.post("", response_model=BacktestResult)
-def backtest(req: BacktestRequest) -> BacktestResult:
+def backtest(req: BacktestRequest, session: Session = Depends(get_session)) -> BacktestResult:
     try:
         strategy = build_strategy(req.strategy, req.params)
         candles = _fetch_candles(
             get_data_broker(req.market), req.symbol, req.timeframe, req.limit, req.start, req.end
         )
-        return run_backtest(
+        result = run_backtest(
             candles,
             strategy,
             starting_cash=req.starting_cash,
@@ -306,9 +306,45 @@ def backtest(req: BacktestRequest) -> BacktestResult:
             market=req.market,
             timeframe=req.timeframe,
         )
+        session.add(
+            BacktestRun(
+                symbol=req.symbol,
+                market=req.market.value,
+                timeframe=req.timeframe,
+                strategy=req.strategy,
+                params_json=req.params,
+                starting_cash=req.starting_cash,
+                position_fraction=req.position_fraction,
+                slippage_bps=result.assumptions.slippage_bps if result.assumptions else 0.0,
+                bars=len(candles),
+                range_start=candles[0].timestamp.isoformat(),
+                range_end=candles[-1].timestamp.isoformat(),
+                metrics_json=result.model_dump(mode="json", exclude={"trades", "equity_curve", "assumptions"}),
+                assumptions_json=result.assumptions.model_dump(mode="json") if result.assumptions else None,
+                equity_curve_json=[p.model_dump(mode="json") for p in result.equity_curve],
+                trades_json=[t.model_dump(mode="json") for t in result.trades],
+            )
+        )
+        session.commit()
+        return result
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
     except NotImplementedError as exc:
         raise HTTPException(status_code=501, detail=str(exc))
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"{type(exc).__name__}: {exc}")
+
+
+@router.get("/runs", response_model=list[BacktestRun])
+def list_backtest_runs(limit: int = 50, session: Session = Depends(get_session)) -> list[BacktestRun]:
+    from sqlmodel import select
+
+    return list(session.exec(select(BacktestRun).order_by(BacktestRun.id.desc()).limit(limit)))
+
+
+@router.get("/runs/{run_id}", response_model=BacktestRun)
+def get_backtest_run(run_id: int, session: Session = Depends(get_session)) -> BacktestRun:
+    run = session.get(BacktestRun, run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail="backtest run not found")
+    return run
