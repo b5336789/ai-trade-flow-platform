@@ -20,6 +20,7 @@ export function PortfolioPanel() {
     retry: false,
   });
   const orders = useQuery({ queryKey: ["orders"], queryFn: api.orders, refetchInterval: 5000, retry: false });
+  const summary = useQuery({ queryKey: ["portfolio-summary"], queryFn: api.portfolioSummary, refetchInterval: 5000, retry: false });
 
   return (
     <section className="rounded-lg border border-border bg-surface-1 p-4">
@@ -45,6 +46,35 @@ export function PortfolioPanel() {
           {L.portfolio.resetPaper}
         </button>
       </div>
+
+      {summary.data && (
+        <div className="mb-3 rounded-md border border-border bg-surface-2 p-3">
+          <div className="flex items-baseline justify-between">
+            <span className="text-xs text-faint">跨市場總權益（{summary.data.base_currency}）</span>
+            <span className="num text-lg font-semibold">{money(summary.data.total_equity_base)}</span>
+          </div>
+          <div className="mt-2 space-y-1">
+            {summary.data.markets.filter((m) => m.available).map((m) => {
+              const w = summary.data.total_equity_base > 0 ? (m.equity_base / summary.data.total_equity_base) * 100 : 0;
+              return (
+                <div key={m.market} className="flex items-center gap-2 text-xs">
+                  <span className="w-20 text-muted">{m.market}</span>
+                  <div className="h-1.5 flex-1 overflow-hidden rounded-sm bg-surface-3">
+                    <div className="h-full bg-text/40" style={{ width: `${w}%` }} />
+                  </div>
+                  <span className="num w-28 text-right text-text">{money(m.equity_base)}</span>
+                  <span className="num w-12 text-right text-faint">{w.toFixed(0)}%</span>
+                </div>
+              );
+            })}
+            {summary.data.markets.filter((m) => !m.available).length > 0 && (
+              <p className="text-[11px] text-faint">
+                未連線市場：{summary.data.markets.filter((m) => !m.available).map((m) => m.market).join("、")}（無資料 / 尚未實作）
+              </p>
+            )}
+          </div>
+        </div>
+      )}
 
       {portfolio.isError ? (
         <p className="text-sm text-error">{L.portfolio.error}：{(portfolio.error as Error).message}</p>
@@ -72,7 +102,10 @@ export function PortfolioPanel() {
                     <td className="py-1">{p.symbol}</td>
                     <td className="num">{p.quantity}</td>
                     <td className="num">{money(p.avg_price)}</td>
-                    <td className="num">{money(p.current_price)}</td>
+                    <td className="num">
+                      {money(p.current_price)}
+                      {p.price_source === "avg_fallback" && <span className="ml-1 text-warning" title="現價不可得，退回成本價">⚠</span>}
+                    </td>
                     <td className={`num ${p.unrealized_pnl >= 0 ? "text-up" : "text-down"}`}>
                       {money(p.unrealized_pnl)}
                     </td>
