@@ -168,6 +168,35 @@ export interface BacktestResult {
   turnover: number;
   trades: Trade[];
   equity_curve: EquityPoint[];
+  assumptions: BacktestAssumptions | null;
+}
+
+export interface BacktestAssumptions {
+  slippage_bps: number;
+  cost_taker_bps: number;
+  bars: number;
+  num_trades: number;
+  timeframe: string;
+  market: string;
+  annualization_basis: string;
+  oos_selected: boolean;
+  warnings: string[];
+}
+
+export interface BacktestRunDTO {
+  id: number;
+  symbol: string;
+  market: string;
+  timeframe: string;
+  strategy: string;
+  starting_cash: number;
+  slippage_bps: number;
+  bars: number;
+  range_start: string;
+  range_end: string;
+  metrics_json: Record<string, number> | null;
+  assumptions_json: BacktestAssumptions | null;
+  created_at: string;
 }
 
 export interface BacktestRequest {
@@ -186,6 +215,7 @@ export interface BacktestRequest {
 export interface CompareRow {
   strategy: string;
   total_return_pct: number;
+  sharpe: number;
   buy_hold_return_pct: number;
   num_trades: number;
   win_rate: number;
@@ -430,6 +460,9 @@ export const api = {
       method: "POST",
       body: JSON.stringify(req),
     }),
+  listBacktestRuns: (limit = 50) =>
+    request<BacktestRunDTO[]>(`/api/backtest/runs?limit=${limit}`),
+  getBacktestRun: (id: number) => request<BacktestRunDTO>(`/api/backtest/runs/${id}`),
   createWorkflow: (name: string, graph: WorkflowGraph) =>
     request<Workflow>("/api/workflows", { method: "POST", body: JSON.stringify({ name, graph }) }),
   updateWorkflow: (id: number, name: string, graph: WorkflowGraph) =>
