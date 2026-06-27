@@ -9,7 +9,8 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-from app.ai.structured import structured_completion
+from app.ai import signal_cache
+from app.ai.structured import structured_completion_with_meta
 from app.config import settings
 from app.schemas import Candle, Signal, SignalAction
 from app.strategies.indicators import candles_to_df, rsi
@@ -58,13 +59,19 @@ def generate_ai_signal(
     if extra_context:
         summary += f"\nAdditional context: {extra_context}"
 
-    out = structured_completion(
-        system=_SYSTEM_PROMPT,
-        content=summary,
-        output_model=AISignalResponse,
-        model=model,
-        max_tokens=1024,
-    )
+    key = signal_cache.cache_key(model, _SYSTEM_PROMPT, summary)
+    cached = signal_cache.lookup(key)
+    if cached is not None:
+        out = AISignalResponse.model_validate(cached)
+    else:
+        out, meta = structured_completion_with_meta(
+            system=_SYSTEM_PROMPT,
+            content=summary,
+            output_model=AISignalResponse,
+            model=model,
+            max_tokens=1024,
+        )
+        signal_cache.store(key, model, out, meta)
 
     return Signal(
         action=out.action,

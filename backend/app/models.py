@@ -185,3 +185,18 @@ class WorkflowSignal(SQLModel, table=True):
     price: float = 0.0  # close at the signal bar
     trace_json: list = Field(default_factory=list, sa_column=Column(JSON))
     created_at: datetime = Field(default_factory=_now)
+
+
+class AiSignalCache(SQLModel, table=True):
+    """Deterministic cache of AI signal responses keyed by (model, system, summary) hash.
+
+    Makes AI backtests reproducible run-to-run and avoids re-paying for identical bar summaries.
+    """
+
+    cache_key: str = Field(primary_key=True)
+    model: str = ""
+    response_json: dict = Field(default_factory=dict, sa_column=Column(JSON))
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    latency_ms: float = 0.0
+    created_at: datetime = Field(default_factory=_now, index=True)
