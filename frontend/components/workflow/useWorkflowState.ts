@@ -11,6 +11,13 @@ import {
 import { useCallback, useMemo, useRef, useState } from "react";
 import type { NodeType, WorkflowGraph } from "@/lib/api";
 import { defaultParams } from "./nodeCatalog";
+import {
+  createWorkflowHistory,
+  pushWorkflowSnapshot,
+  redoWorkflowSnapshot,
+  resetWorkflowHistory,
+  undoWorkflowSnapshot,
+} from "./workflowHistory";
 
 export interface TradeNodeData {
   nodeType: NodeType;
@@ -43,14 +50,11 @@ export function useWorkflowState() {
   const idCounter = useRef(100);
 
   // history
-  const past = useRef<Snapshot[]>([]);
-  const future = useRef<Snapshot[]>([]);
+  const history = useRef(createWorkflowHistory<Snapshot>(HISTORY_LIMIT));
   const [histTick, setHistTick] = useState(0); // re-render canUndo/canRedo
 
   const snapshot = useCallback(() => {
-    past.current.push({ nodes, edges });
-    if (past.current.length > HISTORY_LIMIT) past.current.shift();
-    future.current = [];
+    pushWorkflowSnapshot(history.current, { nodes, edges });
     setHistTick((t) => t + 1);
   }, [nodes, edges]);
 
@@ -123,40 +127,46 @@ export function useWorkflowState() {
   }, [nodes, snapshot]);
 
   const undo = useCallback(() => {
-    const prev = past.current.pop();
+    const prev = undoWorkflowSnapshot(history.current, { nodes, edges });
     if (!prev) return;
-    future.current.push({ nodes, edges });
     setNodes(prev.nodes);
     setEdges(prev.edges);
     setHistTick((t) => t + 1);
   }, [nodes, edges]);
 
   const redo = useCallback(() => {
-    const next = future.current.pop();
+    const next = redoWorkflowSnapshot(history.current, { nodes, edges });
     if (!next) return;
-    past.current.push({ nodes, edges });
     setNodes(next.nodes);
     setEdges(next.edges);
     setHistTick((t) => t + 1);
   }, [nodes, edges]);
 
   const buildGraph = useCallback((): WorkflowGraph => ({
-    nodes: nodes.map((n) => ({ id: n.id, type: (n.data as TradeNodeData).nodeType, params: (n.data as TradeNodeData).params })),
+    nodes: nodes.map((n) => ({
+      id: n.id,
+      type: (n.data as TradeNodeData).nodeType,
+      params: (n.data as TradeNodeData).params,
+      position: { x: n.position.x, y: n.position.y },
+    })),
     edges: edges.map((e) => ({ source: e.source, target: e.target })),
   }), [nodes, edges]);
 
   const setGraph = useCallback((g: WorkflowGraph) => {
-    snapshot();
+    resetWorkflowHistory(history.current);
+    setHistTick((t) => t + 1);
     setNodes(g.nodes.map((n, i) => ({
-      id: n.id, type: "trade", position: { x: (i % 4) * 240, y: Math.floor(i / 4) * 160 + 80 },
+      id: n.id,
+      type: "trade",
+      position: n.position ?? { x: (i % 4) * 240, y: Math.floor(i / 4) * 160 + 80 },
       data: { nodeType: n.type, params: n.params },
     })));
     setEdges(g.edges.map((e, i) => ({ id: `e${i}`, source: e.source, target: e.target })));
     setSelectedId(null);
-  }, [snapshot]);
+  }, []);
 
-  const canUndo = useMemo(() => { void histTick; return past.current.length > 0; }, [histTick]);
-  const canRedo = useMemo(() => { void histTick; return future.current.length > 0; }, [histTick]);
+  const canUndo = useMemo(() => { void histTick; return history.current.past.length > 0; }, [histTick]);
+  const canRedo = useMemo(() => { void histTick; return history.current.future.length > 0; }, [histTick]);
 
   return {
     nodes, edges, onNodesChange, onEdgesChange, onConnect,
