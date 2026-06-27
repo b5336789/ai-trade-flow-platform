@@ -80,11 +80,15 @@ export function useTheme(): ThemeContextValue {
   return ctx;
 }
 
+import { MarketProvider } from "@/lib/market-context";
+
 export function Providers({ children }: { children: React.ReactNode }) {
   const [client] = useState(() => new QueryClient());
   return (
     <QueryClientProvider client={client}>
-      <ThemeProvider>{children}</ThemeProvider>
+      <ThemeProvider>
+        <MarketProvider>{children}</MarketProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }
