@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, MARKETS, type BacktestResult } from "@/lib/api";
+import { useActiveMarket } from "@/lib/market-context";
 import { L } from "@/lib/labels";
 
 interface StrategyLibraryProps {
@@ -18,7 +19,7 @@ export function StrategyLibrary({ onLoad }: StrategyLibraryProps) {
   const qc = useQueryClient();
   const router = useRouter();
   const [symbol, setSymbol] = useState("BTC/USDT");
-  const [market, setMarket] = useState("crypto");
+  const { market, setMarket } = useActiveMarket();
   const [results, setResults] = useState<Record<number, BacktestResult>>({});
 
   const list = useQuery({ queryKey: ["savedStrategies"], queryFn: api.listSavedStrategies, retry: false });

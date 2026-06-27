@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { api, type Signal } from "@/lib/api";
-import { setMarket } from "@/lib/useMarket";
+import { useActiveMarket } from "@/lib/market-context";
 import { PriceChart } from "@/components/PriceChart";
 import { deriveStats, barsPer24h } from "@/lib/market-stats";
 import { L } from "@/lib/labels";
@@ -34,7 +34,7 @@ export function MarketPanel() {
   const sp = useSearchParams();
   const [symbol, setSymbol] = useState((sp.get("symbol") ?? "BTC/USDT").toUpperCase());
   const [timeframe, setTimeframe] = useState(sp.get("timeframe") ?? "1h");
-  const [market, setMarketState] = useState(sp.get("market") ?? "crypto");
+  const { market, setMarket } = useActiveMarket();
   const [paused, setPaused] = useState(false);
   const [aiSignal, setAiSignal] = useState<Signal | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
@@ -49,8 +49,6 @@ export function MarketPanel() {
   const [bollOn, setBollOn] = useState(false);
   const [rsiOn, setRsiOn] = useState(false);
   const [macdOn, setMacdOn] = useState(false);
-
-  useEffect(() => { setMarket(market); }, [market]);
 
   useEffect(() => {
     const q = new URLSearchParams({ symbol, timeframe, market });
@@ -140,7 +138,7 @@ export function MarketPanel() {
         </datalist>
         <select
           value={market}
-          onChange={(e) => setMarketState(e.target.value)}
+          onChange={(e) => setMarket(e.target.value)}
           className="rounded-md bg-surface-2 px-2 py-1 text-sm"
         >
           <option value="crypto">Crypto</option>

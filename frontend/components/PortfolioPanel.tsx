@@ -2,6 +2,7 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { useActiveMarket } from "@/lib/market-context";
 import { L } from "@/lib/labels";
 
 function money(n: number) {
@@ -10,10 +11,11 @@ function money(n: number) {
 
 export function PortfolioPanel() {
   const qc = useQueryClient();
+  const { market } = useActiveMarket();
   const config = useQuery({ queryKey: ["config"], queryFn: api.config, retry: false });
   const portfolio = useQuery({
-    queryKey: ["portfolio"],
-    queryFn: () => api.portfolio("crypto"),
+    queryKey: ["portfolio", market],
+    queryFn: () => api.portfolio(market),
     refetchInterval: 5000,
     retry: false,
   });
@@ -35,8 +37,8 @@ export function PortfolioPanel() {
         <button
           onClick={async () => {
             if (!confirm("重置紙上交易帳戶(現金與部位)?")) return;
-            await api.resetPaper("crypto");
-            qc.invalidateQueries({ queryKey: ["portfolio"] });
+            await api.resetPaper(market);
+            qc.invalidateQueries({ queryKey: ["portfolio", market] });
           }}
           className="ml-auto rounded-md bg-surface-2 px-2 py-1 text-xs hover:bg-surface-3"
         >
