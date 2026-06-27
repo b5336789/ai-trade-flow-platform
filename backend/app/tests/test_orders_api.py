@@ -17,6 +17,13 @@ from app.trading.execution import execute_order
 from app.trading.risk import RiskError, RiskGuard
 
 
+@pytest.fixture(autouse=True)
+def _no_slippage(monkeypatch):
+    """Mechanic tests assert fee-only fills; pin slippage off (default is now 5 bps)."""
+    from app.config import settings
+    monkeypatch.setattr(settings, "cost_slippage_bps", 0.0)
+
+
 @pytest.fixture()
 def client():
     # Seed the paper-broker cache so the API uses a deterministic, offline broker.

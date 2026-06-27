@@ -11,6 +11,13 @@ from app.trading.portfolio import build_portfolio
 from app.trading.risk import RiskError, RiskGuard
 
 
+@pytest.fixture(autouse=True)
+def _no_slippage(monkeypatch):
+    """Mechanic tests assert fee-only fills; pin slippage off (default is now 5 bps)."""
+    from app.config import settings
+    monkeypatch.setattr(settings, "cost_slippage_bps", 0.0)
+
+
 def make_paper(cash: float = 10_000.0, price: float = 100.0) -> PaperBroker:
     return PaperBroker(data_provider=StubBroker({"BTC/USDT": price}), starting_cash=cash)
 

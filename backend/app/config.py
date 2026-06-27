@@ -153,7 +153,7 @@ class Settings(BaseSettings):
     cost_tw_tax_rate: float = 0.003  # 證交稅 0.3% (僅賣出)
     cost_us_fee_rate: float = 0.0  # 複委託費率
     cost_us_fee_min: float = 0.0  # 複委託最低收費
-    cost_slippage_bps: float = 0.0  # 固定滑價 (買進成交較高、賣出較低)
+    cost_slippage_bps: float = 5.0  # 固定滑價 (買進成交較高、賣出較低). 保守非零預設 — 零滑價會高估成交品質; Next 階段升級為 size/liquidity-aware 模型.
 
     # Backtest metrics (M0.3): annual risk-free rate for Sharpe/Sortino (0 = ignore).
     backtest_risk_free_rate: float = 0.0
