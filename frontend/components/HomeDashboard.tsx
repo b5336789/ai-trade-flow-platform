@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { api, type Signal } from "@/lib/api";
-import { setMarket } from "@/lib/useMarket";
+import { useActiveMarket } from "@/lib/market-context";
 import { CandleChart } from "./CandleChart";
 import { Onboarding } from "./Onboarding";
 
@@ -39,16 +39,12 @@ function price(n: number) {
 }
 
 export function HomeDashboard() {
-  const [market, setMarketState] = useState("crypto");
+  const { market, setMarket } = useActiveMarket();
   const [symbol, setSymbol] = useState("BTC/USDT");
   const [timeframe, setTimeframe] = useState("1h");
   const [aiSignal, setAiSignal] = useState<Signal | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
-
-  useEffect(() => {
-    setMarket(market);
-  }, [market]);
 
   const config = useQuery({ queryKey: ["config"], queryFn: api.config, retry: false });
   const candles = useQuery({
@@ -71,7 +67,7 @@ export function HomeDashboard() {
   });
 
   function switchMarket(next: string) {
-    setMarketState(next);
+    setMarket(next);
     setSymbol(DEFAULT_SYMBOL[next] ?? "");
     setAiSignal(null);
     setAiError(null);

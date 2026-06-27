@@ -3,6 +3,7 @@ import {
   Network, History, Workflow,
   CandlestickChart, Wallet,
   Wrench, CalendarClock, Bell, Upload,
+  Gauge, ShieldAlert,
   type LucideIcon,
 } from "lucide-react";
 
@@ -26,6 +27,13 @@ export const NAV: NavItem[] = [
     children: [
       { label: "模擬回測", href: "/trading-room/backtest", icon: History },
       { label: "工作流", href: "/trading-room/workflow", icon: Workflow },
+    ],
+  },
+  {
+    label: "監控室",
+    icon: Gauge,
+    children: [
+      { label: "風控", href: "/risk", icon: ShieldAlert },
     ],
   },
   { label: "市場", href: "/market", icon: CandlestickChart },

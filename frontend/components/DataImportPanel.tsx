@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { api, MARKETS } from "@/lib/api";
+import { useActiveMarket } from "@/lib/market-context";
 import { L } from "@/lib/labels";
 
 const SAMPLE = `timestamp,open,high,low,close,volume
@@ -9,7 +10,7 @@ const SAMPLE = `timestamp,open,high,low,close,volume
 2024-01-02,104,110,103,109,1200`;
 
 export function DataImportPanel() {
-  const [market, setMarket] = useState("tw_stock");
+  const { market, setMarket } = useActiveMarket();
   const [symbol, setSymbol] = useState("2330");
   const [csv, setCsv] = useState("");
   const [msg, setMsg] = useState<string | null>(null);

@@ -14,7 +14,7 @@ import {
 import { OPTIMIZE_GRID, STRATEGY_NAMES, STRATEGY_PARAMS } from "@/lib/strategies";
 import { seedGraphFromStrategy } from "@/lib/workflow-seed";
 import { EquityChart } from "@/components/EquityChart";
-import { setMarket } from "@/lib/useMarket";
+import { useActiveMarket } from "@/lib/market-context";
 import { L } from "@/lib/labels";
 import { Term } from "@/components/Term";
 import { MetricCard } from "@/components/MetricCard";
@@ -32,7 +32,7 @@ const pct = (n: number) => `${n >= 0 ? "+" : ""}${n.toFixed(2)}%`;
 
 export function BacktestPanel() {
   const [symbol, setSymbol] = useState("BTC/USDT");
-  const [market, setMarketState] = useState("crypto");
+  const { market, setMarket } = useActiveMarket();
   const [strategy, setStrategy] = useState("ma_cross");
   const [params, setParams] = useState<Record<string, number>>({ ...STRATEGY_PARAMS.ma_cross });
   const [result, setResult] = useState<BacktestResult | null>(null);
@@ -72,7 +72,7 @@ export function BacktestPanel() {
 
     if (qSymbol) setSymbol(qSymbol.toUpperCase());
     if (qTimeframe && TIMEFRAMES.includes(qTimeframe)) setTimeframe(qTimeframe);
-    if (qMarket && MARKETS.some((m) => m.value === qMarket)) setMarketState(qMarket);
+    if (qMarket && MARKETS.some((m) => m.value === qMarket)) setMarket(qMarket);
 
     if (qStrategy?.startsWith(SAVED_PREFIX)) {
       // Wait for the saved list so the <select> can show the option; bail once loaded.
@@ -87,8 +87,6 @@ export function BacktestPanel() {
       appliedQuery.current = true; // params present but no strategy intent
     }
   }, [searchParams, saved]);
-
-  useEffect(() => { setMarket(market); }, [market]);
 
   // Saved library strategies designed in 策略室 are selectable here too, closing
   // the 策略室 → 交易室 loop. Library fetch is best-effort (auth/empty tolerated).
@@ -238,7 +236,7 @@ export function BacktestPanel() {
       <div className="mb-3 flex flex-wrap items-end gap-2">
         <select
           value={market}
-          onChange={(e) => setMarketState(e.target.value)}
+          onChange={(e) => setMarket(e.target.value)}
           className="rounded-md bg-surface-2 px-2 py-1 text-sm"
         >
           {MARKETS.map((m) => (
