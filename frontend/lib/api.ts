@@ -66,6 +66,21 @@ export interface AppConfig {
   ai_model: string;
 }
 
+export interface RiskStatus {
+  kill_switch: boolean; // effective: config OR runtime
+  kill_switch_config: boolean;
+  kill_switch_runtime: boolean;
+  halted: boolean;
+  base_currency: string;
+  max_total_exposure_value: number;
+  max_daily_loss: number;
+  max_orders_per_day: number;
+  orders_today: number;
+  exposure_base: number;
+  equity_base: number;
+  day_start_equity_base: number;
+}
+
 // Workflow graph types (mirror backend app/workflow/schema.py)
 export type NodeType =
   | "data_source"
@@ -442,6 +457,11 @@ export const api = {
   portfolio: (market = "crypto") => request<PortfolioView>(`/api/orders/portfolio?market=${market}`),
   resetPaper: (market = "crypto") =>
     request<{ reset: boolean }>(`/api/orders/paper/reset?market=${market}`, { method: "POST" }),
+  riskStatus: (market = "crypto") =>
+    request<RiskStatus>(`/api/risk/status?market=${market}`),
+  setKillSwitch: (engaged: boolean) =>
+    request<{ kill_switch: boolean }>(`/api/risk/kill-switch?engaged=${engaged}`, { method: "POST" }),
+  resumeRisk: () => request<{ halted: boolean }>("/api/risk/resume", { method: "POST" }),
   orders: () => request<OrderResult[]>("/api/orders"),
   runWorkflow: (graph: WorkflowGraph) =>
     request<RunResult>("/api/workflows/run", {
