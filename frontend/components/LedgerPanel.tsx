@@ -58,7 +58,7 @@ export function LedgerPanel() {
                   <td className="num">{money(d.cost_basis)}</td>
                   <td className="num">{money(d.fee)}</td>
                   <td className="num">{money(d.tax)}</td>
-                  <td className={`num ${d.realized_net >= 0 ? "text-up" : "text-down"}`}>{money(d.realized_net)}</td>
+                  <td data-market={d.market === "tw_stock" ? "tw" : undefined} className={`num ${d.realized_net >= 0 ? "text-up" : "text-down"}`}>{money(d.realized_net)}</td>
                 </tr>
               ))}
             </tbody>
