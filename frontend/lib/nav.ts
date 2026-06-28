@@ -1,7 +1,7 @@
 import {
   FlaskConical, MessageSquareCode, Library,
   Network, History, Workflow,
-  CandlestickChart, Wallet,
+  CandlestickChart, Wallet, ReceiptText,
   Wrench, CalendarClock, Bell, Upload,
   Gauge, ShieldAlert,
   type LucideIcon,
@@ -37,7 +37,14 @@ export const NAV: NavItem[] = [
     ],
   },
   { label: "市場", href: "/market", icon: CandlestickChart },
-  { label: "投組", href: "/portfolio", icon: Wallet },
+  {
+    label: "投組",
+    icon: Wallet,
+    children: [
+      { label: "總覽", href: "/portfolio", icon: Wallet },
+      { label: "損益帳本", href: "/portfolio/ledger", icon: ReceiptText },
+    ],
+  },
   {
     label: "工具",
     icon: Wrench,

@@ -16,6 +16,7 @@ from pydantic import BaseModel
 from sqlmodel import Session, select
 
 from app.db import get_session
+from app.marketdata.fx import FxConverter, quote_currency_for
 from app.models import RealizedPnL
 from app.schemas import MarketKind
 
@@ -32,6 +33,9 @@ class RealizedPnLReport(BaseModel):
     total_tax: float
     total_gross_pnl: float
     total_realized_net: float
+    base_currency: str
+    total_realized_net_base: float
+    total_gross_pnl_base: float
     disposals: list[RealizedPnL]
 
 
@@ -78,6 +82,12 @@ def realized_report(
     session: Session = Depends(get_session),
 ) -> RealizedPnLReport:
     rows = _query(session, market, symbol, start, end)
+
+    fx = FxConverter.from_settings()
+
+    def _to_base(attr: str) -> float:
+        return sum(fx.to_base(getattr(r, attr), quote_currency_for(MarketKind(r.market))) for r in rows)
+
     return RealizedPnLReport(
         count=len(rows),
         total_proceeds=sum(r.proceeds for r in rows),
@@ -86,6 +96,9 @@ def realized_report(
         total_tax=sum(r.tax for r in rows),
         total_gross_pnl=sum(r.gross_pnl for r in rows),
         total_realized_net=sum(r.realized_net for r in rows),
+        base_currency=fx.base_currency,
+        total_realized_net_base=_to_base("realized_net"),
+        total_gross_pnl_base=_to_base("gross_pnl"),
         disposals=rows,
     )
 

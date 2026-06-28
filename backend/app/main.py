@@ -14,6 +14,7 @@ from app.api import (
     markets,
     notifications,
     orders,
+    portfolio,
     risk,
     schedules,
     strategies,
@@ -53,6 +54,7 @@ app.include_router(workflows.router, dependencies=_auth)
 app.include_router(backtest.router, dependencies=_auth)
 app.include_router(schedules.router, dependencies=_auth)
 app.include_router(notifications.router, dependencies=_auth)
+app.include_router(portfolio.router, dependencies=_auth)
 app.include_router(risk.router, dependencies=_auth)
 app.include_router(ledger.router, dependencies=_auth)
 app.include_router(strategies.router, dependencies=_auth)
