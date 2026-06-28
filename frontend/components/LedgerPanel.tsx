@@ -11,7 +11,7 @@ export function LedgerPanel() {
   const ledger = useQuery({ queryKey: ["realized-ledger"], queryFn: () => api.realizedLedger(), retry: false });
 
   if (ledger.isError) {
-    return <p className="text-sm text-error">損益帳本載入失敗：{(ledger.error as Error).message}</p>;
+    return <p className="text-sm text-error">損益帳本載入失敗：{ledger.error instanceof Error ? ledger.error.message : String(ledger.error)}</p>;
   }
   if (!ledger.data) return <p className="text-sm text-faint">載入中…</p>;
   const r = ledger.data;
@@ -22,7 +22,7 @@ export function LedgerPanel() {
         <h1 className="font-display text-xl font-semibold">損益帳本（已實現）</h1>
         <span className="text-xs text-faint">{r.count} 筆處分 · 計價 {r.base_currency}</span>
         <button
-          onClick={() => api.downloadLedgerCsv()}
+          onClick={() => api.downloadLedgerCsv().catch((e) => alert(`匯出失敗：${e instanceof Error ? e.message : String(e)}`))}
           className="ml-auto rounded-md border border-border bg-surface-2 px-3 py-1.5 text-[13px] text-muted hover:text-text"
         >
           匯出 CSV（報稅）

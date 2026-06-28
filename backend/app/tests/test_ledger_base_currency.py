@@ -25,7 +25,7 @@ def test_base_currency_aggregate(session):
                             cost_basis=0, realized_net=100.0, gross_pnl=100.0))
     session.commit()
 
-    rep = realized_report(session=session)
+    rep = realized_report(session=session, start=None, end=None)
 
     assert rep.count == 2
     assert rep.base_currency == "TWD"

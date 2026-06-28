@@ -41,7 +41,7 @@ class RealizedPnLReport(BaseModel):
 
 def _parse_day(value: str | None, *, end: bool) -> datetime | None:
     """Parse a YYYY-MM-DD (or full ISO) bound into a tz-aware UTC datetime. Fail loud on garbage."""
-    if not isinstance(value, str):
+    if value is None:
         return None
     try:
         dt = datetime.fromisoformat(value)
